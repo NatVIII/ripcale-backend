@@ -33,7 +33,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [ ] F16 - `/sources` public endpoint (deferred)
 
 ## In Progress
-- [ ] F24 - Separate the different parts of the pipeline into their own directories and hierarchies for easy sortation (Gatherers, Sieve, Deciosionmaker) 
 
 ## Done
 
@@ -54,6 +53,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F31.02 - Recurrence overrides: `recurrence_id` + `exdates` in the contract, override-aware `stable_id`, EXDATE/RECURRENCE-ID in ICS (2026-09-05)
 - [x] F39 - Gatherer configuration contract: documented the stable config interface (`SourceConfig` + `GathererConfig`, uniform/deterministic) in docs/GATHERER_CONTRACT.md (2026-09-05)
 - [x] F39.01 - Renamed "module"/"kind"/"adapter" → "gatherer" across config, code, docs, and tests (filenames untouched for F24) (2026-09-05)
+- [x] F24 - Split the pipeline stages into their own directories: `app/gatherers/`, `app/sieve/`, `app/decisionmaker/` (2026-09-06)
 
 ## Deleted
 - [ ] F30 - Deleted Event

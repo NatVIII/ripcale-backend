@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-import app.sources.elfsight.module as elfsight_gatherer
+import app.gatherers.elfsight.gatherer as elfsight_gatherer
 from app.schema import SourceConfig
 
 FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "elfsight_boot.json").read_text())

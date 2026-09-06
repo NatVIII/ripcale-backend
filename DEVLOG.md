@@ -1,3 +1,15 @@
+## 2026-09-06 01:14:29 [AI]
+
+F24: pipeline stages into their own directories.
+
+- `app/sources/` → `app/gatherers/`; `sources/elfsight/module.py` → `gatherers/elfsight/gatherer.py`.
+- `app/sieve.py` → `app/sieve/sieve.py` + `app/sieve/__init__.py` (re-exports `classify`).
+- `app/decisionmaker.py` → `app/decisionmaker/decisionmaker.py` + `__init__.py` (re-exports `apply`).
+- Updated import paths: `registry.load_gatherer()` → `app.gatherers.{name}.gatherer`; `pipeline._available_gatherers()` → `app.gatherers`; gatherer `base`/`elfsight`/`__main__` imports; 5 test files (`app.gatherers.elfsight.gatherer`).
+- Re-export convention keeps `from app.sieve import classify` / `from app.decisionmaker import apply` working unchanged.
+- Docs: AGENTS.md (Key files list), GATHERER_CONTRACT.md, README.md paths; TODO.md F24 → Done.
+- Pure refactor — no schema change, no wipe. 49 tests passing; boot + `python -m app.gatherers.elfsight` verified.
+
 ## 2026-09-05 23:26:34 [AI]
 
 F39 + F39.01: unified "gatherer" terminology + the configuration contract.

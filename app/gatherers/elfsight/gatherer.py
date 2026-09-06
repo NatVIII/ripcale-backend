@@ -11,7 +11,7 @@ from urllib.parse import parse_qs, urlparse
 from zoneinfo import ZoneInfo
 
 from app.schema import ImageRef, GathererResult, ScrapedEvent, SourceConfig
-from app.sources.base import fetch_json
+from app.gatherers.base import fetch_json
 from app.timeutil import to_utc_naive
 #endregion
 

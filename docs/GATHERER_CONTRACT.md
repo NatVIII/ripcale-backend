@@ -1,6 +1,6 @@
 # Gatherer Contract
 
-The contract between a **Gatherer** (a gatherer in `app/sources/*/module.py`)
+The contract between a **Gatherer** (a gatherer in `app/gatherers/*/gatherer.py`)
 and the rest of the pipeline (**Sieve → Decisionmaker → storage → API/ICS**).
 
 A Gatherer's only job is to fetch a source and emit its events in one shared
@@ -52,7 +52,7 @@ interface a gatherer exposes. It must be deterministic: the same `SourceConfig`
 
 ## The Gatherer contract
 
-A Gatherer is a gatherer `app/sources/<name>/module.py` exposing:
+A Gatherer is a gatherer `app/gatherers/<name>/gatherer.py` exposing:
 
 ```python
 def run(source: SourceConfig) -> GathererResult: ...

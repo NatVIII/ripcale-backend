@@ -33,7 +33,7 @@ config.yaml → Settings → registry.load_sources()
 The Gatherer→Sieve→Decisionmaker data contract is specified in
 `docs/GATHERER_CONTRACT.md`.
 
-Key gatherers:
+Key files:
 
 - `app/config.py` — `Settings` (config.yaml + .env; env > dotenv > yaml > defaults).
 - `app/models.py` — `Source`, `Event` (SQLModel).
@@ -43,10 +43,10 @@ Key gatherers:
 - `app/identity.py` — `stable_id()`, `content_hash()`.
 - `app/timeutil.py` — `to_utc_naive()`, `parse_iso_utc()`.
 - `app/registry.py` — `load_sources()`, `load_gatherer()`.
-- `app/sources/<name>/module.py` — each gatherer exposes `run(source)`.
-- `app/sieve.py` — `classify()` (change detection; `_relevance()` is a
+- `app/gatherers/<name>/gatherer.py` — each gatherer exposes `run(source)`.
+- `app/sieve/` — `classify()` re-exported from `sieve.py` (change detection; `_relevance()` is a
   pass-through placeholder for future drop-past rules).
-- `app/decisionmaker.py` — `apply()` (persist; stub for future cross-source heuristics).
+- `app/decisionmaker/` — `apply()` re-exported from `decisionmaker.py` (persist; stub for future cross-source heuristics).
 - `app/ingest.py` — `run()` / `process_source()` orchestrator (CLI).
 - `app/serializers.py` — `Event` → FullCalendar dict.
 - `app/services/events.py` — `query_events()`, `get_event()`, `source_names()`.

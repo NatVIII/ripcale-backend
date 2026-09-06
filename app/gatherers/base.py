@@ -1,6 +1,6 @@
 """Shared helpers for gatherers.
 
-`fetch_json()` is used by each gatherer (e.g. `app.sources.elfsight.module`) to
+`fetch_json()` is used by each gatherer (e.g. `app.gatherers.elfsight.gatherer`) to
 retrieve its source payload.
 """
 #region: imports

@@ -1,8 +1,8 @@
 """Standalone entry point: run the Elfsight gatherer and print its GathererResult.
 
 Usage:
-    python -m app.sources.elfsight                    # all elfsight sources
-    python -m app.sources.elfsight --url <boot-url> --name <name>
+    python -m app.gatherers.elfsight                    # all elfsight sources
+    python -m app.gatherers.elfsight --url <boot-url> --name <name>
 """
 #region: imports
 import argparse
@@ -10,7 +10,7 @@ import json
 
 from app.registry import load_sources
 from app.schema import SourceConfig
-from app.sources.elfsight.module import run
+from app.gatherers.elfsight.gatherer import run
 #endregion
 
 

@@ -54,7 +54,7 @@ The pipeline is gather (gatherer) -> sieve (read-only new/updated/unchanged
 diff against the DB) -> decisionmaker (persist). A gatherer can be run standalone:
 
 ```sh
-.venv/bin/python -m app.sources.elfsight
+.venv/bin/python -m app.gatherers.elfsight
 ```
 
 ## API

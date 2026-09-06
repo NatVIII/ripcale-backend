@@ -7,7 +7,7 @@ DB -> JSON API -> ICS — and verifies change detection on re-ingest.
 import json
 from pathlib import Path
 
-import app.sources.elfsight.module as elfsight_gatherer
+import app.gatherers.elfsight.gatherer as elfsight_gatherer
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from app.decisionmaker import apply

@@ -16,7 +16,7 @@ POST handlers require the CSRF token embedded in the forms.
 import importlib
 import pkgutil
 
-import app.sources as sources_pkg
+import app.gatherers as gatherers_pkg
 from robyn import Response, jsonify
 from sqlmodel import Session
 
@@ -41,11 +41,11 @@ def _forbidden() -> Response:
 def _available_gatherers() -> list[str]:
     """Discover gatherers under app/sources that expose a `run`."""
     names = []
-    for mod in pkgutil.iter_modules(sources_pkg.__path__):
+    for mod in pkgutil.iter_modules(gatherers_pkg.__path__):
         if not mod.ispkg:
             continue
         try:
-            candidate = importlib.import_module(f"app.sources.{mod.name}.module")
+            candidate = importlib.import_module(f"app.gatherers.{mod.name}.gatherer")
             if hasattr(candidate, "run"):
                 names.append(mod.name)
         except Exception:

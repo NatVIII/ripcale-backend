@@ -117,7 +117,7 @@ def test_stats_event_dump(tmp_path):
 def test_debug_and_pipeline_routes(tmp_path, monkeypatch):
     import app.routers.debug as debug_router_mod
     import app.routers.pipeline as pipeline_router_mod
-    import app.sources.elfsight.module as elfsight_gatherer
+    import app.gatherers.elfsight.gatherer as elfsight_gatherer
 
     engine = create_engine(f"sqlite:///{tmp_path / 'routes.db'}")
     SQLModel.metadata.create_all(engine)

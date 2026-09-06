@@ -29,7 +29,7 @@ def source_priority(cfg: SourceConfig) -> int:
 
 #region: gatherers
 def load_gatherer(name: str) -> Callable[[SourceConfig], GathererResult]:
-    """Import `app.sources.<name>.module` and return its `run` callable."""
-    mod = importlib.import_module(f"app.sources.{name}.module")
+    """Import `app.gatherers.<name>.gatherer` and return its `run` callable."""
+    mod = importlib.import_module(f"app.gatherers.{name}.gatherer")
     return mod.run
 #endregion
