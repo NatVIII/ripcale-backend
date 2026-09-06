@@ -15,7 +15,7 @@ from pydantic_settings import (
     YamlConfigSettingsSource,
 )
 
-from app.schema import SourceConfig
+from app.schema import GathererConfig, SourceConfig
 #endregion
 
 
@@ -53,7 +53,9 @@ class Settings(BaseSettings):
     # ephemeral token is generated at startup.
     debug_token: str = ""
 
-    # -- sources ----------------------------------------------------------
+    # -- gatherers / sources ---------------------------------------------
+    # Per-gatherer (module) defaults, extensible (e.g. `priority`). See GathererConfig.
+    gatherers: dict[str, GathererConfig] = {}
     sources: list[SourceConfig] = []
 
     @classmethod

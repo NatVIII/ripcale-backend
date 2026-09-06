@@ -43,3 +43,6 @@ def test_event_defaults(tmp_path):
         assert saved.all_day is False
         assert saved.categories == ""
         assert saved.rrule is None
+        assert saved.recurrence_id is None
+        assert saved.exdates == "[]"
+        assert saved.redirect_to_id is None

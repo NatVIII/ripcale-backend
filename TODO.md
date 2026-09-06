@@ -6,7 +6,11 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
-- [ ] F31 - Gatherer contract: add a recurrence field to `ScrapedEvent` (→ `Event.rrule`) — gatherers ought to provide recurrence when the source has it (currently only in `raw`; see F12).
+- [ ] F39 - Make it part of the gatherer's contract on how they should be configured. Make it so that there's a stable configuration interface for each, with exceptions only being allowed in highly highly necessary scenarios. There shouldn't be exceptions unless there absolutely have to be, the same configurations should lead to the same results so that we don't have a ton of hyper-specific configurations (which I did on the first rva.rip)
+- [ ] F39.01 - Also make it so that instead of "modules" gatherers are referred to as "gatherer" in the config.yaml, in preparation for F24
+- [ ] F37 - Confirm sensible defaults that mean that when errors occur with gatherers that those errors are caught and spewed into error logs; instead of just breaking without any kind of message. 
+- [ ] F37.01 Perhaps feature a field on /debug which shows whether the last performance of each gatherer with a colored light emoji worked. 
+- [ ] F38 - Ensure that the contents of /debug/pipeline for gatherers grow naturally with the gatherers that are present. The /debug/pipeline page shouldn't have to adapt for it to recognize new gatherers being added or existing in the system, it should recognize them programatically. 
 - [ ] F15 - Stale/removal detection (events deleted at the source; needs `last_seen_at`)
 - [ ] F33 - Write the Sieve Contract
 - [ ] F34 - Write the Decisionmaker Contract
@@ -47,6 +51,9 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F10 - AGENTS.md + TODO.md + DEVLOG split (2026-09-05)
 - [x] F27 - Map out in plaintext the Gatherer→Sieve/Decisionmaker contract → docs/GATHERER_CONTRACT.md (2026-09-05)
 - [x] F35 - Multiple ordered images per event (ImageRef gallery) → schema/models/pipeline + docs/GATHERER_CONTRACT.md (2026-09-05)
+- [x] F31 - Gatherer contract: recurrence — added `rrule` to `ScrapedEvent` (→ `Event.rrule`) + full wiring; groundwork columns `recurrence_id`/`exdates`/`redirect_to_id` added (2026-09-05)
+- [x] F31.01 - Config priority: `gatherers:` per-gatherer defaults + optional `sources[].priority` override (config-only, resolved via `registry.source_priority`); `Event.priority` nullable column (NULL = inherit) (2026-09-05)
+- [x] F31.02 - Recurrence overrides: `recurrence_id` + `exdates` in the contract, override-aware `stable_id`, EXDATE/RECURRENCE-ID in ICS (2026-09-05)
 
 ## Deleted
 - [ ] F30 - Deleted Event

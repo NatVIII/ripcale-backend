@@ -1,3 +1,47 @@
+## 2026-09-05 22:59:51 [AI]
+
+F31.01 revision: priority is config-only + a nullable event override (no resolved column).
+
+- Reverted `Source.priority` (was a resolved/stamped column) and `_effective_priority()` in `ingest._ensure_source`.
+- `Event.priority: int | None = None` — the single per-event priority column; `NULL` = "inherit from source".
+- Priority is resolved config-side by `registry.source_priority(cfg)` = `cfg.priority ?? gatherers[module].priority ?? 0` (event-level override layers on top later, in F14/F28).
+- No `ScrapedEvent.priority` (priority isn't gatherer output); `stats.sources()` no longer exposes priority.
+- Inheritance model: `event.priority ?? source.priority ?? gatherer.priority ?? 0` — avoids denormalization/drift.
+- Tests: replaced the two ingest-priority tests with `test_source_priority` (49 passing). Wiped + re-ingested (priority column now on `event`, nullable, all NULL).
+
+## 2026-09-05 22:37:06 [AI]
+
+F31.01 (source priority) + F31.02 (recurrence overrides).
+
+F31.01 — two-level source priority:
+- `app/schema.py`: `GathererConfig` (extensible, `extra="allow"`, `priority: int = 0`) + `SourceConfig.priority: int | None = None` (None = inherit).
+- `app/config.py`: `Settings.gatherers: dict[str, GathererConfig]`.
+- `app/models.py`: `Source.priority: int = 0` (stores the resolved value).
+- `app/ingest.py`: `_effective_priority()` (source > gatherer default > 0); `_ensure_source` persists + syncs it.
+- `config.yaml`/`config.example.yaml`: `gatherers:` block (keyed by module) + per-source `priority`, with inheritance documented.
+- `stats.sources()` exposes `priority`.
+
+F31.02 — recurrence overrides:
+- `app/schema.py`: `ScrapedEvent.recurrence_id: datetime | None` + `exdates: list[datetime]`; `dump_exdates`/`load_exdates`.
+- `app/identity.py`: `stable_id` appends `:recurrence_id` (backward-compatible); `content_hash` includes `exdates` (not `recurrence_id` — identity).
+- `app/sieve.py`: `exdates` in `_CHANGED_FIELDS` (list-vs-JSON diff).
+- `app/decisionmaker.py`: maps `recurrence_id` + `exdates`.
+- `app/serializers.py`: `extendedProps.exdates` + `recurrence_id`.
+- `app/services/ics.py`: emits `EXDATE` (master) + `RECURRENCE-ID` (override).
+- Docs: GATHERER_CONTRACT.md (recurrence_id/exdates in the contract; series/overrides now implemented), AGENTS.md, TODO.md (F31.01/F31.02 → Done).
+- Tests: priority resolution/persistence, override identity, exdates hash/change, ICS EXDATE/RECURRENCE-ID, serializer (50 passing).
+
+## 2026-09-05 22:07:49 [AI]
+
+F31: recurrence field in the Gatherer contract + groundwork columns.
+
+- `app/schema.py`: `ScrapedEvent.rrule: str | None` (RFC 5545 RRULE value; no `RRULE:` prefix, no `DTSTART` — first occurrence is `start_at`).
+- `app/models.py`: `Event.rrule` is now the active contract field (no longer "reserved"); added groundwork columns `recurrence_id` (override DTSTART), `exdates` (JSON of cancelled occurrence DTSTARTs), `redirect_to_id` (event redirect/symlink, indexed).
+- Wired `rrule` through `content_hash`, `_CHANGED_FIELDS`, decisionmaker (insert/update), JSON `extendedProps.rrule`, and ICS (`RRULE` via `vRecur.from_ical`). `stats.event_dump` now shows the new columns.
+- No Elfsight→RRULE translator (live data has 0 recurring events; Google Calendar gatherer F25 will be the first real recurrence source).
+- Docs: GATHERER_CONTRACT.md (rrule field + Recurrence/relationships sections; recurrence gap removed), AGENTS.md (43 tests, recurrence invariant), TODO.md (F31 → Done).
+- Tests: content_hash/sieve/ics/events rrule coverage + new-column defaults (43 passing). Wiped + re-ingested DB (columns present).
+
 ## 2026-09-05 20:42:38 [AI]
 
 Context hygiene + pre-commit prep (no code changes).

@@ -6,7 +6,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 
 from app.ingest import process_source
 from app.models import Event
-from app.schema import SourceConfig
+from app.schema import GathererConfig, SourceConfig
 
 FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "elfsight_boot.json").read_text())
 
@@ -45,3 +45,20 @@ def test_ingest_idempotent(tmp_path, monkeypatch):
 
     with Session(engine) as session:
         assert len(session.exec(select(Event)).all()) == 3
+
+
+def test_source_priority(monkeypatch):
+    from app.registry import source_priority
+
+    # source override wins
+    cfg = SourceConfig(name="S", module="elfsight", url="x", priority=8)
+    assert source_priority(cfg) == 8
+
+    # gatherer default
+    monkeypatch.setattr("app.registry.settings.gatherers", {"elfsight": GathererConfig(priority=5)})
+    cfg2 = SourceConfig(name="S", module="elfsight", url="x")
+    assert source_priority(cfg2) == 5
+
+    # fallback 0
+    monkeypatch.setattr("app.registry.settings.gatherers", {})
+    assert source_priority(cfg2) == 0

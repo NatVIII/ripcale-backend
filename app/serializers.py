@@ -7,7 +7,7 @@ shape (`id`, `title`, `start`, `end`, `allDay`, `url`, `extendedProps`).
 from datetime import datetime
 
 from app.models import Event
-from app.schema import load_images
+from app.schema import load_exdates, load_images
 #endregion
 
 
@@ -37,6 +37,9 @@ def to_fullcalendar(event: Event, source_name: str | None = None) -> dict:
         "categories": _split_categories(event.categories),
         "images": [{"url": img.url, "alt": img.alt, "source_url": img.source_url} for img in load_images(event.images)],
         "timezone": event.timezone,
+        "rrule": event.rrule,
+        "exdates": [dt.isoformat() for dt in load_exdates(event.exdates)],
+        "recurrence_id": event.recurrence_id.isoformat() if event.recurrence_id else None,
     }
     if source_name:
         props["source"] = source_name

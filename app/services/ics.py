@@ -10,10 +10,10 @@ import re
 from datetime import datetime, timezone
 from html import unescape
 
-from icalendar import Calendar, Event as VEvent
+from icalendar import Calendar, Event as VEvent, vRecur
 
 from app.models import Event
-from app.schema import load_images
+from app.schema import load_exdates, load_images
 #endregion
 
 
@@ -70,6 +70,12 @@ def event_to_vevent(event: Event, source_name: str | None = None) -> VEvent:
         v.add("attach", image.url)
     if images:
         v.add("x-rva-image", images[0].url)
+    if event.rrule:
+        v.add("rrule", vRecur.from_ical(event.rrule))
+    for exdate in load_exdates(event.exdates):
+        v.add("exdate", exdate.date() if event.all_day else _utc(exdate))
+    if event.recurrence_id is not None:
+        v.add("recurrence-id", event.recurrence_id.date() if event.all_day else _utc(event.recurrence_id))
     if event.categories:
         v.add("categories", [c for c in event.categories.split(",") if c])
     if event.timezone:

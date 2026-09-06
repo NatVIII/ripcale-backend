@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 
 from app.identity import content_hash, stable_id
 from app.models import Event
-from app.schema import ClassifiedEvent, ModuleResult, ScrapedEvent, SieveResult, load_images
+from app.schema import ClassifiedEvent, ModuleResult, ScrapedEvent, SieveResult, load_exdates, load_images
 #endregion
 
 
@@ -25,6 +25,8 @@ _CHANGED_FIELDS = (
     "end_at",
     "timezone",
     "all_day",
+    "rrule",
+    "exdates",
     "categories",
 )
 #endregion
@@ -59,6 +61,9 @@ def _changed_fields(event: ScrapedEvent, old: Event) -> list[str]:
         elif field == "images":
             new_val = event.images
             old_val = load_images(old.images)
+        elif field == "exdates":
+            new_val = event.exdates
+            old_val = load_exdates(old.exdates)
         else:
             new_val = getattr(event, field)
             old_val = getattr(old, field)

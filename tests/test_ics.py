@@ -70,6 +70,24 @@ def test_event_to_vevent_multiple_images():
     assert "X-RVA-IMAGE:https://x.com/a.jpg" in ical
 
 
+def test_event_to_vevent_rrule():
+    e = _make_event(rrule="FREQ=WEEKLY;BYDAY=MO,WE")
+    ical = event_to_vevent(e).to_ical().decode()
+    assert "RRULE:FREQ=WEEKLY" in ical
+    assert "BYDAY=MO,WE" in ical
+
+
+def test_event_to_vevent_exdates_and_recurrence_id():
+    e = _make_event(
+        rrule="FREQ=WEEKLY",
+        exdates='["2026-09-17T18:00:00"]',
+        recurrence_id=datetime(2026, 9, 10, 18, 0),
+    )
+    ical = event_to_vevent(e).to_ical().decode()
+    assert "EXDATE" in ical and "20260917T180000Z" in ical
+    assert "RECURRENCE-ID" in ical and "20260910T180000Z" in ical
+
+
 def test_events_to_ics_parses():
     events = [_make_event(id="e1", title="A"), _make_event(id="e2", title="B")]
     ical_text = events_to_ics(events, {1: "Studio Two Three"})
