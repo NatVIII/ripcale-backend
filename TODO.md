@@ -6,7 +6,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
-- [ ] F37.01 Perhaps feature a field on /debug which shows whether the last performance of each gatherer with a colored light emoji worked. 
 - [ ] F37.02 — View logs in the browser on admin side. Route logging to a rotated file (data/ripcale.log, RotatingFileHandler) shared by all entrypoints, and add an IP-gated /debug/logs page that tails the last ~200 lines. Hard requirements: constant-time tail (seek to end, read only the last chunk — never slurp the whole file), rotation cap so disk never grows unbounded, and zero impact on the public read API.
 - [ ] F15 - Stale/removal detection (events deleted at the source; needs `last_seen_at`)
 - [ ] F33 - Write the Sieve Contract
@@ -31,6 +30,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [ ] F23 - Backup mechanism: in-app scheduled snapshots of the SQLite DB to a configurable location (e.g. a `backup_dir` config field), with a retention policy. Part of the internal workings (not an external cron).
 - [ ] F36 - Implement Telegram communication and decisionmaking in the Decisionmaker. I want a telegram bot to be able to help me be notified of possible event conflicts and help choose
 - [ ] F16 - `/sources` public endpoint (deferred)
+- [ ] F41 - Convert tests to CI/CD Pipeline that automatically triggers on each push to git (Codeberg, Github, Gittea?).
 
 ## In Progress
 
@@ -56,6 +56,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F24 - Split the pipeline stages into their own directories: `app/gatherers/`, `app/sieve/`, `app/decisionmaker/` (2026-09-06)
 - [x] F38 - /debug/pipeline discovers gatherers programmatically (already in place via `_available_gatherers()`) (2026-09-06)
 - [x] F37 - Gatherer error handling: `app/logging.py` (`setup_logging`), per-source try/except + rollback in `ingest.run()`, clear error pages in the pipeline playground, import-failure logging (2026-09-06)
+- [x] F37.01 - Per-source run status + dashboard lights: `app/services/status.py` (`data/status.json`, ok/warning/error, 0-events→warning), wired into `ingest.run()` + pipeline playground, `/debug` per-gatherer status lights (2026-09-06)
 
 ## Deleted
 - [ ] F30 - Deleted Event

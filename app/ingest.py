@@ -24,6 +24,7 @@ from app.logging import setup_logging
 from app.models import Source, utcnow
 from app.registry import load_gatherer, load_sources
 from app.schema import GathererResult, SieveResult, SourceConfig
+from app.services.status import record_run, record_status
 from app.sieve import classify
 
 logger = logging.getLogger(__name__)
@@ -108,13 +109,19 @@ def run(dry_run: bool = False) -> list[SieveResult]:
             except Exception as exc:
                 logger.exception("source %r failed", cfg.name)
                 session.rollback()
-                summaries.append({"name": cfg.name, "error": str(exc)})
+                record_status(cfg.name, "error", message=str(exc))
+                summaries.append({"name": cfg.name, "status": "error", "message": str(exc)})
                 continue
+
+            total = len(sieved.new) + len(sieved.updated) + sieved.unchanged
+            record_run(cfg.name, total)
             _print_report(cfg.name, sieved, report)
             results.append(sieved)
             summaries.append(
                 {
                     "name": cfg.name,
+                    "status": "warning" if total == 0 else "ok",
+                    "message": "returned 0 events" if total == 0 else None,
                     "new": len(sieved.new),
                     "updated": len(sieved.updated),
                     "unchanged": sieved.unchanged,

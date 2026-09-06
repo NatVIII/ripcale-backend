@@ -1,3 +1,14 @@
+## 2026-09-06 17:20:00 [AI]
+
+F37.01: per-source run status + dashboard lights.
+
+- `app/services/status.py`: status store at `data/status.json` (`read_status`/`record_status`/`record_run` + `source_status`/`gatherer_rollup`). Outcomes `ok`/`warning`/`error`; a 0-event run is recorded as `warning`.
+- `app/ingest.py`: each source run records its outcome (batch ingest and the pipeline playground both go through the same path).
+- `app/routers/debug.py`: `/debug` renders collapsible per-gatherer sections with 🟢/🟡/🔴/⚪ lights (rolled up per gatherer by highest severity) + raw status.
+- `app/routers/pipeline.py`: gather/sieve/decide record their per-source outcome.
+- Tests: `tests/test_status.py` (56 passing; conftest tmp `data_dir` keeps the real `data/` clean). Verified live: elfsight 🟢, 505 events.
+- AGENTS.md updated (status.py key file + status invariant).
+
 ## 2026-09-06 16:17:21 [AI]
 
 F37: gatherer error handling + logging.

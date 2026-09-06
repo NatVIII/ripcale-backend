@@ -53,6 +53,7 @@ Key files:
 - `app/services/events.py` — `query_events()`, `get_event()`, `source_names()`.
 - `app/services/ics.py` — `event_to_vevent()`, `events_to_ics()`.
 - `app/services/stats.py` — `overview()`, `sources()`, `event_dump()`, `read_last_ingest()`.
+- `app/services/status.py` — per-source run status store (`data/status.json`): `read_status()` / `record_status()` / `record_run()` + `source_status()` / `gatherer_rollup()`.
 - `app/security.py` — `in_docker()`, `is_debug_allowed()`, CSRF, `form_data()`.
 - `app/web.py` — HTML helpers (dashboard + playground pages).
 - `app/routers/{events,feeds,debug,pipeline}.py` — HTTP handlers.
@@ -63,7 +64,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (51)
+.venv/bin/python -m pytest                       # test suite (56)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -107,6 +108,10 @@ docker compose up --build                        # public + admin services
   source (with a rollback) and continues; the pipeline playground returns a
   clear error page. Logging is via `logging.getLogger(__name__)` (configured by
   `setup_logging()`).
+- **Run status is agnostic** — every source run (batch ingest *and* the pipeline
+  playground) records its outcome to `data/status.json` (`ok`/`warning`/`error`);
+  `/debug` derives 🟢/🟡/🔴/⚪ lights from it, rolled up per gatherer by highest
+  severity.
 
 ## Configuration
 

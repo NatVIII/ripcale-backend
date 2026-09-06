@@ -14,11 +14,15 @@ from sqlmodel import Session
 from app.db import engine
 from app.security import debug_guard
 from app.services import stats
-from app.web import json_pre, page, table
+from app.services.status import gatherer_rollup, read_status, source_status
+from app.web import escape, json_pre, page, table
 #endregion
 
 
 #region: helpers
+_STATUS_EMOJI = {"ok": "🟢", "warning": "🟡", "error": "🔴", "never": "⚪"}
+
+
 def _html(body: str) -> Response:
     return Response(status_code=200, headers={"Content-Type": "text/html"}, description=body)
 #endregion
@@ -38,6 +42,31 @@ def register(app) -> None:
             srcs = stats.sources(session)
             last = stats.read_last_ingest()
 
+        statuses = read_status()
+        rollup = gatherer_rollup(srcs, statuses)
+
+        by_gatherer: dict[str, list[dict]] = {}
+        for s in srcs:
+            by_gatherer.setdefault(s["gatherer"], []).append(s)
+
+        gatherer_blocks = []
+        for gatherer in sorted(by_gatherer):
+            emoji = _STATUS_EMOJI.get(rollup.get(gatherer, "never"), "⚪")
+            rows = [
+                [
+                    f"{_STATUS_EMOJI.get(source_status(statuses, s['name']), '⚪')} {source_status(statuses, s['name'])}",
+                    s["name"],
+                    s["event_count"],
+                    s["last_fetched_at"] or "—",
+                ]
+                for s in by_gatherer[gatherer]
+            ]
+            gatherer_blocks.append(
+                f"<details><summary>{emoji} {escape(gatherer)}</summary>"
+                + table(["status", "name", "events", "last fetch"], rows)
+                + "</details>"
+            )
+
         body = (
             f"<p>events: {ov['events']} (upcoming {ov['upcoming']}, past {ov['past']})"
             f" · sources: {ov['sources']}</p>"
@@ -46,14 +75,9 @@ def register(app) -> None:
                 ["category", "count"],
                 [[c["name"], c["count"]] for c in ov["categories"]],
             )
-            + "<h2>sources</h2>"
-            + table(
-                ["name", "gatherer", "events", "last fetch"],
-                [
-                    [s["name"], s["gatherer"], s["event_count"], s["last_fetched_at"] or "—"]
-                    for s in srcs
-                ],
-            )
+            + "<h2>gatherers</h2>"
+            + "".join(gatherer_blocks)
+            + "<details><summary>status (raw)</summary>" + json_pre(statuses) + "</details>"
             + "<h2>last ingest</h2>"
             + (json_pre(last) if last else "<p>no ingest run yet</p>")
         )

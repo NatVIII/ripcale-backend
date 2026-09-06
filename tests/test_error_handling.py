@@ -15,6 +15,7 @@ def test_ingest_continues_after_source_failure(tmp_path, monkeypatch):
     SQLModel.metadata.create_all(engine)
     monkeypatch.setattr(ingest_mod, "engine", engine)
     monkeypatch.setattr(ingest_mod, "init_db", lambda: None)
+    monkeypatch.setattr("app.services.status.settings.data_dir", str(tmp_path))
 
     good = SourceConfig(name="Good", gatherer="elfsight", url="https://x")
     bad = SourceConfig(name="Bad", gatherer="broken", url="https://x")
@@ -38,9 +39,10 @@ def test_ingest_continues_after_source_failure(tmp_path, monkeypatch):
     summaries = captured["summaries"]
     assert len(summaries) == 2
     error_entry = next(s for s in summaries if s["name"] == "Bad")
-    assert "boom" in error_entry["error"]
+    assert error_entry["status"] == "error"
+    assert "boom" in error_entry["message"]
     good_entry = next(s for s in summaries if s["name"] == "Good")
-    assert "error" not in good_entry
+    assert good_entry["status"] == "ok"
 
 
 def test_available_gatherers_skips_broken(monkeypatch):

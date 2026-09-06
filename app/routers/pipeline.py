@@ -26,6 +26,7 @@ from app.ingest import process_source
 from app.registry import load_gatherer, load_sources
 from app.schema import SourceConfig
 from app.security import debug_csrf_token, debug_guard, form_data, verify_csrf
+from app.services.status import record_run, record_status
 from app.web import escape, json_pre, page, table
 
 logger = logging.getLogger(__name__)
@@ -140,7 +141,9 @@ def register(app) -> None:
         try:
             result = load_gatherer(cfg.gatherer)(cfg)
         except Exception as exc:
+            record_status(cfg.name, "error", message=str(exc))
             return _error_page("gather", exc)
+        record_run(cfg.name, len(result.events))
         body = f"<p>source: {escape(cfg.name)} · events: {len(result.events)}</p>" + json_pre(result.model_dump(mode="json"))
         return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · gather", body, back="/debug/pipeline"))
 
@@ -167,7 +170,9 @@ def register(app) -> None:
             with Session(engine) as session:
                 sieved, _ = process_source(session, cfg, run_fn, dry_run=True)
         except Exception as exc:
+            record_status(cfg.name, "error", message=str(exc))
             return _error_page("sieve", exc)
+        record_run(cfg.name, len(sieved.new) + len(sieved.updated) + sieved.unchanged)
         body = f"<p>{len(sieved.new)} new · {len(sieved.updated)} updated · {sieved.unchanged} unchanged</p>"
         body += "<h2>new</h2>" + table(
             ["id", "title", "categories"],
@@ -215,7 +220,10 @@ def register(app) -> None:
                 if not dry_run:
                     session.commit()
         except Exception as exc:
+            record_status(cfg.name, "error", message=str(exc))
             return _error_page("decide", exc)
+
+        record_run(cfg.name, len(sieved.new) + len(sieved.updated) + sieved.unchanged)
 
         if dry_run:
             body = f"<p>dry run — nothing written · {len(sieved.new)} new · {len(sieved.updated)} updated · {sieved.unchanged} unchanged</p>"
