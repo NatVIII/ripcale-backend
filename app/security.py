@@ -60,7 +60,7 @@ def form_data(request) -> dict:
 
 
 #region: csrf token
-# A module-level token: use the configured one, or generate an ephemeral one.
+# A gatherer-level token: use the configured one, or generate an ephemeral one.
 _DEBUG_CSRF_TOKEN: str = settings.debug_token or secrets.token_urlsafe(32)
 
 

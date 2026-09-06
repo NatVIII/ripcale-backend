@@ -1,7 +1,7 @@
 """Ingest orchestrator: gather -> sieve -> decide -> store.
 
 `run()` is the entry point (CLI via `python -m app.ingest`). It iterates the
-configured sources, calls each module, classifies against the DB (sieve), and
+configured sources, calls each gatherer, classifies against the DB (sieve), and
 applies the result (decisionmaker). After a non-dry run it writes a small
 report to `data/last_ingest.json` for the debug dashboard.
 
@@ -20,8 +20,8 @@ from app.config import settings
 from app.db import engine, init_db
 from app.decisionmaker import apply
 from app.models import Source, utcnow
-from app.registry import load_module, load_sources
-from app.schema import ModuleResult, SieveResult, SourceConfig
+from app.registry import load_gatherer, load_sources
+from app.schema import GathererResult, SieveResult, SourceConfig
 from app.sieve import classify
 #endregion
 
@@ -34,7 +34,7 @@ def _ensure_source(session: Session, cfg: SourceConfig) -> Source:
         source = Source(
             name=cfg.name,
             url=cfg.url,
-            kind=cfg.module,
+            gatherer=cfg.gatherer,
             is_public=cfg.is_public,
             default_categories=",".join(cfg.default_categories),
         )
@@ -49,7 +49,7 @@ def _ensure_source(session: Session, cfg: SourceConfig) -> Source:
 def process_source(
     session: Session,
     cfg: SourceConfig,
-    run_fn: Callable[[SourceConfig], ModuleResult],
+    run_fn: Callable[[SourceConfig], GathererResult],
     *,
     dry_run: bool = False,
 ) -> tuple[SieveResult, dict | None]:
@@ -98,7 +98,7 @@ def run(dry_run: bool = False) -> list[SieveResult]:
     summaries: list[dict] = []
     with Session(engine) as session:
         for cfg in load_sources():
-            run_fn = load_module(cfg.module)
+            run_fn = load_gatherer(cfg.gatherer)
             sieved, report = process_source(session, cfg, run_fn, dry_run=dry_run)
             _print_report(cfg.name, sieved, report)
             results.append(sieved)

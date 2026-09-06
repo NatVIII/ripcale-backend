@@ -1,6 +1,6 @@
 """Datetime helpers enforcing the naive-UTC storage convention.
 
-`to_utc_naive()` is used by source modules when normalizing timestamps;
+`to_utc_naive()` is used by gatherers when normalizing timestamps;
 `parse_iso_utc()` is used by routers to read `start`/`end` query params.
 """
 #region: imports

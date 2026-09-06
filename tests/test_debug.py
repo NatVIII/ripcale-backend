@@ -67,7 +67,7 @@ def _seeded(tmp_path):
     engine = create_engine(f"sqlite:///{tmp_path / 'debug.db'}")
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
-        src = Source(name="S", url="https://x", kind="elfsight")
+        src = Source(name="S", url="https://x", gatherer="elfsight")
         session.add(src)
         session.commit()
         session.refresh(src)
@@ -117,7 +117,7 @@ def test_stats_event_dump(tmp_path):
 def test_debug_and_pipeline_routes(tmp_path, monkeypatch):
     import app.routers.debug as debug_router_mod
     import app.routers.pipeline as pipeline_router_mod
-    import app.sources.elfsight.module as elfsight_module
+    import app.sources.elfsight.module as elfsight_gatherer
 
     engine = create_engine(f"sqlite:///{tmp_path / 'routes.db'}")
     SQLModel.metadata.create_all(engine)
@@ -131,7 +131,7 @@ def test_debug_and_pipeline_routes(tmp_path, monkeypatch):
 
     monkeypatch.setattr(debug_router_mod, "engine", engine)
     monkeypatch.setattr(pipeline_router_mod, "engine", engine)
-    monkeypatch.setattr(elfsight_module, "fetch_json", lambda url: {
+    monkeypatch.setattr(elfsight_gatherer, "fetch_json", lambda url: {
         "data": {"widgets": {"w": {"data": {"settings": {"eventTypes": [], "locations": [], "events": []}}}}}
     })
 
@@ -157,13 +157,13 @@ def test_debug_and_pipeline_routes(tmp_path, monkeypatch):
     assert client.get("/debug/pipeline/gather").status_code == 200
 
     # pipeline POST: missing/incorrect CSRF -> 403
-    r = client.post("/debug/pipeline/gather", form_data={"source": "manual", "module": "elfsight", "url": "https://x"})
+    r = client.post("/debug/pipeline/gather", form_data={"source": "manual", "gatherer": "elfsight", "url": "https://x"})
     assert r.status_code == 403
 
-    # pipeline POST: correct CSRF -> 200, runs the module
+    # pipeline POST: correct CSRF -> 200, runs the gatherer
     r = client.post(
         "/debug/pipeline/gather",
-        form_data={"csrf_token": debug_csrf_token(), "source": "manual", "module": "elfsight", "name": "x", "url": "https://x"},
+        form_data={"csrf_token": debug_csrf_token(), "source": "manual", "gatherer": "elfsight", "name": "x", "url": "https://x"},
     )
     assert r.status_code == 200
 #endregion

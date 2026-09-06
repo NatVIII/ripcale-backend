@@ -1,6 +1,6 @@
-"""Shared helpers for source modules.
+"""Shared helpers for gatherers.
 
-`fetch_json()` is used by each module (e.g. `app.sources.elfsight.module`) to
+`fetch_json()` is used by each gatherer (e.g. `app.sources.elfsight.module`) to
 retrieve its source payload.
 """
 #region: imports

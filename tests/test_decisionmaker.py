@@ -45,7 +45,7 @@ def test_apply_inserts_and_updates(tmp_path):
         )
         session.commit()
 
-    cfg = SourceConfig(name="Test", module="elfsight", url="https://x")
+    cfg = SourceConfig(name="Test", gatherer="elfsight", url="https://x")
     sieved = SieveResult(
         source=cfg,
         new=[_classified("Test", make_scraped("u3", "Three"))],

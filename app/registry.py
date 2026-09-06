@@ -1,6 +1,6 @@
-"""Source registry: read the configured sources and import modules.
+"""Source registry: read the configured sources and import gatherers.
 
-`load_sources()` and `load_module()` are called from `app/ingest.run()` and
+`load_sources()` and `load_gatherer()` are called from `app/ingest.run()` and
 `app/routers/pipeline.py`.
 """
 #region: imports
@@ -8,7 +8,7 @@ import importlib
 from typing import Callable
 
 from app.config import settings
-from app.schema import ModuleResult, SourceConfig
+from app.schema import GathererResult, SourceConfig
 #endregion
 
 
@@ -22,13 +22,13 @@ def source_priority(cfg: SourceConfig) -> int:
     """Resolve a source's priority (config-side): source override > gatherer default > 0."""
     if cfg.priority is not None:
         return cfg.priority
-    gatherer = settings.gatherers.get(cfg.module)
+    gatherer = settings.gatherers.get(cfg.gatherer)
     return gatherer.priority if gatherer else 0
 #endregion
 
 
-#region: modules
-def load_module(name: str) -> Callable[[SourceConfig], ModuleResult]:
+#region: gatherers
+def load_gatherer(name: str) -> Callable[[SourceConfig], GathererResult]:
     """Import `app.sources.<name>.module` and return its `run` callable."""
     mod = importlib.import_module(f"app.sources.{name}.module")
     return mod.run

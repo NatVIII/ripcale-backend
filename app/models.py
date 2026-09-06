@@ -28,7 +28,7 @@ class Source(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str
     url: str                      # kept secret, never exposed by the API
-    kind: str = "ics"             # module name (e.g. "elfsight")
+    gatherer: str = "ics"             # gatherer name (e.g. "elfsight")
     is_public: bool = False
     default_categories: str = ""  # comma-separated tags applied to every event
     enabled: bool = True

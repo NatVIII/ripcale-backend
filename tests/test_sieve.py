@@ -4,7 +4,7 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from app.identity import content_hash, stable_id
 from app.models import Event, Source
-from app.schema import ImageRef, ModuleResult, ScrapedEvent, SourceConfig
+from app.schema import ImageRef, GathererResult, ScrapedEvent, SourceConfig
 from app.sieve import classify
 
 
@@ -39,14 +39,14 @@ def _setup(tmp_path):
 
 def test_classify_buckets(tmp_path):
     engine, source_id = _setup(tmp_path)
-    cfg = SourceConfig(name="Test", module="elfsight", url="https://x")
+    cfg = SourceConfig(name="Test", gatherer="elfsight", url="https://x")
 
     with Session(engine) as session:
         _seed_event(session, source_id, make_scraped("u1", "One"))
         _seed_event(session, source_id, make_scraped("u2", "Two"))
         session.commit()
 
-    incoming = ModuleResult(
+    incoming = GathererResult(
         source=cfg,
         events=[
             make_scraped("u1", "One"),        # unchanged
@@ -69,10 +69,10 @@ def test_classify_buckets(tmp_path):
 def test_classify_merges_default_categories(tmp_path):
     engine, source_id = _setup(tmp_path)
     cfg = SourceConfig(
-        name="Test", module="elfsight", url="https://x", default_categories=["art"]
+        name="Test", gatherer="elfsight", url="https://x", default_categories=["art"]
     )
 
-    incoming = ModuleResult(
+    incoming = GathererResult(
         source=cfg,
         events=[ScrapedEvent(uid="u1", title="One", categories=["workshop"])],
     )
@@ -86,13 +86,13 @@ def test_classify_merges_default_categories(tmp_path):
 
 def test_classify_images_change(tmp_path):
     engine, source_id = _setup(tmp_path)
-    cfg = SourceConfig(name="Test", module="elfsight", url="https://x")
+    cfg = SourceConfig(name="Test", gatherer="elfsight", url="https://x")
 
     with Session(engine) as session:
         _seed_event(session, source_id, make_scraped("u1", "One"))
         session.commit()
 
-    incoming = ModuleResult(
+    incoming = GathererResult(
         source=cfg,
         events=[ScrapedEvent(uid="u1", title="One", images=[ImageRef(url="https://x.com/a.jpg")])],
     )
@@ -106,13 +106,13 @@ def test_classify_images_change(tmp_path):
 
 def test_classify_rrule_change(tmp_path):
     engine, source_id = _setup(tmp_path)
-    cfg = SourceConfig(name="Test", module="elfsight", url="https://x")
+    cfg = SourceConfig(name="Test", gatherer="elfsight", url="https://x")
 
     with Session(engine) as session:
         _seed_event(session, source_id, make_scraped("u1", "One"))
         session.commit()
 
-    incoming = ModuleResult(
+    incoming = GathererResult(
         source=cfg,
         events=[ScrapedEvent(uid="u1", title="One", rrule="FREQ=WEEKLY")],
     )
@@ -126,13 +126,13 @@ def test_classify_rrule_change(tmp_path):
 
 def test_classify_exdates_change(tmp_path):
     engine, source_id = _setup(tmp_path)
-    cfg = SourceConfig(name="Test", module="elfsight", url="https://x")
+    cfg = SourceConfig(name="Test", gatherer="elfsight", url="https://x")
 
     with Session(engine) as session:
         _seed_event(session, source_id, make_scraped("u1", "One"))
         session.commit()
 
-    incoming = ModuleResult(
+    incoming = GathererResult(
         source=cfg,
         events=[ScrapedEvent(uid="u1", title="One", exdates=[datetime(2026, 9, 12, 18, 0)])],
     )

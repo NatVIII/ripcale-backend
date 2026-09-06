@@ -48,9 +48,9 @@ def register(app) -> None:
             )
             + "<h2>sources</h2>"
             + table(
-                ["name", "module", "events", "last fetch"],
+                ["name", "gatherer", "events", "last fetch"],
                 [
-                    [s["name"], s["module"], s["event_count"], s["last_fetched_at"] or "—"]
+                    [s["name"], s["gatherer"], s["event_count"], s["last_fetched_at"] or "—"]
                     for s in srcs
                 ],
             )

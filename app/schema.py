@@ -1,9 +1,9 @@
 """Pydantic data contracts that flow through the pipeline.
 
-These are the "common format" every module massages its source data into, and
+These are the "common format" every gatherer massages its source data into, and
 the shapes the sieve and decisionmaker exchange:
 
-    SourceConfig -> (module run) -> ModuleResult -> (sieve) -> SieveResult
+    SourceConfig -> (gatherer run) -> GathererResult -> (sieve) -> SieveResult
                                               -> (decisionmaker) -> Event
 """
 #region: imports
@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 #region: gatherer config
 class GathererConfig(BaseModel):
-    """Per-gatherer (module) defaults from `config.yaml`.
+    """Per-gatherer defaults from `config.yaml`.
 
     Extensible with more per-gatherer keys over time (`extra="allow"`).
     """
@@ -32,7 +32,7 @@ class SourceConfig(BaseModel):
     """One configured source (parsed from `config.yaml`)."""
 
     name: str
-    module: str
+    gatherer: str
     url: str
     is_public: bool = False
     priority: int | None = None  # None = inherit the gatherer default
@@ -55,9 +55,9 @@ class ImageRef(BaseModel):
 #endregion
 
 
-#region: scraped event (module output)
+#region: scraped event (gatherer output)
 class ScrapedEvent(BaseModel):
-    """A single normalized event produced by a source module."""
+    """A single normalized event produced by a gatherer."""
 
     uid: str | None = None
     title: str
@@ -77,9 +77,9 @@ class ScrapedEvent(BaseModel):
 #endregion
 
 
-#region: module result
-class ModuleResult(BaseModel):
-    """The output of a module's `run()`."""
+#region: gatherer result
+class GathererResult(BaseModel):
+    """The output of a gatherer's `run()`."""
 
     source: SourceConfig
     events: list[ScrapedEvent] = Field(default_factory=list)
