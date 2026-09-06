@@ -13,7 +13,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [ ] F33 - Write the Sieve Contract
 - [ ] F34 - Write the Decisionmaker Contract
 - [ ] F32 - Default location: configurable default location applied to events with a missing/blank `location` (config field; normalized in one shared place).
-- [ ] F24 - Separate the different parts of the pipeline into their own directories and hierarchies for easy sortation (Gatherers, Sieve, Deciosionmaker) 
 - [ ] F26 - Category to category symlinks (so that internal categories can be saved and referenced, but still be a part of real and exposed external categories)
 - [ ] F17 - Category → color mapping (Elfsight `categoryColor` not yet stored). Configured inside of the config.yaml, assigning colors to different categories. 
 - [ ] F17.01 There should also be a way to specify which categories are the "true" categories, which are meant to be publicly exposed as that kind for sortation (in truth a very small list of "true" categories) from the internal symlinked categories only kept so that data isn't being deleted from the original source.
@@ -34,6 +33,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [ ] F16 - `/sources` public endpoint (deferred)
 
 ## In Progress
+- [ ] F24 - Separate the different parts of the pipeline into their own directories and hierarchies for easy sortation (Gatherers, Sieve, Deciosionmaker) 
 
 ## Done
 
