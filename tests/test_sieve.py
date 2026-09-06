@@ -102,3 +102,23 @@ def test_classify_images_change(tmp_path):
 
     assert len(sieved.updated) == 1
     assert "images" in sieved.updated[0].changed_fields
+
+
+def test_classify_rrule_change(tmp_path):
+    engine, source_id = _setup(tmp_path)
+    cfg = SourceConfig(name="Test", module="elfsight", url="https://x")
+
+    with Session(engine) as session:
+        _seed_event(session, source_id, make_scraped("u1", "One"))
+        session.commit()
+
+    incoming = ModuleResult(
+        source=cfg,
+        events=[ScrapedEvent(uid="u1", title="One", rrule="FREQ=WEEKLY")],
+    )
+
+    with Session(engine) as session:
+        sieved = classify(session, incoming)
+
+    assert len(sieved.updated) == 1
+    assert "rrule" in sieved.updated[0].changed_fields

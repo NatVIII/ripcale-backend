@@ -25,6 +25,7 @@ _CHANGED_FIELDS = (
     "end_at",
     "timezone",
     "all_day",
+    "rrule",
     "categories",
 )
 #endregion

@@ -70,6 +70,13 @@ def test_event_to_vevent_multiple_images():
     assert "X-RVA-IMAGE:https://x.com/a.jpg" in ical
 
 
+def test_event_to_vevent_rrule():
+    e = _make_event(rrule="FREQ=WEEKLY;BYDAY=MO,WE")
+    ical = event_to_vevent(e).to_ical().decode()
+    assert "RRULE:FREQ=WEEKLY" in ical
+    assert "BYDAY=MO,WE" in ical
+
+
 def test_events_to_ics_parses():
     events = [_make_event(id="e1", title="A"), _make_event(id="e2", title="B")]
     ical_text = events_to_ics(events, {1: "Studio Two Three"})

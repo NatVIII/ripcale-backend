@@ -55,6 +55,7 @@ class ScrapedEvent(BaseModel):
     end_at: datetime | None = None
     timezone: str | None = None
     all_day: bool = False
+    rrule: str | None = None
     categories: list[str] = Field(default_factory=list)
     raw: dict = Field(default_factory=dict)  # full source payload, kept for debugging
 #endregion

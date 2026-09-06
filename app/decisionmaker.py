@@ -34,6 +34,7 @@ def _new_event(source_id: int, classified: ClassifiedEvent) -> Event:
         end_at=e.end_at,
         timezone=e.timezone,
         all_day=e.all_day,
+        rrule=e.rrule,
         categories=_categories(classified),
         content_hash=classified.content_hash,
     )
@@ -52,6 +53,7 @@ def _apply_update(existing: Event, classified: ClassifiedEvent) -> None:
     existing.end_at = e.end_at
     existing.timezone = e.timezone
     existing.all_day = e.all_day
+    existing.rrule = e.rrule
     existing.categories = _categories(classified)
     existing.content_hash = classified.content_hash
     existing.updated_at = utcnow()

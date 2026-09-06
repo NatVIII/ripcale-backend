@@ -38,3 +38,9 @@ def test_content_hash_changes_on_images():
     a = make_event(images=[ImageRef(url="https://x.com/a.jpg")])
     b = make_event(images=[ImageRef(url="https://x.com/b.jpg")])
     assert content_hash(a) != content_hash(b)
+
+
+def test_content_hash_changes_on_rrule():
+    a = make_event(rrule="FREQ=WEEKLY")
+    b = make_event(rrule="FREQ=DAILY")
+    assert content_hash(a) != content_hash(b)

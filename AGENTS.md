@@ -62,7 +62,7 @@ Key modules:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (39)
+.venv/bin/python -m pytest                       # test suite (43)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -80,6 +80,10 @@ docker compose up --build                        # public + admin services
   changing its inputs makes every stored event look "updated" on the next ingest.
 - **Events carry an ordered image gallery** — `Event.images` is a JSON column of
   `{url, alt, source_url}` (`ImageRef`); the primary/cover image is `images[0]`.
+- **Recurrence** — `Event.rrule` holds an RFC 5545 RRULE (the series master;
+  interpreted relative to `start_at` in `timezone`). `recurrence_id` / `exdates`
+  (per-occurrence overrides/deletions) and `redirect_to_id` (event
+  redirects/symlinks) are groundwork columns added now, wired by future tickets.
 - **Source URLs are never exposed by the API.** Private/secret sources live in
   `config.yaml` (gitignored); `config.example.yaml` is the tracked template and
   ships one real *public* source (Studio Two Three) as starter data.

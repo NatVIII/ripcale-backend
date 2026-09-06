@@ -44,6 +44,7 @@ class ModuleResult:
 | `end_at` | `datetime \| None` | optional | End time, **naive UTC**, **exclusive** (FullCalendar/ICS convention). |
 | `timezone` | `str \| None` | optional | IANA zone (e.g. `America/New_York`). Display-only; storage is naive UTC. |
 | `all_day` | `bool` | optional | All-day events use date-only semantics. |
+| `rrule` | `str \| None` | optional | RFC 5545 recurrence rule (RRULE *value* only — no `RRULE:` prefix, no `DTSTART`). Interpreted relative to `start_at` (the first occurrence) in `timezone`. |
 | `categories` | `list[str]` | optional | Tags. |
 | `raw` | `dict` | optional | The full original source payload. Never persisted, never hashed — debugging/re-parse only. |
 
@@ -64,7 +65,7 @@ class ModuleResult:
 3. Computes `stable_id(source.name, event)` and `content_hash(event)`.
 4. Buckets each event **new / updated / unchanged** vs the DB; "updated" events
    carry `changed_fields` from the mutable set:
-   `title, description, location, url, images, start_at, end_at, timezone, all_day, categories`.
+   `title, description, location, url, images, start_at, end_at, timezone, all_day, rrule, categories`.
 
 A Gatherer must not assume the sieve normalizes anything except
 `default_categories`; every other field passes through untouched.
@@ -86,11 +87,12 @@ A Gatherer must not assume the sieve normalizes anything except
 | `start_at` / `end_at` | `start_at` / `end_at` |
 | `timezone` | `timezone` |
 | `all_day` | `all_day` |
+| `rrule` | `rrule` |
 | `categories` (list) | `categories` (comma-joined) |
 | (derived) | `content_hash` |
 
-Not carried: `raw` (discarded). `Event.geo` and `Event.rrule` exist but have no
-`ScrapedEvent` counterpart yet (see Known gaps).
+Not carried: `raw` (discarded). `Event.geo` exists but has no `ScrapedEvent`
+counterpart yet (F30).
 
 ## Images
 
@@ -116,6 +118,38 @@ rewrites each `url` to an internal path while stashing the origin in
 `source_url`. A Gatherer written today stays valid — hosting is a downstream
 rewrite, not a Gatherer concern.
 
+## Recurrence
+
+A recurring event is represented as **one** `ScrapedEvent` whose `start_at` is
+the *first* occurrence (`DTSTART`) and whose `rrule` generates the rest.
+
+- `rrule` is the RFC 5545 RRULE *value* string (e.g. `FREQ=WEEKLY;BYDAY=MO,WE`),
+  without the `RRULE:` prefix and without `DTSTART` (the first occurrence is
+  `start_at`).
+- The rule is interpreted in the event's `timezone` (IANA). `UNTIL`, when
+  present, is UTC to match the naive-UTC `start_at`.
+- `rrule` participates in `content_hash` and `_CHANGED_FIELDS` — changing the
+  recurrence rule is a real "updated".
+- The gatherer is responsible for translating its source's native recurrence
+  representation into a valid RRULE. A gatherer with no recurrence leaves it
+  `None`.
+
+**Planned (not yet implemented):**
+
+- **Series & overrides** (planned; columns added in F31) — occurrences of a series are linked by
+  `(source_id, uid)`. The master carries `rrule`; an *edited* occurrence is a
+  separate row with `recurrence_id` = its original `DTSTART`; a *cancelled*
+  occurrence is listed in the master's `exdates`. Identity for overrides becomes
+  `sha256(source+uid+recurrence_id)`.
+- **Expansion** (F12) — turning `rrule` + `exdates` + overrides into concrete
+  occurrence instances for serving (server-side) and correct timezone-aware ICS.
+
+## Event relationships (planned)
+
+- **Redirects/symlinks** (F31.01) — an event may carry a `redirect_to_id` pointing
+  at a canonical event (for merging duplicates, or manual-over-scraped
+  priority). Consumers follow the redirect; the API will expose `redirect_to`.
+
 ## Invariants (don't break these)
 
 - Naive-UTC storage; `timezone` holds the IANA name.
@@ -127,7 +161,5 @@ rewrite, not a Gatherer concern.
 
 - **`geo`** — `Event.geo` exists but `ScrapedEvent` has no `geo` field. Gatherers
   ought to be able to provide coordinates when the source has them (F30).
-- **Recurrence** — `Event.rrule` is reserved but `ScrapedEvent` has no recurrence
-  field; recurrence lives only in `raw` today (F31; also F12).
 - **Default location** — events with a missing/blank `location` have no fallback
   (F32).

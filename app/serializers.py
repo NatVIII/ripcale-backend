@@ -37,6 +37,7 @@ def to_fullcalendar(event: Event, source_name: str | None = None) -> dict:
         "categories": _split_categories(event.categories),
         "images": [{"url": img.url, "alt": img.alt, "source_url": img.source_url} for img in load_images(event.images)],
         "timezone": event.timezone,
+        "rrule": event.rrule,
     }
     if source_name:
         props["source"] = source_name

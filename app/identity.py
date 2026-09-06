@@ -36,6 +36,7 @@ def content_hash(event: ScrapedEvent) -> str:
         "end_at": event.end_at.isoformat() if event.end_at else None,
         "timezone": event.timezone,
         "all_day": event.all_day,
+        "rrule": event.rrule,
         "categories": sorted(event.categories),
     }
     canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False)

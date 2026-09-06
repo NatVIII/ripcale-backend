@@ -35,6 +35,12 @@ def test_to_fullcalendar():
     assert out["extendedProps"]["source"] == "Studio Two Three"
 
 
+def test_to_fullcalendar_rrule():
+    e = _make_event(rrule="FREQ=WEEKLY")
+    out = to_fullcalendar(e)
+    assert out["extendedProps"]["rrule"] == "FREQ=WEEKLY"
+
+
 def test_to_fullcalendar_all_day():
     e = _make_event(
         all_day=True,

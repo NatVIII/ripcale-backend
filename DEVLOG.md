@@ -1,3 +1,14 @@
+## 2026-09-05 22:07:49 [AI]
+
+F31: recurrence field in the Gatherer contract + groundwork columns.
+
+- `app/schema.py`: `ScrapedEvent.rrule: str | None` (RFC 5545 RRULE value; no `RRULE:` prefix, no `DTSTART` — first occurrence is `start_at`).
+- `app/models.py`: `Event.rrule` is now the active contract field (no longer "reserved"); added groundwork columns `recurrence_id` (override DTSTART), `exdates` (JSON of cancelled occurrence DTSTARTs), `redirect_to_id` (event redirect/symlink, indexed).
+- Wired `rrule` through `content_hash`, `_CHANGED_FIELDS`, decisionmaker (insert/update), JSON `extendedProps.rrule`, and ICS (`RRULE` via `vRecur.from_ical`). `stats.event_dump` now shows the new columns.
+- No Elfsight→RRULE translator (live data has 0 recurring events; Google Calendar gatherer F25 will be the first real recurrence source).
+- Docs: GATHERER_CONTRACT.md (rrule field + Recurrence/relationships sections; recurrence gap removed), AGENTS.md (43 tests, recurrence invariant), TODO.md (F31 → Done).
+- Tests: content_hash/sieve/ics/events rrule coverage + new-column defaults (43 passing). Wiped + re-ingested DB (columns present).
+
 ## 2026-09-05 20:42:38 [AI]
 
 Context hygiene + pre-commit prep (no code changes).
