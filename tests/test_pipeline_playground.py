@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-import app.sources.elfsight.module as elfsight_module
+import app.sources.elfsight.module as elfsight_gatherer
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from app.models import Event
@@ -22,7 +22,7 @@ def test_decide_dry_run_vs_commit(tmp_path, monkeypatch):
     SQLModel.metadata.create_all(engine)
 
     monkeypatch.setattr(pipeline_router_mod, "engine", engine)
-    monkeypatch.setattr(elfsight_module, "fetch_json", lambda url: FIXTURE)
+    monkeypatch.setattr(elfsight_gatherer, "fetch_json", lambda url: FIXTURE)
 
     from robyn.testing import TestClient
 
@@ -32,7 +32,7 @@ def test_decide_dry_run_vs_commit(tmp_path, monkeypatch):
     form = {
         "csrf_token": debug_csrf_token(),
         "source": "manual",
-        "module": "elfsight",
+        "gatherer": "elfsight",
         "name": "Studio Two Three",
         "url": WIDGET_URL,
     }

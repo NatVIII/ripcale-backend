@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-import app.sources.elfsight.module as elfsight_module
+import app.sources.elfsight.module as elfsight_gatherer
 from app.schema import SourceConfig
 
 FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "elfsight_boot.json").read_text())
@@ -12,13 +12,13 @@ WIDGET_URL = "https://fake/boot/?w=24ddbed9-c732-4102-abd2-02990fae125b"
 
 
 def _cfg():
-    return SourceConfig(name="Studio Two Three", module="elfsight", url=WIDGET_URL)
+    return SourceConfig(name="Studio Two Three", gatherer="elfsight", url=WIDGET_URL)
 
 
 def test_elfsight_run(monkeypatch):
-    monkeypatch.setattr(elfsight_module, "fetch_json", lambda url: FIXTURE)
+    monkeypatch.setattr(elfsight_gatherer, "fetch_json", lambda url: FIXTURE)
 
-    result = elfsight_module.run(_cfg())
+    result = elfsight_gatherer.run(_cfg())
 
     assert result.source.name == "Studio Two Three"
     assert len(result.events) == 3
@@ -42,9 +42,9 @@ def test_elfsight_run(monkeypatch):
 
 
 def test_elfsight_resolves_types_and_locations(monkeypatch):
-    monkeypatch.setattr(elfsight_module, "fetch_json", lambda url: FIXTURE)
+    monkeypatch.setattr(elfsight_gatherer, "fetch_json", lambda url: FIXTURE)
 
-    result = elfsight_module.run(_cfg())
+    result = elfsight_gatherer.run(_cfg())
 
     by_title = {e.title: e for e in result.events}
     pigs = by_title["Beautiful Pigs, Forced Resonance, and the Perry Menestres Big Band"]

@@ -1,6 +1,6 @@
 # Gatherer Contract
 
-The contract between a **Gatherer** (a source adapter in `app/sources/*/module.py`)
+The contract between a **Gatherer** (a gatherer in `app/sources/*/module.py`)
 and the rest of the pipeline (**Sieve → Decisionmaker → storage → API/ICS**).
 
 A Gatherer's only job is to fetch a source and emit its events in one shared
@@ -10,22 +10,58 @@ it. This document is the single source of truth for that shape.
 ## Data flow
 
 ```
-SourceConfig → Gatherer.run() → ModuleResult → Sieve.classify() → SieveResult
+SourceConfig → Gatherer.run() → GathererResult → Sieve.classify() → SieveResult
                                                → Decisionmaker.apply() → Event (DB)
 ```
 
-## The Gatherer contract
+## Configuration
 
-A Gatherer is a module `app/sources/<name>/module.py` exposing:
+A Gatherer is configured through a **uniform, stable interface** — the same shape
+for every gatherer, so identical configuration always yields identical results.
+Bespoke, gatherer-specific settings are the rare exception, not the norm.
 
-```python
-def run(source: SourceConfig) -> ModuleResult: ...
+### Per-source (`SourceConfig`)
+
+Every source uses the same fields:
+
+| Field | Meaning |
+|---|---|
+| `name` | Display name (the source's unique identifier). |
+| `gatherer` | Which gatherer parses this source (the gatherer key, e.g. `elfsight`). |
+| `url` | The data endpoint the gatherer fetches (kept secret). |
+| `is_public` | Whether this source is listed publicly. |
+| `priority` | Optional per-source override (`None` = inherit the gatherer default). |
+| `default_categories` | Tags applied to every event from this source. |
+
+### Per-gatherer defaults (`GathererConfig`)
+
+The `gatherers:` block in `config.yaml` holds defaults keyed by gatherer name —
+`priority` today, extensible with more typed fields over time. Gatherer-level
+resolution is centralized (e.g. `registry.source_priority`), never duplicated
+per gatherer.
+
+### Resolution order
+
+```
+source override > gatherer default > 0
 ```
 
-`ModuleResult` carries the source config plus a list of `ScrapedEvent`:
+The `run(source: SourceConfig) -> GathererResult` entrypoint is the only
+interface a gatherer exposes. It must be deterministic: the same `SourceConfig`
+(and `GathererConfig`) must produce the same `GathererResult`.
+
+## The Gatherer contract
+
+A Gatherer is a gatherer `app/sources/<name>/module.py` exposing:
 
 ```python
-class ModuleResult:
+def run(source: SourceConfig) -> GathererResult: ...
+```
+
+`GathererResult` carries the source config plus a list of `ScrapedEvent`:
+
+```python
+class GathererResult:
     source: SourceConfig
     events: list[ScrapedEvent]
 ```
@@ -59,7 +95,7 @@ class ModuleResult:
 
 ## What the Sieve adds
 
-`sieve.classify(session, ModuleResult) -> SieveResult` is read-only and idempotent:
+`sieve.classify(session, GathererResult) -> SieveResult` is read-only and idempotent:
 
 1. `_relevance(events)` — future relevance filter (F13; pass-through today).
 2. Merges the source's `default_categories` into each event's `categories` (so

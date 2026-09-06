@@ -1,6 +1,6 @@
-"""Elfsight event-calendar widget adapter.
+"""Elfsight event-calendar widget gatherer.
 
-`run(source)` is the module entry point: called by `app.registry.load_module()`
+`run(source)` is the gatherer entry point: called by `app.registry.load_gatherer()`
 / `app.ingest.process_source()`. It fetches the Elfsight "boot" JSON endpoint,
 resolves the eventType/location ID lookups, and maps each event into a
 `ScrapedEvent`.
@@ -10,7 +10,7 @@ from datetime import datetime
 from urllib.parse import parse_qs, urlparse
 from zoneinfo import ZoneInfo
 
-from app.schema import ImageRef, ModuleResult, ScrapedEvent, SourceConfig
+from app.schema import ImageRef, GathererResult, ScrapedEvent, SourceConfig
 from app.sources.base import fetch_json
 from app.timeutil import to_utc_naive
 #endregion
@@ -93,8 +93,8 @@ def _parse_event(raw: dict, types: dict, locations: dict) -> ScrapedEvent:
 
 
 #region: entry point
-def run(source: SourceConfig) -> ModuleResult:
-    """Fetch + parse an Elfsight widget boot payload into a ModuleResult."""
+def run(source: SourceConfig) -> GathererResult:
+    """Fetch + parse an Elfsight widget boot payload into a GathererResult."""
     data = fetch_json(source.url)
     widgets = data.get("data", {}).get("widgets", {})
 
@@ -112,5 +112,5 @@ def run(source: SourceConfig) -> ModuleResult:
         _parse_event(raw, types, locations)
         for raw in settings.get("events", [])
     ]
-    return ModuleResult(source=source, events=events)
+    return GathererResult(source=source, events=events)
 #endregion

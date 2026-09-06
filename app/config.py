@@ -1,7 +1,7 @@
 """Application configuration.
 
 `settings = Settings()` is instantiated once at import time and is read by
-nearly every other module (db, registry, routers, security, ...). Values are
+nearly every other gatherer (db, registry, routers, security, ...). Values are
 loaded with this precedence:
 
     init kwargs > environment / `.env` > `config.yaml` > defaults
@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     debug_token: str = ""
 
     # -- gatherers / sources ---------------------------------------------
-    # Per-gatherer (module) defaults, extensible (e.g. `priority`). See GathererConfig.
+    # Per-gatherer defaults, extensible (e.g. `priority`). See GathererConfig.
     gatherers: dict[str, GathererConfig] = {}
     sources: list[SourceConfig] = []
 

@@ -20,11 +20,11 @@ It runs as two listeners:
 
 ## Architecture
 
-Data flows: **source module (gather) → sieve (sort) → decisionmaker (decide) → DB**.
+Data flows: **gatherer (gather) → sieve (sort) → decisionmaker (decide) → DB**.
 
 ```
 config.yaml → Settings → registry.load_sources()
-  → ingest.run() → module.run(source)     # ModuleResult (ScrapedEvent[])
+  → ingest.run() → gatherer.run(source)     # GathererResult (ScrapedEvent[])
   → sieve.classify()                       # SieveResult (new/updated/unchanged)
   → decisionmaker.apply()                  # Event rows upserted
   → SQLite (data/ripcale.db, WAL)
@@ -33,17 +33,17 @@ config.yaml → Settings → registry.load_sources()
 The Gatherer→Sieve→Decisionmaker data contract is specified in
 `docs/GATHERER_CONTRACT.md`.
 
-Key modules:
+Key gatherers:
 
 - `app/config.py` — `Settings` (config.yaml + .env; env > dotenv > yaml > defaults).
 - `app/models.py` — `Source`, `Event` (SQLModel).
 - `app/db.py` — `engine`, `init_db()`, WAL + foreign-key pragmas.
 - `app/schema.py` — pipeline contracts (`SourceConfig`, `ScrapedEvent`,
-  `ImageRef`, `ModuleResult`, `ClassifiedEvent`, `SieveResult`) + `dump_images()`/`load_images()`.
+  `ImageRef`, `GathererResult`, `ClassifiedEvent`, `SieveResult`) + `dump_images()`/`load_images()`.
 - `app/identity.py` — `stable_id()`, `content_hash()`.
 - `app/timeutil.py` — `to_utc_naive()`, `parse_iso_utc()`.
-- `app/registry.py` — `load_sources()`, `load_module()`.
-- `app/sources/<name>/module.py` — each source adapter exposes `run(source)`.
+- `app/registry.py` — `load_sources()`, `load_gatherer()`.
+- `app/sources/<name>/module.py` — each gatherer exposes `run(source)`.
 - `app/sieve.py` — `classify()` (change detection; `_relevance()` is a
   pass-through placeholder for future drop-past rules).
 - `app/decisionmaker.py` — `apply()` (persist; stub for future cross-source heuristics).
@@ -114,8 +114,8 @@ Fields in `config.yaml` (env prefix `RIPCALE_`; `.env` overrides):
 - `cors_origins` — CORS origin list (default `*`).
 - `debug_allowed_cidrs` — extra IPv4 CIDRs for the admin endpoints (loopback always allowed).
 - `debug_token` — optional fixed CSRF token (auto-generated if empty).
-- `gatherers` — per-gatherer (module) defaults, e.g. `{elfsight: {priority: 5}}` (extensible).
-- `sources` — list of `{name, module, url, is_public, priority, default_categories}`; an optional source `priority` overrides the gatherer default (fallback 0).
+- `gatherers` — per-gatherer defaults, e.g. `{elfsight: {priority: 5}}` (extensible).
+- `sources` — list of `{name, gatherer, url, is_public, priority, default_categories}`; an optional source `priority` overrides the gatherer default (fallback 0).
 
 ## Maintenance (do this on every change)
 

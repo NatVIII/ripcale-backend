@@ -72,7 +72,7 @@ def sources(session: Session) -> list[dict]:
         out.append(
             {
                 "name": source.name,
-                "module": source.kind,
+                "gatherer": source.gatherer,
                 "is_public": source.is_public,
                 "last_fetched_at": source.last_fetched_at.isoformat()
                 if source.last_fetched_at

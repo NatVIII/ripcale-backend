@@ -50,8 +50,8 @@ Env vars / `.env` override `config.yaml`.
 .venv/bin/python -m app.ingest             # scrape -> sieve -> decide -> store
 ```
 
-The pipeline is gather (source module) -> sieve (read-only new/updated/unchanged
-diff against the DB) -> decisionmaker (persist). A module can be run standalone:
+The pipeline is gather (gatherer) -> sieve (read-only new/updated/unchanged
+diff against the DB) -> decisionmaker (persist). A gatherer can be run standalone:
 
 ```sh
 .venv/bin/python -m app.sources.elfsight
@@ -78,8 +78,8 @@ drive each pipeline stage from the browser.
 
 - `GET /debug` — static overview dashboard (counts, categories, sources, last ingest).
 - `GET /debug/pipeline` — home page linking to the three stage pages:
-  - **gather** — run a module, see the full `ModuleResult`.
-  - **sieve** — run a module + diff vs the DB (no writes).
+  - **gather** — run a gatherer, see the full `GathererResult`.
+  - **sieve** — run a gatherer + diff vs the DB (no writes).
   - **decide** — run + diff + persist (writes).
 - CLI equivalent: `python -m app.debug [stats|sources|events --id <id>]`.
 

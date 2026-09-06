@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 
 from app.identity import content_hash, stable_id
 from app.models import Event
-from app.schema import ClassifiedEvent, ModuleResult, ScrapedEvent, SieveResult, load_exdates, load_images
+from app.schema import ClassifiedEvent, GathererResult, ScrapedEvent, SieveResult, load_exdates, load_images
 #endregion
 
 
@@ -74,7 +74,7 @@ def _changed_fields(event: ScrapedEvent, old: Event) -> list[str]:
 
 
 #region: classification
-def classify(session: Session, result: ModuleResult) -> SieveResult:
+def classify(session: Session, result: GathererResult) -> SieveResult:
     """Bucket incoming events into new / updated / unchanged vs the DB."""
     events = _relevance(result.events)
     _merge_default_categories(events, result.source.default_categories)

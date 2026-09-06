@@ -6,8 +6,8 @@ Lets you drive each pipeline stage from the browser — against a configured
 source or an arbitrary URL — and see the complete, untruncated result:
 
   * /debug/pipeline          home page (links to the three stages)
-  * /debug/pipeline/gather   run a module, show the full ModuleResult
-  * /debug/pipeline/sieve    run a module + diff vs DB (no writes)
+  * /debug/pipeline/gather   run a gatherer, show the full GathererResult
+  * /debug/pipeline/sieve    run a gatherer + diff vs DB (no writes)
   * /debug/pipeline/decide   run + diff + persist (writes)
 
 POST handlers require the CSRF token embedded in the forms.
@@ -22,7 +22,7 @@ from sqlmodel import Session
 
 from app.db import engine
 from app.ingest import process_source
-from app.registry import load_module, load_sources
+from app.registry import load_gatherer, load_sources
 from app.schema import SourceConfig
 from app.security import debug_csrf_token, debug_guard, form_data, verify_csrf
 from app.web import escape, json_pre, page, table
@@ -38,8 +38,8 @@ def _forbidden() -> Response:
     return Response(status_code=403, headers={"Content-Type": "text/html"}, description=page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ forbidden", "<p>invalid CSRF token</p>"))
 
 
-def _available_modules() -> list[str]:
-    """Discover source modules under app/sources that expose a `run`."""
+def _available_gatherers() -> list[str]:
+    """Discover gatherers under app/sources that expose a `run`."""
     names = []
     for mod in pkgutil.iter_modules(sources_pkg.__path__):
         if not mod.ispkg:
@@ -63,11 +63,11 @@ def _resolve_source(form: dict) -> SourceConfig | None:
         return None
 
     name = (form.get("name", None) or "").strip() or "manual"
-    module = (form.get("module", None) or "").strip()
+    gatherer = (form.get("gatherer", None) or "").strip()
     url = (form.get("url", None) or "").strip()
-    if not module or not url:
+    if not gatherer or not url:
         return None
-    return SourceConfig(name=name, module=module, url=url)
+    return SourceConfig(name=name, gatherer=gatherer, url=url)
 
 
 def _form(action: str, note: str, *, extra: str = "") -> str:
@@ -76,12 +76,12 @@ def _form(action: str, note: str, *, extra: str = "") -> str:
     source_opts = "".join(
         f"<option value='{escape(s.name)}'>{escape(s.name)}</option>" for s in load_sources()
     )
-    module_opts = "".join(f"<option value='{m}'>{m}</option>" for m in _available_modules())
+    gatherer_opts = "".join(f"<option value='{m}'>{m}</option>" for m in _available_gatherers())
     return (
         f"<form method='post' action='{action}'>"
         f"<input type='hidden' name='csrf_token' value='{escape(token)}'>"
         f"<p><label>source <select name='source'><option value='manual'>— manual —</option>{source_opts}</select></label></p>"
-        f"<p><label>module <select name='module'>{module_opts}</select></label></p>"
+        f"<p><label>gatherer <select name='gatherer'>{gatherer_opts}</select></label></p>"
         f"<p><label>name <input name='name' placeholder='source name (manual)'></label></p>"
         f"<p><label>url <input name='url' size='70' placeholder='https://...'></label></p>"
         f"{extra}"
@@ -102,7 +102,7 @@ def register(app) -> None:
         body = (
             "<p>Run one pipeline stage against a configured source or a manual URL.</p>"
             "<ul>"
-            "<li><a href='/debug/pipeline/gather'>gather</a> — run a module, show the full ModuleResult</li>"
+            "<li><a href='/debug/pipeline/gather'>gather</a> — run a gatherer, show the full GathererResult</li>"
             "<li><a href='/debug/pipeline/sieve'>sieve</a> — run + diff vs the DB (no writes)</li>"
             "<li><a href='/debug/pipeline/decide'>decide</a> — run + diff + persist (writes)</li>"
             "</ul>"
@@ -115,7 +115,7 @@ def register(app) -> None:
         guard = debug_guard(request)
         if guard:
             return guard
-        return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · gather", _form("/debug/pipeline/gather", "Runs the module and shows the complete, untruncated ModuleResult."), back="/debug/pipeline"))
+        return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · gather", _form("/debug/pipeline/gather", "Runs the gatherer and shows the complete, untruncated GathererResult."), back="/debug/pipeline"))
 
     @app.post("/debug/pipeline/gather")
     def gather_run(request):
@@ -126,8 +126,8 @@ def register(app) -> None:
             return _forbidden()
         cfg = _resolve_source(form_data(request))
         if cfg is None:
-            return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · gather", "<p>missing source (pick one) or module+url</p>", back="/debug/pipeline"))
-        result = load_module(cfg.module)(cfg)
+            return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · gather", "<p>missing source (pick one) or gatherer+url</p>", back="/debug/pipeline"))
+        result = load_gatherer(cfg.gatherer)(cfg)
         body = f"<p>source: {escape(cfg.name)} · events: {len(result.events)}</p>" + json_pre(result.model_dump(mode="json"))
         return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · gather", body, back="/debug/pipeline"))
 
@@ -137,7 +137,7 @@ def register(app) -> None:
         guard = debug_guard(request)
         if guard:
             return guard
-        return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · sieve", _form("/debug/pipeline/sieve", "Runs the module and diffs against the DB. Read-only."), back="/debug/pipeline"))
+        return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · sieve", _form("/debug/pipeline/sieve", "Runs the gatherer and diffs against the DB. Read-only."), back="/debug/pipeline"))
 
     @app.post("/debug/pipeline/sieve")
     def sieve_run(request):
@@ -148,8 +148,8 @@ def register(app) -> None:
             return _forbidden()
         cfg = _resolve_source(form_data(request))
         if cfg is None:
-            return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · sieve", "<p>missing source or module+url</p>", back="/debug/pipeline"))
-        run_fn = load_module(cfg.module)
+            return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · sieve", "<p>missing source or gatherer+url</p>", back="/debug/pipeline"))
+        run_fn = load_gatherer(cfg.gatherer)
         with Session(engine) as session:
             sieved, _ = process_source(session, cfg, run_fn, dry_run=True)
         body = f"<p>{len(sieved.new)} new · {len(sieved.updated)} updated · {sieved.unchanged} unchanged</p>"
@@ -190,9 +190,9 @@ def register(app) -> None:
         form = form_data(request)
         cfg = _resolve_source(form)
         if cfg is None:
-            return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · decide", "<p>missing source or module+url</p>", back="/debug/pipeline"))
+            return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · decide", "<p>missing source or gatherer+url</p>", back="/debug/pipeline"))
         dry_run = form.get("dry_run") == "1"
-        run_fn = load_module(cfg.module)
+        run_fn = load_gatherer(cfg.gatherer)
         with Session(engine) as session:
             sieved, report = process_source(session, cfg, run_fn, dry_run=dry_run)
             if not dry_run:

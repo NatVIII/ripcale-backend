@@ -1,3 +1,16 @@
+## 2026-09-05 23:26:34 [AI]
+
+F39 + F39.01: unified "gatherer" terminology + the configuration contract.
+
+- Renamed "module"/"kind"/"adapter" → "gatherer" across config, code, docs, and tests:
+  - `SourceConfig.gatherer` (was `.module`), `Source.gatherer` (was `.kind`), `ModuleResult` → `GathererResult`, `load_module()` → `load_gatherer()`, `_available_modules()` → `_available_gatherers()`.
+  - Config: `sources[].gatherer:` (was `module:`); `gatherers:` block unchanged.
+  - Docstrings/comments "source module"/"source adapter" → "gatherer".
+- Filenames/paths intentionally left (`app/sources/<name>/module.py`, `import_module`, `iter_modules`) — that's F24 (directory refactor).
+- `docs/GATHERER_CONTRACT.md`: added a "Configuration" section — the stable interface (`SourceConfig` uniform fields + `GathererConfig` defaults), resolution order (`source > gatherer default > 0`), and the determinism/uniformity principle.
+- Schema change: `Source.gatherer` (was `kind`) → wiped + re-ingested (505 events; `source.gatherer` = "elfsight").
+- 49 tests passing; AGENTS/README/TODO updated.
+
 ## 2026-09-05 22:59:51 [AI]
 
 F31.01 revision: priority is config-only + a nullable event override (no resolved column).

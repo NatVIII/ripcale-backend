@@ -1,1 +1,1 @@
-"""Elfsight event-calendar source adapter."""
+"""Elfsight event-calendar gatherer."""
