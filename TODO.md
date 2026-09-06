@@ -7,6 +7,10 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 ## Backlog
 
 - [ ] F31 - Gatherer contract: add a recurrence field to `ScrapedEvent` (→ `Event.rrule`) — gatherers ought to provide recurrence when the source has it (currently only in `raw`; see F12).
+- [ ] F31.01 - Add config priority. Each source gets a number, and the higher number of that config, if there's a conflict that seems like it's two events which appear like each other all but the highest number priority event will just "symlink" or whatever to refer to the highest priority number. The actual logic for doing this automatically shouldn't be implemented yet, just a redirect_to_id column and some kind of priority column.
+- [ ] F37 - Confirm sensible defaults that mean that when errors occur with gatherers that those errors are caught and spewed into error logs; instead of just breaking without any kind of message. 
+- [ ] F37.01 Perhaps feature a field on /debug which shows whether the last performance of each gatherer with a colored light emoji worked. 
+- [ ] F38 - Ensure that the contents of /debug/pipeline for gatherers grow naturally with the gatherers that are present. The /debug/pipeline page shouldn't have to adapt for it to recognize new gatherers being added or existing in the system, it should recognize them programatically. 
 - [ ] F15 - Stale/removal detection (events deleted at the source; needs `last_seen_at`)
 - [ ] F33 - Write the Sieve Contract
 - [ ] F34 - Write the Decisionmaker Contract
