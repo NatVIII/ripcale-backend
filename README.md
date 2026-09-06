@@ -35,10 +35,11 @@ loopback-only so the interactive surface isn't reachable over the network).
 
 ## Configuration
 
-Configuration lives in `config.yaml` (gitignored — source URLs are secret);
-copy `config.example.yaml` to `config.yaml` and adjust. API keys and secrets go
-in `.env` (see `.env.example`), never in `config.yaml`. Env vars / `.env`
-override `config.yaml`.
+Configuration lives in `config.yaml` (gitignored — keep private/secret sources
+there). `config.example.yaml` is the tracked template and ships one real *public*
+source (Studio Two Three) as starter data; copy it to `config.yaml` and adjust.
+API keys and secrets go in `.env` (see `.env.example`), never in `config.yaml`.
+Env vars / `.env` override `config.yaml`.
 
 `./data/` holds only generated data (the SQLite DB) and is safe to wipe.
 

@@ -1,3 +1,12 @@
+## 2026-09-05 20:42:38 [AI]
+
+Context hygiene + pre-commit prep (no code changes).
+
+- Applied the F## ticket-numbering convention to `TODO.md` (F01-F36; child syntax `F##.NN` documented in the header).
+- Source-URL policy change: the Elfsight widget id is now treated as public — tests/fixture were anonymized then re-included, and `config.example.yaml` ships the real Studio Two Three boot URL as starter data. Private/secret sources still belong in gitignored `config.yaml`.
+- Pre-commit secret audit: no keys/tokens/credentials in tracked files; the Elfsight fixture is a frozen snapshot of real public data, so tests never hit the network and won't break when the live source changes.
+- Updated AGENTS.md (test count 39, `ImageRef`/multi-image invariants, source-URL wording) and README.md Configuration wording.
+
 ## 2026-09-05 19:11:23 [AI]
 
 F35: multiple ordered images per event (gallery).

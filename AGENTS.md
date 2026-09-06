@@ -39,7 +39,7 @@ Key modules:
 - `app/models.py` — `Source`, `Event` (SQLModel).
 - `app/db.py` — `engine`, `init_db()`, WAL + foreign-key pragmas.
 - `app/schema.py` — pipeline contracts (`SourceConfig`, `ScrapedEvent`,
-  `ModuleResult`, `ClassifiedEvent`, `SieveResult`).
+  `ImageRef`, `ModuleResult`, `ClassifiedEvent`, `SieveResult`) + `dump_images()`/`load_images()`.
 - `app/identity.py` — `stable_id()`, `content_hash()`.
 - `app/timeutil.py` — `to_utc_naive()`, `parse_iso_utc()`.
 - `app/registry.py` — `load_sources()`, `load_module()`.
@@ -62,7 +62,7 @@ Key modules:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (36)
+.venv/bin/python -m pytest                       # test suite (39)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -78,8 +78,11 @@ docker compose up --build                        # public + admin services
   in `Event.timezone`. Convert with `app.timeutil.to_utc_naive()`.
 - **`content_hash` is a stability contract** — defined once in `app/identity.py`;
   changing its inputs makes every stored event look "updated" on the next ingest.
-- **Secret source URLs** live in `config.yaml` (gitignored); `config.example.yaml`
-  is the tracked template. Never expose source URLs via any endpoint.
+- **Events carry an ordered image gallery** — `Event.images` is a JSON column of
+  `{url, alt, source_url}` (`ImageRef`); the primary/cover image is `images[0]`.
+- **Source URLs are never exposed by the API.** Private/secret sources live in
+  `config.yaml` (gitignored); `config.example.yaml` is the tracked template and
+  ships one real *public* source (Studio Two Three) as starter data.
 - **Robyn router cannot express `:param.suffix`** — `/feed/:tag.ics` becomes a
   single param literally named `tag.ics`; hence `/feed.ics?tag=` and `/events/{id}/ics`.
 - **Robyn leaves form bodies in `request.body`, not `request.form_data`** — use
