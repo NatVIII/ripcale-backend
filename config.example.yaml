@@ -1,0 +1,34 @@
+# ripcale configuration — copy to config.yaml and adjust.
+#
+# NOTE: config.yaml is gitignored (keeps your local/secret sources private).
+# API keys and other secrets belong in .env, NOT in this file.
+#
+# The Studio Two Three source below is real, public community data included as
+# starter content — copy this file to config.yaml and run `python -m app.ingest`
+# to load events immediately.
+
+# Public (read-only) listener.
+public_host: 0.0.0.0
+public_port: 8081
+# Admin (interactive/debug) listener — keep loopback unless you know better.
+admin_host: 127.0.0.1
+admin_port: 8082
+
+data_dir: data
+cors_origins: "*"
+# database_url: sqlite:///data/ripcale.db
+
+# Debug access: comma-separated IPv4 CIDRs allowed to hit the admin endpoints.
+# Loopback is always allowed; empty = localhost only. Inside Docker the admin
+# app auto-binds 0.0.0.0 and accepts the Docker bridge subnet (172.16.0.0/12),
+# since the host publish is loopback-only and the gateway is the only peer.
+# debug_allowed_cidrs: "10.0.0.0/8,192.168.1.0/24"
+# Optional fixed CSRF token for the pipeline playground (auto-generated if empty).
+# debug_token: ""
+
+sources:
+  - name: "Studio Two Three"
+    module: "elfsight"
+    url: "https://core.service.elfsight.com/p/boot/?page=https%3A%2F%2Fwww.studiotwothree.org%2Fcommunity-events&w=24ddbed9-c732-4102-abd2-02990fae125b"
+    is_public: true
+    default_categories: ["art"]

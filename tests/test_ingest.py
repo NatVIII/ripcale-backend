@@ -1,0 +1,47 @@
+import json
+from pathlib import Path
+
+import app.sources.elfsight.module as elfsight_module
+from sqlmodel import Session, SQLModel, create_engine, select
+
+from app.ingest import process_source
+from app.models import Event
+from app.schema import SourceConfig
+
+FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "elfsight_boot.json").read_text())
+
+
+def _cfg():
+    return SourceConfig(
+        name="Studio Two Three",
+        module="elfsight",
+        url="https://fake/boot/?w=24ddbed9-c732-4102-abd2-02990fae125b",
+    )
+
+
+def test_ingest_idempotent(tmp_path, monkeypatch):
+    monkeypatch.setattr(elfsight_module, "fetch_json", lambda url: FIXTURE)
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'ingest.db'}")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        sieved, report = process_source(session, _cfg(), elfsight_module.run)
+        session.commit()
+
+    assert report == {"inserted": 3, "updated": 0, "unchanged": 0}
+
+    with Session(engine) as session:
+        assert len(session.exec(select(Event)).all()) == 3
+
+    with Session(engine) as session:
+        sieved2, report2 = process_source(session, _cfg(), elfsight_module.run)
+        session.commit()
+
+    assert sieved2.unchanged == 3
+    assert len(sieved2.new) == 0
+    assert len(sieved2.updated) == 0
+    assert report2 == {"inserted": 0, "updated": 0, "unchanged": 3}
+
+    with Session(engine) as session:
+        assert len(session.exec(select(Event)).all()) == 3

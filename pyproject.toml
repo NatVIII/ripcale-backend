@@ -1,0 +1,29 @@
+[project]
+name = "ripcale"
+version = "0.1.0"
+description = "Calendar aggregator backend for ripcale"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "robyn>=0.63.0",
+    "pydantic-settings>=2.0.0",
+    "sqlmodel>=0.0.21",
+    "httpx>=0.27.0",
+    "pyyaml>=6.0",
+    "icalendar>=5.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

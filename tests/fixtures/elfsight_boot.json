@@ -1,0 +1,229 @@
+{
+  "data": {
+    "widgets": {
+      "24ddbed9-c732-4102-abd2-02990fae125b": {
+        "data": {
+          "app": "event-calendar",
+          "settings": {
+            "eventTypes": [
+              {
+                "id": "6368ba2a107e4",
+                "name": "Courses and Workshops",
+                "categoryColor": "rgb(10, 49, 102)"
+              },
+              {
+                "name": "Film Screenings",
+                "categoryColor": "rgb(56, 22, 102)",
+                "id": "lr81d5lr"
+              },
+              {
+                "name": "Community Events",
+                "categoryColor": "rgb(108, 24, 82)",
+                "id": "lr81dmi4"
+              },
+              {
+                "name": "Artist Markets",
+                "categoryColor": "rgb(112, 32, 32)",
+                "id": "lr81dwps"
+              },
+              {
+                "name": "Private Events",
+                "categoryColor": "rgb(15, 87, 28)",
+                "id": "lr81ea2u"
+              },
+              {
+                "name": "Community Organizing Event",
+                "categoryColor": "rgb(255, 56, 56)",
+                "id": "lr81en05"
+              }
+            ],
+            "locations": [
+              {
+                "name": "Studio Two Three",
+                "address": "109 W 15th Street, Richmond, VA",
+                "website": "studiotwothree.org",
+                "id": "lr81f5a3"
+              },
+              {
+                "name": "Shop Two Three",
+                "address": "1437 Hull Street Richmond VA 23224",
+                "website": "studiotwothree.org/shop",
+                "id": "m0pigj2m",
+                "filterID": "shop-two-three"
+              }
+            ],
+            "hosts": [],
+            "events": [
+              {
+                "name": "Steel Magnolias Screening benefitting Oakwood Arts",
+                "start": {
+                  "type": "datetime",
+                  "date": "2026-08-29",
+                  "time": "19:00"
+                },
+                "end": {
+                  "type": "datetime",
+                  "date": "2026-08-29",
+                  "time": "19:00"
+                },
+                "timeZone": "America/New_York",
+                "repeatPeriod": "noRepeat",
+                "repeatFrequency": "daily",
+                "repeatInterval": 1,
+                "repeatWeeklyOnDays": [],
+                "repeatEnds": "never",
+                "repeatEndsDate": null,
+                "repeatEndsOccurrences": 1,
+                "repeatMonthlyOnDay": "sameDay",
+                "exceptions": [],
+                "description": "<div>Join us Saturday August 29th, at 7pm for a screening of <strong>Steel Magnolias</strong> to celebrate our dearly departed Dolly Parton. All ticket sales and proceeds from the screening will benefit <a target=\"_blank\" rel=\"noopener\" href=\"https://oakwoodarts.org/\"><u>Oakwood Arts</u></a>.</div><br><div>Dolly's love, sass and light brought folks together in the toughest of times. Let's raise a glass in her memory and help our good friends at Oakwood arts through a truly challenging financial moment.</div><br><div>\u23f0 Doors at 7pm | Movie at 7:30</div><br><div>\ud83c\udf9f\ufe0f $10 donation to Oakwood Arts</div><br><div>\ud83d\ude99 Parking is available in the paved lot across 15th Street from the studio</div><br><div>We will have popcorn, a cash bar with beer, wine &amp; whisky cocktails, and free Dolly prints for all.&nbsp;</div><br><div>Our love for Dolly is infinite, but our seating is not, so get your tickets below!</div><br><div>\ud83e\ude77&nbsp; - Studio Two Three</div>",
+                "images": [
+                  {
+                    "url": "https://files.elfsightcdn.com/eafe4a4d-3436-495d-b748-5bdce62d911d/0932195f-cfb3-41ca-ad0f-efb87289ca5f/Dolly-Final.jpg",
+                    "alt": "Dolly-Final.jpg",
+                    "id": "fb46e5c4-b54c-4a78-b9f1-7e43bdc99228"
+                  }
+                ],
+                "coverImage": null,
+                "eventType": [
+                  "lr81d5lr"
+                ],
+                "location": [
+                  "lr81f5a3"
+                ],
+                "host": [],
+                "tags": [],
+                "color": "transparent",
+                "actions": [
+                  {
+                    "id": "7e52274b-f5b4-4dfd-a2f3-1277a884011c",
+                    "type": "link",
+                    "text": "Get Tickets",
+                    "link": {
+                      "type": "url",
+                      "value": "https://www.eventbrite.com/e/steel-magnolias-screening-tickets-1999118074977",
+                      "rawValue": "https://www.eventbrite.com/e/steel-magnolias-screening-tickets-1999118074977",
+                      "target": "_blank"
+                    },
+                    "primary": true
+                  }
+                ],
+                "actionsCaption": "",
+                "video": null,
+                "file": null,
+                "isAllDay": false,
+                "id": "70e8fcb0-92de-476f-81ec-49d21da955a3"
+              },
+              {
+                "id": "8ae08a86-4d5c-4f47-a9d3-1de855c0d961",
+                "name": "Beautiful Pigs, Forced Resonance, and the Perry Menestres Big Band",
+                "start": {
+                  "type": "datetime",
+                  "date": "2026-08-28",
+                  "time": "20:00"
+                },
+                "end": {
+                  "type": "datetime",
+                  "date": "2026-08-28",
+                  "time": "22:00"
+                },
+                "timeZone": "America/New_York",
+                "repeatPeriod": "noRepeat",
+                "repeatFrequency": "daily",
+                "repeatInterval": 1,
+                "repeatWeeklyOnDays": [],
+                "repeatEnds": "never",
+                "repeatEndsDate": null,
+                "repeatEndsOccurrences": 1,
+                "repeatMonthlyOnDay": "sameDay",
+                "exceptions": [],
+                "description": "<div><span>David Menestres And Big Band (co-led by Jordan Perry &amp; David Menestres), Beautiful Pigs (Mackenzie Kourie, Luke Rovinsky, Caleb Duval), Forced Resonance (led by Caleb Flood) at Studio Two Three (Richmond VA). </span></div><br><div><span>Music at 8pm, $10-20 notaflof. More info. </span></div>",
+                "images": [],
+                "coverImage": {
+                  "url": "https://files.elfsightcdn.com/eafe4a4d-3436-495d-b748-5bdce62d911d/5b7e1167-a270-4c9e-aac2-d184cf963a51/Screenshot-2026-08-24-at-6-03-05-PM.png",
+                  "name": "Screenshot 2026-08-24 at 6.03.05\u202fPM.png",
+                  "size": 2523624,
+                  "type": "image/png",
+                  "extension": "png",
+                  "width": 1308,
+                  "height": 1588,
+                  "meta": {
+                    "width": 1308,
+                    "height": 1588
+                  }
+                },
+                "eventType": [
+                  "lr81dmi4"
+                ],
+                "location": [
+                  "lr81f5a3"
+                ],
+                "host": [],
+                "tags": [],
+                "color": "transparent",
+                "actions": [],
+                "actionsCaption": "",
+                "video": null,
+                "file": null,
+                "isAllDay": false
+              },
+              {
+                "id": "055e51de-6d34-463a-bcb0-cb18c0a57e91",
+                "name": "Richmond DSA presents Grief Stricken Winds",
+                "start": {
+                  "type": "datetime",
+                  "date": "2026-08-30",
+                  "time": "13:00"
+                },
+                "end": {
+                  "type": "datetime",
+                  "date": "2026-08-30",
+                  "time": "17:00"
+                },
+                "timeZone": "America/New_York",
+                "repeatPeriod": "noRepeat",
+                "repeatFrequency": "daily",
+                "repeatInterval": 1,
+                "repeatWeeklyOnDays": [],
+                "repeatEnds": "never",
+                "repeatEndsDate": null,
+                "repeatEndsOccurrences": 1,
+                "repeatMonthlyOnDay": "sameDay",
+                "exceptions": [],
+                "description": "<div><span>Join the Richmond DSA for an afternoon showing of Grief-Stricken Winds and talkback with Documentarian Arun Vickram.  </span><a target=\"_blank\" href=\"https://grief-stricken-winds.com/en/\"><span>Grief-Stricken Winds</span></a><span> is a documentary series about the ongoing genocide of the Tamils by the government of Sri Lanka.</span></div><br><div><a target=\"_blank\" href=\"https://www.dsarichmond.org/events/\">More info here</a></div>",
+                "images": [],
+                "coverImage": {
+                  "url": "https://files.elfsightcdn.com/eafe4a4d-3436-495d-b748-5bdce62d911d/0e721fef-188f-404f-a369-338559188837/Grief-Stricken-Winds.jpg",
+                  "name": "Grief Stricken Winds.jpg",
+                  "size": 168330,
+                  "type": "image/jpeg",
+                  "extension": "jpg",
+                  "width": 927,
+                  "height": 1200,
+                  "meta": {
+                    "width": 927,
+                    "height": 1200
+                  }
+                },
+                "eventType": [
+                  "lr81d5lr"
+                ],
+                "location": [
+                  "lr81f5a3"
+                ],
+                "host": [],
+                "tags": [],
+                "color": "transparent",
+                "actions": [],
+                "actionsCaption": "",
+                "video": null,
+                "file": null,
+                "isAllDay": false
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
