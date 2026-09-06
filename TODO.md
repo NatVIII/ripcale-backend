@@ -6,6 +6,9 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
+- [ ] F37.03 - Debug Menu: Wipe Database Button behind two layers of verification (initial delete button, type a sentence in full, second confirm button); and make sure that the program tests to make sure that wiping the DB doesn't stop the server from running properly, and that it can then resume.
+- [ ] F37.04 - Debug Menu: Trigger full ingest from gatherers manually
+- [ ] F37.05 - Debug Menu: Tests page which can trigger all tests or just one test and show if they passed or failed
 - [ ] F15 - Stale/removal detection (events deleted at the source; needs `last_seen_at`)
 - [ ] F33 - Write the Sieve Contract
 - [ ] F34 - Write the Decisionmaker Contract
