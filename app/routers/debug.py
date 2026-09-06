@@ -12,10 +12,11 @@ from robyn import Response, jsonify
 from sqlmodel import Session
 
 from app.db import engine
+from app.logging import read_log_tail
 from app.security import debug_guard
 from app.services import stats
 from app.services.status import gatherer_rollup, read_status, source_status
-from app.web import escape, json_pre, page, table
+from app.web import escape, json_pre, page, pre, table
 #endregion
 
 
@@ -82,6 +83,19 @@ def register(app) -> None:
             + (json_pre(last) if last else "<p>no ingest run yet</p>")
         )
         return _html(page("ripcale debug menu! (˶>⩊<˶)", body))
+
+    # -- HTML: log tail ------------------------------------------------------
+    @app.get("/debug/logs")
+    def logs(request):
+        guard = debug_guard(request)
+        if guard:
+            return guard
+        tail = read_log_tail(200)
+        body = (
+            "<p>last 200 log lines — reload to refresh.</p>"
+            + (pre(tail) if tail else "<p>no log entries yet.</p>")
+        )
+        return _html(page("ripcale logs", body))
 
     # -- JSON: stats --------------------------------------------------------
     @app.get("/debug/stats")

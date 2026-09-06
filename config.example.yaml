@@ -18,6 +18,12 @@ data_dir: data
 cors_origins: "*"
 # database_url: sqlite:///data/ripcale.db
 
+# Rotating log file (shared by all entrypoints; viewed at /debug/logs).
+# Relative paths resolve against data_dir; absolute paths are used as-is.
+# log_file: ripcale.log            # default: {data_dir}/ripcale.log
+# log_max_bytes: 1000000           # rotate once the file reaches ~1 MB
+# log_backup_count: 3              # keep 3 rotated backups (~4 MB max on disk)
+
 # Debug access: comma-separated IPv4 CIDRs allowed to hit the admin endpoints.
 # Loopback is always allowed; empty = localhost only. Inside Docker the admin
 # app auto-binds 0.0.0.0 and accepts the Docker bridge subnet (172.16.0.0/12),

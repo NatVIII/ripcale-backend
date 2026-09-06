@@ -15,8 +15,9 @@ It runs as two listeners:
   `/events/{id}/ics`, `/healthz`.
 - **admin** (`app/admin.py`) — debug dashboard + pipeline playground on
   `admin_host:admin_port` (default `127.0.0.1:8082`): `/debug`, `/debug/pipeline/*`
-  (the only write surface, via the `decide` stage). Loopback-only; inside Docker
-  it auto-binds `0.0.0.0` and accepts the Docker bridge subnet (see gotchas).
+  (the only write surface, via the `decide` stage), `/debug/logs`. Loopback-only;
+  inside Docker it auto-binds `0.0.0.0` and accepts the Docker bridge subnet
+  (see gotchas).
 
 ## Architecture
 
@@ -36,7 +37,7 @@ The Gatherer→Sieve→Decisionmaker data contract is specified in
 Key files:
 
 - `app/config.py` — `Settings` (config.yaml + .env; env > dotenv > yaml > defaults).
-- `app/logging.py` — `setup_logging()` (configured from each entrypoint's `main()`).
+- `app/logging.py` — `setup_logging()` (console + rotating `data/ripcale.log`, idempotent) + `read_log_tail()` (constant-time backward tail for `/debug/logs`).
 - `app/models.py` — `Source`, `Event` (SQLModel).
 - `app/db.py` — `engine`, `init_db()`, WAL + foreign-key pragmas.
 - `app/schema.py` — pipeline contracts (`SourceConfig`, `ScrapedEvent`,
@@ -64,7 +65,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (56)
+.venv/bin/python -m pytest                       # test suite (66)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -112,6 +113,11 @@ docker compose up --build                        # public + admin services
   playground) records its outcome to `data/status.json` (`ok`/`warning`/`error`);
   `/debug` derives 🟢/🟡/🔴/⚪ lights from it, rolled up per gatherer by highest
   severity.
+- **Logs are a shared rotating file** — `setup_logging()` attaches a
+  `RotatingFileHandler` to the root logger in every entrypoint, so `public`,
+  `admin`, and `ingest` all write the same `{data_dir}/ripcale.log`. Rotation is
+  *not* multi-process-safe (a rare race if two processes hit `log_max_bytes`
+  simultaneously); disk stays capped at ~`log_max_bytes * (log_backup_count + 1)`.
 
 ## Configuration
 
@@ -121,6 +127,9 @@ Fields in `config.yaml` (env prefix `RIPCALE_`; `.env` overrides):
 - `admin_host` / `admin_port` — debug listener (default `127.0.0.1` / `8082`).
 - `data_dir` — SQLite + `last_ingest.json` location (default `data`).
 - `database_url` — optional override (defaults to `sqlite:///{data_dir}/ripcale.db`).
+- `log_file` — rotating log path (relative → `data_dir`; empty → `data/ripcale.log`).
+- `log_max_bytes` — rotate once the file reaches this size (default `1000000`).
+- `log_backup_count` — rotated backups to keep (default `3`).
 - `cors_origins` — CORS origin list (default `*`).
 - `debug_allowed_cidrs` — extra IPv4 CIDRs for the admin endpoints (loopback always allowed).
 - `debug_token` — optional fixed CSRF token (auto-generated if empty).

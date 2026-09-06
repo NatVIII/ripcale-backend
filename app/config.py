@@ -42,6 +42,16 @@ class Settings(BaseSettings):
     data_dir: str = "data"
     database_url: str | None = None
 
+    # -- logging ----------------------------------------------------------
+    # Path to the rotating log file. Relative paths are resolved against
+    # `data_dir`; absolute paths are used as-is. Empty = `{data_dir}/ripcale.log`.
+    log_file: str | None = None
+    # RotatingFileHandler caps: rotate once the file reaches `log_max_bytes`,
+    # keeping `log_backup_count` rotated backups (disk capped at
+    # ~max_bytes * (backup_count + 1)).
+    log_max_bytes: int = 1_000_000
+    log_backup_count: int = 3
+
     # -- http -------------------------------------------------------------
     cors_origins: str = "*"
 

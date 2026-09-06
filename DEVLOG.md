@@ -1,3 +1,14 @@
+## 2026-09-06 17:45:00 [AI]
+
+F37.02: browser log view (rotating file + /debug/logs tail).
+
+- `app/config.py`: new `log_file` / `log_max_bytes` / `log_backup_count` settings (env `RIPCALE_*`); `log_file` relative paths resolve against `data_dir`, empty → `{data_dir}/ripcale.log`.
+- `app/logging.py`: `setup_logging()` now attaches a `RotatingFileHandler` (delay=True) to the root logger in addition to the console stream — idempotent (file handler keyed on `RotatingFileHandler`, stream on exact `StreamHandler` type). Added `log_path()` and `read_log_tail(n=200)` — a constant-time backward tail (seek-to-end, block reads, drop the leading partial line); decodes with `errors="replace"`.
+- `app/routers/debug.py`: IP-gated `GET /debug/logs` renders the last 200 lines (escaped) or "no log entries yet".
+- `app/web.py`: nav gains a `logs` link.
+- Tests: `tests/test_logging.py` (66 passing) — tail correctness (exact last-N, missing/empty, fewer-than-N, no trailing newline, >8 KB block boundary), setup idempotency, rotation caps backups, and the route render.
+- Known limitation (documented in AGENTS.md): rotation is not multi-process-safe; disk stays capped.
+
 ## 2026-09-06 17:20:00 [AI]
 
 F37.01: per-source run status + dashboard lights.

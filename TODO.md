@@ -6,7 +6,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
-- [ ] F37.02 — View logs in the browser on admin side. Route logging to a rotated file (data/ripcale.log, RotatingFileHandler) shared by all entrypoints, and add an IP-gated /debug/logs page that tails the last ~200 lines. Hard requirements: constant-time tail (seek to end, read only the last chunk — never slurp the whole file), rotation cap so disk never grows unbounded, and zero impact on the public read API.
 - [ ] F15 - Stale/removal detection (events deleted at the source; needs `last_seen_at`)
 - [ ] F33 - Write the Sieve Contract
 - [ ] F34 - Write the Decisionmaker Contract
@@ -57,6 +56,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F38 - /debug/pipeline discovers gatherers programmatically (already in place via `_available_gatherers()`) (2026-09-06)
 - [x] F37 - Gatherer error handling: `app/logging.py` (`setup_logging`), per-source try/except + rollback in `ingest.run()`, clear error pages in the pipeline playground, import-failure logging (2026-09-06)
 - [x] F37.01 - Per-source run status + dashboard lights: `app/services/status.py` (`data/status.json`, ok/warning/error, 0-events→warning), wired into `ingest.run()` + pipeline playground, `/debug` per-gatherer status lights (2026-09-06)
+- [x] F37.02 - Browser log view: `RotatingFileHandler` to `data/ripcale.log` (shared by all entrypoints, config `log_file`/`log_max_bytes`/`log_backup_count`) + IP-gated `/debug/logs` with constant-time backward tail (2026-09-06)
 
 ## Deleted
 - [ ] F30 - Deleted Event
