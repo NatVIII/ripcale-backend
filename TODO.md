@@ -7,8 +7,11 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 ## Backlog
 
 - [ ] F15 - Stale/removal detection (events deleted at the source; needs `last_seen_at`)
-- [ ] F33 - Write the Sieve Contract
+- [ ] F33 - Write the Sieve Contract as the highest source of truth
+- [ ] F33.01 - Add a "version" to the contract to act as a stamp at the top, and make this something which indicates what the current form of the contract is, and is included in the comments of relevant components of code to indicate what the latest version they were adapted and running well for is. 
+- [ ] F33.02 - Do the version signing thing for the gatherer contract and logic
 - [ ] F34 - Write the Decisionmaker Contract
+- [ ] F34.01 - Assign a version and signing in comments thing to the decisionmaker to make sure that they're compliant with the newest source of truth for how it ought to operate
 - [ ] F32 - Default location: configurable default location applied to events with a missing/blank `location` (config field; normalized in one shared place).
 - [ ] F26 - Category to category symlinks (so that internal categories can be saved and referenced, but still be a part of real and exposed external categories)
 - [ ] F17 - Category → color mapping (Elfsight `categoryColor` not yet stored). Configured inside of the config.yaml, assigning colors to different categories. 
