@@ -1,3 +1,12 @@
+## 2026-09-06 18:30:00 [AI]
+
+F37.04: trigger full ingest from the debug menu.
+
+- `app/ingest.py`: extracted `_run(dry_run) -> (results, summaries)` as the single implementation; `run()` (CLI) and new `run_report()` (web) are thin wrappers over it — same code path as `python -m app.ingest`, no branching.
+- `app/routers/ingest.py` (registered in `app/admin.py`): `GET/POST /debug/ingest` — dry-run checkbox (checked by default), IP+CSRF gated, renders a per-source counts table (status emoji, new/updated/unchanged/inserted, error message).
+- `app/web.py`: nav gains an `ingest` link.
+- Tests: `tests/test_ingest_route.py` (77 passing) — `run_report` summaries, dry-run vs commit, failing-source error summary, CSRF rejection, and a test locking the shared `_run()` path (`run`/`run_report` both route through it).
+
 ## 2026-09-06 18:10:00 [AI]
 
 F37.03: database wipe behind two-layer verification.

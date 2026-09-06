@@ -15,9 +15,10 @@ It runs as two listeners:
   `/events/{id}/ics`, `/healthz`.
 - **admin** (`app/admin.py`) — debug dashboard + pipeline playground on
   `admin_host:admin_port` (default `127.0.0.1:8082`): `/debug`, `/debug/pipeline/*`
-  (write surface via the `decide` stage), `/debug/logs`, `/debug/wipe`
-  (two-layer-verified DB wipe). Loopback-only; inside Docker it auto-binds
-  `0.0.0.0` and accepts the Docker bridge subnet (see gotchas).
+  (write surface via the `decide` stage), `/debug/ingest` (full-batch ingest),
+  `/debug/logs`, `/debug/wipe` (two-layer-verified DB wipe). Loopback-only;
+  inside Docker it auto-binds `0.0.0.0` and accepts the Docker bridge subnet
+  (see gotchas).
 
 ## Architecture
 
@@ -49,7 +50,7 @@ Key files:
 - `app/sieve/` — `classify()` re-exported from `sieve.py` (change detection; `_relevance()` is a
   pass-through placeholder for future drop-past rules).
 - `app/decisionmaker/` — `apply()` re-exported from `decisionmaker.py` (persist; stub for future cross-source heuristics).
-- `app/ingest.py` — `run()` / `process_source()` orchestrator (CLI).
+- `app/ingest.py` — `run()` / `run_report()` / `process_source()` orchestrator (CLI + debug ingest page share `_run()`).
 - `app/serializers.py` — `Event` → FullCalendar dict.
 - `app/services/events.py` — `query_events()`, `get_event()`, `source_names()`.
 - `app/services/ics.py` — `event_to_vevent()`, `events_to_ics()`.
@@ -58,7 +59,7 @@ Key files:
 - `app/services/wipe.py` — `wipe_all()` (DB wipe + reset status/last-ingest).
 - `app/security.py` — `in_docker()`, `is_debug_allowed()`, CSRF, `form_data()`.
 - `app/web.py` — HTML helpers (dashboard + playground pages).
-- `app/routers/{events,feeds,debug,pipeline,wipe}.py` — HTTP handlers.
+- `app/routers/{events,feeds,debug,pipeline,ingest,wipe}.py` — HTTP handlers.
 - `app/public.py`, `app/admin.py` — the two listeners.
 - `app/main.py` — local-dev launcher (spawns both; Docker runs the two directly).
 
@@ -66,7 +67,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (71)
+.venv/bin/python -m pytest                       # test suite (77)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082

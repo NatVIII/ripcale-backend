@@ -96,8 +96,12 @@ def _write_last_ingest(summaries: list[dict]) -> None:
 
 
 #region: entrypoint
-def run(dry_run: bool = False) -> list[SieveResult]:
-    """Run the full pipeline across every configured source."""
+def _run(dry_run: bool = False) -> tuple[list[SieveResult], list[dict]]:
+    """Run the full pipeline across every configured source.
+
+    Single shared implementation used by the CLI (`run`) and the debug ingest
+    page (`run_report`); returns `(results, summaries)`.
+    """
     init_db()
     results: list[SieveResult] = []
     summaries: list[dict] = []
@@ -133,7 +137,17 @@ def run(dry_run: bool = False) -> list[SieveResult]:
                 session.commit()
     if not dry_run:
         _write_last_ingest(summaries)
-    return results
+    return results, summaries
+
+
+def run(dry_run: bool = False) -> list[SieveResult]:
+    """Run the full pipeline; return the per-source sieve results (CLI)."""
+    return _run(dry_run)[0]
+
+
+def run_report(dry_run: bool = False) -> list[dict]:
+    """Run the full pipeline; return the per-source summaries (debug page)."""
+    return _run(dry_run)[1]
 
 
 def main() -> None:
