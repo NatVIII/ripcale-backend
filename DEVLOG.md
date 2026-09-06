@@ -1,3 +1,12 @@
+## 2026-09-06 16:17:21 [AI]
+
+F37: gatherer error handling + logging.
+
+- `app/logging.py`: `setup_logging()` (basicConfig, INFO, clear format); called from `main()` of `public`, `admin`, `ingest`, `debug`.
+- `app/ingest.py`: `run()` wraps each source in try/except — logs (`logger.exception`), rolls back the session, records `{"name", "error"}` in the summary (feeds `last_ingest.json`), and continues to the next source.
+- `app/routers/pipeline.py`: `_available_gatherers()` logs import failures (was a silent `continue`); gather/sieve/decide POST handlers catch exceptions and render a clear error page (new `_error_page` helper) instead of a bare 500.
+- Tests: `tests/test_error_handling.py` — a failing source doesn't crash `ingest.run()` (others still process, error recorded) and a broken gatherer is skipped by discovery (51 passing).
+
 ## 2026-09-06 01:14:29 [AI]
 
 F24: pipeline stages into their own directories.

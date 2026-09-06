@@ -6,8 +6,8 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
-- [ ] F37 - Confirm sensible defaults that mean that when errors occur with gatherers that those errors are caught and spewed into error logs; instead of just breaking without any kind of message. 
 - [ ] F37.01 Perhaps feature a field on /debug which shows whether the last performance of each gatherer with a colored light emoji worked. 
+- [ ] F37.02 — View logs in the browser on admin side. Route logging to a rotated file (data/ripcale.log, RotatingFileHandler) shared by all entrypoints, and add an IP-gated /debug/logs page that tails the last ~200 lines. Hard requirements: constant-time tail (seek to end, read only the last chunk — never slurp the whole file), rotation cap so disk never grows unbounded, and zero impact on the public read API.
 - [ ] F15 - Stale/removal detection (events deleted at the source; needs `last_seen_at`)
 - [ ] F33 - Write the Sieve Contract
 - [ ] F34 - Write the Decisionmaker Contract
@@ -21,6 +21,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [ ] F28 - Event Editor: Edit events on the backend using the /debug API. Keep just regular HTML, no Javascript for this
 - [ ] F25 - Gatherer: Google Calendar Gatherer
 - [ ] F21 - Gatherer: Instagram source (research HikerAPI - see DEVLOG note)
+- [ ] F40 - Post-Sieve Feature, FITB with image OCR. The Instagram 
 - [ ] F18 - Image hosting (v1 links out; self-hosting deferred by design)
 - [ ] F11 - Scheduler: automatic ingest (APScheduler / cron) - nothing polls yet
 - [ ] F12 - Recurrence expansion (recurring Elfsight events; fields kept in `raw`)
@@ -54,6 +55,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F39.01 - Renamed "module"/"kind"/"adapter" → "gatherer" across config, code, docs, and tests (filenames untouched for F24) (2026-09-05)
 - [x] F24 - Split the pipeline stages into their own directories: `app/gatherers/`, `app/sieve/`, `app/decisionmaker/` (2026-09-06)
 - [x] F38 - /debug/pipeline discovers gatherers programmatically (already in place via `_available_gatherers()`) (2026-09-06)
+- [x] F37 - Gatherer error handling: `app/logging.py` (`setup_logging`), per-source try/except + rollback in `ingest.run()`, clear error pages in the pipeline playground, import-failure logging (2026-09-06)
 
 ## Deleted
 - [ ] F30 - Deleted Event

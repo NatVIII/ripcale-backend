@@ -11,6 +11,7 @@ playground (`app/routers/pipeline.py`).
 #region: imports
 import argparse
 import json
+import logging
 from pathlib import Path
 from typing import Callable
 
@@ -19,10 +20,13 @@ from sqlmodel import Session, select
 from app.config import settings
 from app.db import engine, init_db
 from app.decisionmaker import apply
+from app.logging import setup_logging
 from app.models import Source, utcnow
 from app.registry import load_gatherer, load_sources
 from app.schema import GathererResult, SieveResult, SourceConfig
 from app.sieve import classify
+
+logger = logging.getLogger(__name__)
 #endregion
 
 
@@ -98,8 +102,14 @@ def run(dry_run: bool = False) -> list[SieveResult]:
     summaries: list[dict] = []
     with Session(engine) as session:
         for cfg in load_sources():
-            run_fn = load_gatherer(cfg.gatherer)
-            sieved, report = process_source(session, cfg, run_fn, dry_run=dry_run)
+            try:
+                run_fn = load_gatherer(cfg.gatherer)
+                sieved, report = process_source(session, cfg, run_fn, dry_run=dry_run)
+            except Exception as exc:
+                logger.exception("source %r failed", cfg.name)
+                session.rollback()
+                summaries.append({"name": cfg.name, "error": str(exc)})
+                continue
             _print_report(cfg.name, sieved, report)
             results.append(sieved)
             summaries.append(
@@ -123,6 +133,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run the ripcale ingest pipeline")
     parser.add_argument("--dry-run", action="store_true", help="classify only, do not write")
     args = parser.parse_args()
+    setup_logging()
     run(dry_run=args.dry_run)
 
 

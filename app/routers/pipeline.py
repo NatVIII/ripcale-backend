@@ -14,6 +14,7 @@ POST handlers require the CSRF token embedded in the forms.
 """
 #region: imports
 import importlib
+import logging
 import pkgutil
 
 import app.gatherers as gatherers_pkg
@@ -26,6 +27,8 @@ from app.registry import load_gatherer, load_sources
 from app.schema import SourceConfig
 from app.security import debug_csrf_token, debug_guard, form_data, verify_csrf
 from app.web import escape, json_pre, page, table
+
+logger = logging.getLogger(__name__)
 #endregion
 
 
@@ -38,6 +41,12 @@ def _forbidden() -> Response:
     return Response(status_code=403, headers={"Content-Type": "text/html"}, description=page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ forbidden", "<p>invalid CSRF token</p>"))
 
 
+def _error_page(stage: str, exc: Exception) -> Response:
+    """Log the failure and render a clear error page (instead of a bare 500)."""
+    logger.exception("%s stage failed", stage)
+    return _html(page(f"ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · {stage}", f"<p><strong>error:</strong> {escape(exc)}</p>", back="/debug/pipeline"))
+
+
 def _available_gatherers() -> list[str]:
     """Discover gatherers under app/gatherers that expose a `run`."""
     names = []
@@ -48,7 +57,8 @@ def _available_gatherers() -> list[str]:
             candidate = importlib.import_module(f"app.gatherers.{mod.name}.gatherer")
             if hasattr(candidate, "run"):
                 names.append(mod.name)
-        except Exception:
+        except Exception as exc:
+            logger.warning("gatherer %r failed to import: %s", mod.name, exc)
             continue
     return sorted(names)
 
@@ -127,7 +137,10 @@ def register(app) -> None:
         cfg = _resolve_source(form_data(request))
         if cfg is None:
             return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · gather", "<p>missing source (pick one) or gatherer+url</p>", back="/debug/pipeline"))
-        result = load_gatherer(cfg.gatherer)(cfg)
+        try:
+            result = load_gatherer(cfg.gatherer)(cfg)
+        except Exception as exc:
+            return _error_page("gather", exc)
         body = f"<p>source: {escape(cfg.name)} · events: {len(result.events)}</p>" + json_pre(result.model_dump(mode="json"))
         return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · gather", body, back="/debug/pipeline"))
 
@@ -149,9 +162,12 @@ def register(app) -> None:
         cfg = _resolve_source(form_data(request))
         if cfg is None:
             return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · sieve", "<p>missing source or gatherer+url</p>", back="/debug/pipeline"))
-        run_fn = load_gatherer(cfg.gatherer)
-        with Session(engine) as session:
-            sieved, _ = process_source(session, cfg, run_fn, dry_run=True)
+        try:
+            run_fn = load_gatherer(cfg.gatherer)
+            with Session(engine) as session:
+                sieved, _ = process_source(session, cfg, run_fn, dry_run=True)
+        except Exception as exc:
+            return _error_page("sieve", exc)
         body = f"<p>{len(sieved.new)} new · {len(sieved.updated)} updated · {sieved.unchanged} unchanged</p>"
         body += "<h2>new</h2>" + table(
             ["id", "title", "categories"],
@@ -192,11 +208,14 @@ def register(app) -> None:
         if cfg is None:
             return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · decide", "<p>missing source or gatherer+url</p>", back="/debug/pipeline"))
         dry_run = form.get("dry_run") == "1"
-        run_fn = load_gatherer(cfg.gatherer)
-        with Session(engine) as session:
-            sieved, report = process_source(session, cfg, run_fn, dry_run=dry_run)
-            if not dry_run:
-                session.commit()
+        try:
+            run_fn = load_gatherer(cfg.gatherer)
+            with Session(engine) as session:
+                sieved, report = process_source(session, cfg, run_fn, dry_run=dry_run)
+                if not dry_run:
+                    session.commit()
+        except Exception as exc:
+            return _error_page("decide", exc)
 
         if dry_run:
             body = f"<p>dry run — nothing written · {len(sieved.new)} new · {len(sieved.updated)} updated · {sieved.unchanged} unchanged</p>"

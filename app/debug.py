@@ -14,6 +14,7 @@ import json
 from sqlmodel import Session
 
 from app.db import engine, init_db
+from app.logging import setup_logging
 from app.services import stats
 #endregion
 
@@ -48,6 +49,7 @@ def main() -> None:
     p_events.add_argument("--id", required=True, help="event id")
 
     args = parser.parse_args()
+    setup_logging()
     init_db()
     with Session(engine) as session:
         if args.cmd == "sources":

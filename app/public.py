@@ -11,6 +11,7 @@ from robyn import ALLOW_CORS, Robyn
 from app import models  # noqa: F401  (importing registers the SQLModel tables)
 from app.config import settings
 from app.db import init_db
+from app.logging import setup_logging
 from app.routers import events as events_router
 from app.routers import feeds as feeds_router
 #endregion
@@ -36,6 +37,7 @@ async def healthz(request):
 
 #region: entrypoint
 def main() -> None:
+    setup_logging()
     init_db()
     app.start(host=settings.public_host, port=settings.public_port)
 

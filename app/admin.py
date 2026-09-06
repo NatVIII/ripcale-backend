@@ -12,6 +12,7 @@ from robyn import Robyn
 from app import models  # noqa: F401  (importing registers the SQLModel tables)
 from app.config import settings
 from app.db import init_db
+from app.logging import setup_logging
 from app.routers import debug as debug_router
 from app.routers import pipeline as pipeline_router
 from app.security import in_docker
@@ -28,6 +29,7 @@ pipeline_router.register(app)  # /debug/pipeline/*
 
 #region: entrypoint
 def main() -> None:
+    setup_logging()
     init_db()
     # Inside Docker the published port DNATs to the container's eth0, so the
     # app must bind 0.0.0.0; the host publish (127.0.0.1:8082) still restricts
