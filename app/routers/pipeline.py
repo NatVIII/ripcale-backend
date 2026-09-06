@@ -39,7 +39,7 @@ def _forbidden() -> Response:
 
 
 def _available_gatherers() -> list[str]:
-    """Discover gatherers under app/sources that expose a `run`."""
+    """Discover gatherers under app/gatherers that expose a `run`."""
     names = []
     for mod in pkgutil.iter_modules(gatherers_pkg.__path__):
         if not mod.ispkg:

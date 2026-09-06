@@ -8,7 +8,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 - [ ] F37 - Confirm sensible defaults that mean that when errors occur with gatherers that those errors are caught and spewed into error logs; instead of just breaking without any kind of message. 
 - [ ] F37.01 Perhaps feature a field on /debug which shows whether the last performance of each gatherer with a colored light emoji worked. 
-- [ ] F38 - Ensure that the contents of /debug/pipeline for gatherers grow naturally with the gatherers that are present. The /debug/pipeline page shouldn't have to adapt for it to recognize new gatherers being added or existing in the system, it should recognize them programatically. 
 - [ ] F15 - Stale/removal detection (events deleted at the source; needs `last_seen_at`)
 - [ ] F33 - Write the Sieve Contract
 - [ ] F34 - Write the Decisionmaker Contract
@@ -54,6 +53,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F39 - Gatherer configuration contract: documented the stable config interface (`SourceConfig` + `GathererConfig`, uniform/deterministic) in docs/GATHERER_CONTRACT.md (2026-09-05)
 - [x] F39.01 - Renamed "module"/"kind"/"adapter" → "gatherer" across config, code, docs, and tests (filenames untouched for F24) (2026-09-05)
 - [x] F24 - Split the pipeline stages into their own directories: `app/gatherers/`, `app/sieve/`, `app/decisionmaker/` (2026-09-06)
+- [x] F38 - /debug/pipeline discovers gatherers programmatically (already in place via `_available_gatherers()`) (2026-09-06)
 
 ## Deleted
 - [ ] F30 - Deleted Event
