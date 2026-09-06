@@ -7,10 +7,11 @@ stats, debug). `init_db()` is called from `app.main.main()` and
 #region: imports
 from pathlib import Path
 
-from sqlalchemy import event
-from sqlmodel import Session, SQLModel, create_engine
+from sqlalchemy import event, func
+from sqlmodel import Session, SQLModel, create_engine, delete, select
 
 from app.config import settings
+from app.models import Event, Source
 #endregion
 
 
@@ -44,6 +45,23 @@ def init_db() -> None:
         db_path = settings.resolved_database_url.removeprefix("sqlite:///")
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     SQLModel.metadata.create_all(engine)
+#endregion
+
+
+#region: wipe
+def wipe_db() -> tuple[int, int]:
+    """Delete every Event and Source row, leaving the schema intact.
+
+    Returns `(events_deleted, sources_deleted)`. Events are deleted before
+    sources so foreign-key enforcement doesn't block the source removal.
+    """
+    with Session(engine) as session:
+        events = session.exec(select(func.count()).select_from(Event)).one()
+        sources = session.exec(select(func.count()).select_from(Source)).one()
+        session.exec(delete(Event))
+        session.exec(delete(Source))
+        session.commit()
+    return events, sources
 #endregion
 
 

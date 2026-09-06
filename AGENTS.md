@@ -15,9 +15,9 @@ It runs as two listeners:
   `/events/{id}/ics`, `/healthz`.
 - **admin** (`app/admin.py`) — debug dashboard + pipeline playground on
   `admin_host:admin_port` (default `127.0.0.1:8082`): `/debug`, `/debug/pipeline/*`
-  (the only write surface, via the `decide` stage), `/debug/logs`. Loopback-only;
-  inside Docker it auto-binds `0.0.0.0` and accepts the Docker bridge subnet
-  (see gotchas).
+  (write surface via the `decide` stage), `/debug/logs`, `/debug/wipe`
+  (two-layer-verified DB wipe). Loopback-only; inside Docker it auto-binds
+  `0.0.0.0` and accepts the Docker bridge subnet (see gotchas).
 
 ## Architecture
 
@@ -39,7 +39,7 @@ Key files:
 - `app/config.py` — `Settings` (config.yaml + .env; env > dotenv > yaml > defaults).
 - `app/logging.py` — `setup_logging()` (console + rotating `data/ripcale.log`, idempotent) + `read_log_tail()` (constant-time backward tail for `/debug/logs`).
 - `app/models.py` — `Source`, `Event` (SQLModel).
-- `app/db.py` — `engine`, `init_db()`, WAL + foreign-key pragmas.
+- `app/db.py` — `engine`, `init_db()`, `wipe_db()` (delete Event→Source, schema intact), WAL + foreign-key pragmas.
 - `app/schema.py` — pipeline contracts (`SourceConfig`, `ScrapedEvent`,
   `ImageRef`, `GathererResult`, `ClassifiedEvent`, `SieveResult`) + `dump_images()`/`load_images()`.
 - `app/identity.py` — `stable_id()`, `content_hash()`.
@@ -54,10 +54,11 @@ Key files:
 - `app/services/events.py` — `query_events()`, `get_event()`, `source_names()`.
 - `app/services/ics.py` — `event_to_vevent()`, `events_to_ics()`.
 - `app/services/stats.py` — `overview()`, `sources()`, `event_dump()`, `read_last_ingest()`.
-- `app/services/status.py` — per-source run status store (`data/status.json`): `read_status()` / `record_status()` / `record_run()` + `source_status()` / `gatherer_rollup()`.
+- `app/services/status.py` — per-source run status store (`data/status.json`): `read_status()` / `record_status()` / `record_run()` / `reset_status()` + `source_status()` / `gatherer_rollup()`.
+- `app/services/wipe.py` — `wipe_all()` (DB wipe + reset status/last-ingest).
 - `app/security.py` — `in_docker()`, `is_debug_allowed()`, CSRF, `form_data()`.
 - `app/web.py` — HTML helpers (dashboard + playground pages).
-- `app/routers/{events,feeds,debug,pipeline}.py` — HTTP handlers.
+- `app/routers/{events,feeds,debug,pipeline,wipe}.py` — HTTP handlers.
 - `app/public.py`, `app/admin.py` — the two listeners.
 - `app/main.py` — local-dev launcher (spawns both; Docker runs the two directly).
 
@@ -65,7 +66,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (66)
+.venv/bin/python -m pytest                       # test suite (71)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -118,6 +119,9 @@ docker compose up --build                        # public + admin services
   `admin`, and `ingest` all write the same `{data_dir}/ripcale.log`. Rotation is
   *not* multi-process-safe (a rare race if two processes hit `log_max_bytes`
   simultaneously); disk stays capped at ~`log_max_bytes * (log_backup_count + 1)`.
+- **Wipe is schema-preserving** — `wipe_db()` deletes Event→Source rows only and
+  `wipe_all()` also resets `data/status.json` + `data/last_ingest.json`; the
+  tables survive so the server keeps serving and a later ingest repopulates.
 
 ## Configuration
 

@@ -1,3 +1,15 @@
+## 2026-09-06 18:10:00 [AI]
+
+F37.03: database wipe behind two-layer verification.
+
+- `app/db.py`: `wipe_db()` deletes Event then Source rows (FK order) in one commit, returns `(events, sources)`; schema untouched.
+- `app/services/status.py`: added `reset_status()` (writes `{}`).
+- `app/services/wipe.py`: `wipe_all()` = `wipe_db()` + `reset_status()` + delete `data/last_ingest.json`.
+- `app/routers/wipe.py` (registered in `app/admin.py`): `GET /debug/wipe` (red "delete database" button) → `POST` `stage=arm` (reveals the sentence) → `POST` `stage=confirm` (must type "I understand the data will be permanently deleted" in full). IP-gated + CSRF-checked.
+- `app/routers/debug.py`: "danger zone" link on the dashboard.
+- Tests: `tests/test_wipe.py` (71 passing) — `wipe_db` empties tables + schema survives, `wipe_all` resets status/last-ingest, two-layer route flow + wrong-sentence/csrf rejection, and a resume test (wipe → server still serves 200/empty → re-ingest repopulates).
+- AGENTS.md updated (wipe invariant + admin endpoint).
+
 ## 2026-09-06 17:45:00 [AI]
 
 F37.02: browser log view (rotating file + /debug/logs tail).

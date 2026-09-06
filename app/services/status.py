@@ -58,6 +58,15 @@ def record_run(name: str, total_events: int) -> None:
         record_status(name, "warning", message="returned 0 events", events=0)
     else:
         record_status(name, "ok", events=total_events)
+
+
+def reset_status() -> None:
+    """Clear the status store back to an empty map (used by the DB wipe)."""
+    path = _path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text("{}\n")
+    os.replace(tmp, path)
 #endregion
 
 

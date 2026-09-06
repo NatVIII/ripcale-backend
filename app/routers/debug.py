@@ -81,6 +81,8 @@ def register(app) -> None:
             + "<details><summary>status (raw)</summary>" + json_pre(statuses) + "</details>"
             + "<h2>last ingest</h2>"
             + (json_pre(last) if last else "<p>no ingest run yet</p>")
+            + "<h2>danger zone</h2>"
+            + "<p><a href='/debug/wipe'>wipe database</a></p>"
         )
         return _html(page("ripcale debug menu! (˶>⩊<˶)", body))
 
