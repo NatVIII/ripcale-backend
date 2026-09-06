@@ -16,6 +16,7 @@ from app.logging import setup_logging
 from app.routers import debug as debug_router
 from app.routers import ingest as ingest_router
 from app.routers import pipeline as pipeline_router
+from app.routers import tests as tests_router
 from app.routers import wipe as wipe_router
 from app.security import in_docker
 #endregion
@@ -28,6 +29,7 @@ debug_router.register(app)     # /debug, /debug/*
 pipeline_router.register(app)  # /debug/pipeline/*
 wipe_router.register(app)      # /debug/wipe
 ingest_router.register(app)    # /debug/ingest
+tests_router.register(app)     # /debug/tests
 #endregion
 
 

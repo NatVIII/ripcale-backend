@@ -16,9 +16,9 @@ It runs as two listeners:
 - **admin** (`app/admin.py`) — debug dashboard + pipeline playground on
   `admin_host:admin_port` (default `127.0.0.1:8082`): `/debug`, `/debug/pipeline/*`
   (write surface via the `decide` stage), `/debug/ingest` (full-batch ingest),
-  `/debug/logs`, `/debug/wipe` (two-layer-verified DB wipe). Loopback-only;
-  inside Docker it auto-binds `0.0.0.0` and accepts the Docker bridge subnet
-  (see gotchas).
+  `/debug/logs`, `/debug/wipe` (two-layer-verified DB wipe), `/debug/tests`
+  (run the pytest suite). Loopback-only; inside Docker it auto-binds `0.0.0.0`
+  and accepts the Docker bridge subnet (see gotchas).
 
 ## Architecture
 
@@ -57,9 +57,10 @@ Key files:
 - `app/services/stats.py` — `overview()`, `sources()`, `event_dump()`, `read_last_ingest()`.
 - `app/services/status.py` — per-source run status store (`data/status.json`): `read_status()` / `record_status()` / `record_run()` / `reset_status()` + `source_status()` / `gatherer_rollup()`.
 - `app/services/wipe.py` — `wipe_all()` (DB wipe + reset status/last-ingest).
+- `app/services/testrunner.py` — `collect_tests()` / `run_tests()` (subprocess `python -m pytest`).
 - `app/security.py` — `in_docker()`, `is_debug_allowed()`, CSRF, `form_data()`.
 - `app/web.py` — HTML helpers (dashboard + playground pages).
-- `app/routers/{events,feeds,debug,pipeline,ingest,wipe}.py` — HTTP handlers.
+- `app/routers/{events,feeds,debug,pipeline,ingest,wipe,tests}.py` — HTTP handlers.
 - `app/public.py`, `app/admin.py` — the two listeners.
 - `app/main.py` — local-dev launcher (spawns both; Docker runs the two directly).
 
@@ -67,7 +68,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (77)
+.venv/bin/python -m pytest                       # test suite (82)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -123,6 +124,10 @@ docker compose up --build                        # public + admin services
 - **Wipe is schema-preserving** — `wipe_db()` deletes Event→Source rows only and
   `wipe_all()` also resets `data/status.json` + `data/last_ingest.json`; the
   tables survive so the server keeps serving and a later ingest repopulates.
+- **`/debug/tests` runs pytest out-of-process** — `app/services/testrunner.py`
+  shells out to `python -m pytest` (same as the CLI), isolated from the server.
+  The Docker image installs the `[dev]` extras and ships `tests/` so this works
+  in-container too.
 
 ## Configuration
 

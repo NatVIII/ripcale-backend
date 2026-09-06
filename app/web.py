@@ -23,6 +23,7 @@ def page(title: str, body: str, *, back: str | None = None) -> str:
         '<p><a href="/debug">debug home</a> · '
         '<a href="/debug/pipeline">pipeline</a> · '
         '<a href="/debug/ingest">ingest</a> · '
+        '<a href="/debug/tests">tests</a> · '
         '<a href="/debug/logs">logs</a></p>'
     )
     back_link = f'<p><a href="{escape(back)}">\u2190 back</a></p>' if back else ""

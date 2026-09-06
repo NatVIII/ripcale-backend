@@ -7,8 +7,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 COPY pyproject.toml README.md ./
 COPY app ./app
+COPY tests ./tests
 
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir ".[dev]"
 
 EXPOSE 8081
 

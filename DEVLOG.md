@@ -1,3 +1,13 @@
+## 2026-09-06 18:50:00 [AI]
+
+F37.05: run the pytest suite from the browser.
+
+- `app/services/testrunner.py`: `collect_tests()` / `run_tests(node_id)` shell out to `python -m pytest` in a subprocess (isolated from the server, same entrypoint as the CLI); `PROJECT_ROOT` pinned from `__file__`, output parsed/concatenated.
+- `app/routers/tests.py` (registered in `app/admin.py`): `GET /debug/tests` lists collected tests (grouped by file in `<details>`) with a "run all" + per-test run buttons; `POST /debug/tests` runs and shows 🟢 passed / 🔴 failed (exit N) + output. IP+CSRF gated.
+- `Dockerfile`: `COPY tests ./tests` + `pip install ".[dev]"` so the tests page works in-container.
+- `app/web.py`: nav gains a `tests` link.
+- Tests: `tests/test_testrunner.py` (82 passing) — collect parsing, run_tests command construction + output concat, route pass/fail rendering, CSRF rejection.
+
 ## 2026-09-06 18:30:00 [AI]
 
 F37.04: trigger full ingest from the debug menu.
