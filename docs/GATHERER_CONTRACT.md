@@ -45,6 +45,8 @@ class ModuleResult:
 | `timezone` | `str \| None` | optional | IANA zone (e.g. `America/New_York`). Display-only; storage is naive UTC. |
 | `all_day` | `bool` | optional | All-day events use date-only semantics. |
 | `rrule` | `str \| None` | optional | RFC 5545 recurrence rule (RRULE *value* only — no `RRULE:` prefix, no `DTSTART`). Interpreted relative to `start_at` (the first occurrence) in `timezone`. |
+| `recurrence_id` | `datetime \| None` | optional | On an *override* occurrence: the original `DTSTART` of the occurrence it replaces (naive UTC). Also feeds `stable_id()` so overrides don't collide with the master. |
+| `exdates` | `list[datetime]` | optional | On the series master: the cancelled occurrence `DTSTART`s (naive UTC). |
 | `categories` | `list[str]` | optional | Tags. |
 | `raw` | `dict` | optional | The full original source payload. Never persisted, never hashed — debugging/re-parse only. |
 
@@ -65,7 +67,7 @@ class ModuleResult:
 3. Computes `stable_id(source.name, event)` and `content_hash(event)`.
 4. Buckets each event **new / updated / unchanged** vs the DB; "updated" events
    carry `changed_fields` from the mutable set:
-   `title, description, location, url, images, start_at, end_at, timezone, all_day, rrule, categories`.
+   `title, description, location, url, images, start_at, end_at, timezone, all_day, rrule, exdates, categories`.
 
 A Gatherer must not assume the sieve normalizes anything except
 `default_categories`; every other field passes through untouched.
@@ -88,6 +90,8 @@ A Gatherer must not assume the sieve normalizes anything except
 | `timezone` | `timezone` |
 | `all_day` | `all_day` |
 | `rrule` | `rrule` |
+| `recurrence_id` | `recurrence_id` |
+| `exdates` (list) | `exdates` (JSON text) |
 | `categories` (list) | `categories` (comma-joined) |
 | (derived) | `content_hash` |
 
@@ -134,13 +138,19 @@ the *first* occurrence (`DTSTART`) and whose `rrule` generates the rest.
   representation into a valid RRULE. A gatherer with no recurrence leaves it
   `None`.
 
+**Series & overrides (implemented):**
+
+- Occurrences of a series are linked by `(source_id, uid)`. The master carries
+  `rrule`; an *edited* occurrence is a separate `ScrapedEvent` with
+  `recurrence_id` = its original `DTSTART`; a *cancelled* occurrence is listed
+  in the master's `exdates`.
+- Identity: an override's `id` is `sha256(source+uid+recurrence_id)`, so it never
+  collides with its master (whose `recurrence_id` is `None`).
+- `exdates` participates in `content_hash` + change detection; `recurrence_id`
+  is identity-only.
+
 **Planned (not yet implemented):**
 
-- **Series & overrides** (planned; columns added in F31) — occurrences of a series are linked by
-  `(source_id, uid)`. The master carries `rrule`; an *edited* occurrence is a
-  separate row with `recurrence_id` = its original `DTSTART`; a *cancelled*
-  occurrence is listed in the master's `exdates`. Identity for overrides becomes
-  `sha256(source+uid+recurrence_id)`.
 - **Expansion** (F12) — turning `rrule` + `exdates` + overrides into concrete
   occurrence instances for serving (server-side) and correct timezone-aware ICS.
 

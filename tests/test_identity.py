@@ -44,3 +44,17 @@ def test_content_hash_changes_on_rrule():
     a = make_event(rrule="FREQ=WEEKLY")
     b = make_event(rrule="FREQ=DAILY")
     assert content_hash(a) != content_hash(b)
+
+
+def test_stable_id_recurrence_override():
+    master = make_event(uid="u1")
+    override = make_event(uid="u1", recurrence_id=datetime(2026, 9, 10, 18, 0))
+    assert stable_id("src", master) != stable_id("src", override)
+    other = make_event(uid="u1", recurrence_id=datetime(2026, 9, 11, 18, 0))
+    assert stable_id("src", override) != stable_id("src", other)
+
+
+def test_content_hash_changes_on_exdates():
+    a = make_event(exdates=[datetime(2026, 9, 10, 18, 0)])
+    b = make_event(exdates=[datetime(2026, 9, 11, 18, 0)])
+    assert content_hash(a) != content_hash(b)

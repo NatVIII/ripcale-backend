@@ -9,7 +9,7 @@ priority) will live.
 from sqlmodel import Session
 
 from app.models import Event, Source, utcnow
-from app.schema import ClassifiedEvent, SieveResult, dump_images
+from app.schema import ClassifiedEvent, SieveResult, dump_exdates, dump_images
 #endregion
 
 
@@ -35,6 +35,8 @@ def _new_event(source_id: int, classified: ClassifiedEvent) -> Event:
         timezone=e.timezone,
         all_day=e.all_day,
         rrule=e.rrule,
+        recurrence_id=e.recurrence_id,
+        exdates=dump_exdates(e.exdates),
         categories=_categories(classified),
         content_hash=classified.content_hash,
     )
@@ -54,6 +56,8 @@ def _apply_update(existing: Event, classified: ClassifiedEvent) -> None:
     existing.timezone = e.timezone
     existing.all_day = e.all_day
     existing.rrule = e.rrule
+    existing.recurrence_id = e.recurrence_id
+    existing.exdates = dump_exdates(e.exdates)
     existing.categories = _categories(classified)
     existing.content_hash = classified.content_hash
     existing.updated_at = utcnow()

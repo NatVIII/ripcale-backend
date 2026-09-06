@@ -10,7 +10,20 @@ the shapes the sieve and decisionmaker exchange:
 import json
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+#endregion
+
+
+#region: gatherer config
+class GathererConfig(BaseModel):
+    """Per-gatherer (module) defaults from `config.yaml`.
+
+    Extensible with more per-gatherer keys over time (`extra="allow"`).
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    priority: int = 0
 #endregion
 
 
@@ -22,6 +35,7 @@ class SourceConfig(BaseModel):
     module: str
     url: str
     is_public: bool = False
+    priority: int | None = None  # None = inherit the gatherer default
     default_categories: list[str] = Field(default_factory=list)
 #endregion
 
@@ -56,6 +70,8 @@ class ScrapedEvent(BaseModel):
     timezone: str | None = None
     all_day: bool = False
     rrule: str | None = None
+    recurrence_id: datetime | None = None  # override: original DTSTART of the occurrence
+    exdates: list[datetime] = Field(default_factory=list)  # master: cancelled occurrence DTSTARTs
     categories: list[str] = Field(default_factory=list)
     raw: dict = Field(default_factory=dict)  # full source payload, kept for debugging
 #endregion
@@ -103,5 +119,22 @@ def load_images(value: str | None) -> list[ImageRef]:
     try:
         return [ImageRef(**item) for item in json.loads(value)]
     except (json.JSONDecodeError, TypeError):
+        return []
+#endregion
+
+
+#region: exdate (de)serialization (Event.exdates is a JSON text column)
+def dump_exdates(exdates: list[datetime]) -> str:
+    """Serialize a list of cancelled occurrence DTSTARTs to the JSON string."""
+    return json.dumps([dt.isoformat() for dt in exdates])
+
+
+def load_exdates(value: str | None) -> list[datetime]:
+    """Parse the JSON string stored in Event.exdates back into datetimes."""
+    if not value:
+        return []
+    try:
+        return [datetime.fromisoformat(item) for item in json.loads(value)]
+    except (json.JSONDecodeError, TypeError, ValueError):
         return []
 #endregion

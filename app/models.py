@@ -55,9 +55,10 @@ class Event(SQLModel, table=True):
     timezone: str | None = None   # original IANA zone (e.g. America/New_York)
     all_day: bool = False
     rrule: str | None = None      # RFC 5545 RRULE value (recurrence series master)
-    recurrence_id: datetime | None = None  # original DTSTART of an overridden occurrence (F37)
-    exdates: str = Field(default="[]")     # JSON array of cancelled occurrence DTSTARTs (F37)
-    redirect_to_id: str | None = Field(default=None, index=True)  # event redirect/symlink (F38)
+    recurrence_id: datetime | None = None  # original DTSTART of an overridden occurrence (F31.02)
+    exdates: str = Field(default="[]")     # JSON array of cancelled occurrence DTSTARTs (F31.02)
+    redirect_to_id: str | None = Field(default=None, index=True)  # event redirect/symlink (F31.01)
+    priority: int | None = None   # manual override; None = inherit source priority (F31.01)
     categories: str = ""          # comma-separated tags
     content_hash: str = Field(default="", index=True)  # used by the sieve for diffing
     created_at: datetime = Field(default_factory=utcnow)
