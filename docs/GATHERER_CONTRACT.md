@@ -95,49 +95,15 @@ class GathererResult:
 - **`end_at` is exclusive.**
 - **`raw` is never persisted** and never part of `content_hash`.
 
-## What the Sieve adds
+## Downstream stages
 
-`sieve.classify(session, GathererResult) -> SieveResult` is read-only and idempotent:
+The sieve and decisionmaker are documented in their own contracts:
 
-1. `_relevance(events)` — future relevance filter (F13; pass-through today).
-2. Merges the source's `default_categories` into each event's `categories` (so
-   defaults participate in change detection).
-3. Computes `stable_id(source.name, event)` and `content_hash(event)`.
-4. Buckets each event **new / updated / unchanged** vs the DB; "updated" events
-   carry `changed_fields` from the mutable set:
-   `title, description, location, url, images, start_at, end_at, timezone, all_day, rrule, exdates, categories`.
-   `SieveResult` also carries `unchanged_ids` (the ids of unchanged events) so
-   the decisionmaker can stamp `last_seen_at` on them.
+- `docs/SIEVE_CONTRACT.md` — classification into new/updated/unchanged.
+- `docs/DECISIONMAKER_CONTRACT.md` — the `ScrapedEvent` → `Event` field mapping.
 
-A Gatherer must not assume the sieve normalizes anything except
-`default_categories`; every other field passes through untouched.
-
-## What the Decisionmaker persists
-
-`decisionmaker.apply(session, source, SieveResult)` maps each `ScrapedEvent` to an
-`Event` row:
-
-| ScrapedEvent | Event |
-|---|---|
-| (derived) | `id` = `stable_id(...)` |
-| `uid` | `uid` |
-| `title` | `title` |
-| `description` | `description` |
-| `location` | `location` |
-| `url` | `url` |
-| `images` (list of `ImageRef`) | `images` (JSON text) |
-| `start_at` / `end_at` | `start_at` / `end_at` |
-| `timezone` | `timezone` |
-| `all_day` | `all_day` |
-| `rrule` | `rrule` |
-| `recurrence_id` | `recurrence_id` |
-| `exdates` (list) | `exdates` (JSON text) |
-| `categories` (list) | `categories` (comma-joined) |
-| (derived) | `content_hash` |
-| (derived) | `last_seen_at` (stamped per ingest; stale detection) |
-
-Not carried: `raw` (discarded). `Event.geo` exists but has no `ScrapedEvent`
-counterpart yet (F30).
+A Gatherer's only downstream guarantee: the sieve normalizes **nothing except
+`default_categories`**; every other field passes through untouched.
 
 ## Images
 

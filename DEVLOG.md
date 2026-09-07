@@ -1,3 +1,12 @@
+## 2026-09-07 15:10:00 [AI]
+
+F34 + F34.01: Decisionmaker Contract (versioned + test-enforced).
+
+- `docs/DECISIONMAKER_CONTRACT.md` (new, Version: 1) — `apply()` signature, report shape, persistence rules, the `ScrapedEvent → Event` mapping table, `last_seen_at`/`last_fetched_at` stamping + stale detection, and invariants (no commit, deterministic, trusts the sieve, pass-through policy).
+- `app/decisionmaker/decisionmaker.py`: `# Contract: Decisionmaker v1` + `CONTRACT_VERSION = 1`.
+- `tests/test_contract_decisionmaker.py` (new, 105 passing) — version, report shape, full-field mapping, update-path idempotency.
+- `docs/GATHERER_CONTRACT.md`: deduped the old "What the Sieve adds"/"What the Decisionmaker persists" sections into a short "Downstream stages" pointer.
+
 ## 2026-09-07 14:55:00 [AI]
 
 F33.03: split contract tests per stage.

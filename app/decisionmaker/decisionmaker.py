@@ -1,10 +1,13 @@
 """The decisionmaker: policy + persistence (the write half of the pipeline).
 
-`apply()` is called from `app/ingest.process_source()`. It takes the sieve's
+`apply()` is called from `app.ingest.process_source()`. It takes the sieve's
 verdict and persists new/updated events. For now the policy is a pass-through;
 this is where future cross-source heuristics (dedup, manual-over-scraped
 priority) will live.
 """
+# Contract: Decisionmaker v1 (docs/DECISIONMAKER_CONTRACT.md)
+CONTRACT_VERSION = 1
+
 #region: imports
 from sqlalchemy import or_
 from sqlmodel import Session, select
