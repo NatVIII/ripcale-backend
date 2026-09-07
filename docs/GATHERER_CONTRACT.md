@@ -1,5 +1,7 @@
 # Gatherer Contract
 
+Version: 1
+
 The contract between a **Gatherer** (a gatherer in `app/gatherers/*/gatherer.py`)
 and the rest of the pipeline (**Sieve → Decisionmaker → storage → API/ICS**).
 

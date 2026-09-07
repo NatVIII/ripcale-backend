@@ -5,6 +5,9 @@
 resolves the eventType/location ID lookups, and maps each event into a
 `ScrapedEvent`.
 """
+# Contract: Gatherer v1 (docs/GATHERER_CONTRACT.md)
+CONTRACT_VERSION = 1
+
 #region: imports
 from datetime import datetime
 from urllib.parse import parse_qs, urlparse

@@ -71,7 +71,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (95)
+.venv/bin/python -m pytest                       # test suite (101)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -88,7 +88,10 @@ docker compose up --build                        # public + admin services
   `CONTRACT_VERSION = N` (with a `# Contract: <stage> vN` comment);
   `tests/test_contracts.py` asserts they agree and that the pydantic shapes match
   the docs. When you change a contract, bump the doc version and update the code
-  to conform (the test then forces the constant to follow).
+  to conform (the test then forces the constant to follow). Gatherers are stamped
+  **individually** — each `app/gatherers/<name>/gatherer.py` declares its own
+  `CONTRACT_VERSION` (since gatherers are written separately); the test discovers
+  every gatherer package and checks it.
 - **Naive-UTC datetimes** everywhere in storage; the original IANA zone is kept
   in `Event.timezone`. Convert with `app.timeutil.to_utc_naive()`.
 - **`content_hash` is a stability contract** — defined once in `app/identity.py`;

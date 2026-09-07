@@ -1,3 +1,11 @@
+## 2026-09-07 14:40:00 [AI]
+
+F33.02: version-sign the Gatherer contract (per-gatherer).
+
+- `docs/GATHERER_CONTRACT.md`: added `Version: 1`.
+- `app/gatherers/elfsight/gatherer.py`: `# Contract: Gatherer v1` + `CONTRACT_VERSION = 1`. Each gatherer is stamped individually (they're written separately).
+- `tests/test_contracts.py` (101 passing): gatherer field-consistency (SourceConfig/GathererConfig/ImageRef/ScrapedEvent/GathererResult `model_fields`) + a per-gatherer version check that discovers every `app/gatherers/<name>/gatherer.py` and asserts its `CONTRACT_VERSION` matches the doc.
+
 ## 2026-09-07 10:30:00 [AI]
 
 F33 + F33.01: Sieve Contract (versioned + test-enforced).

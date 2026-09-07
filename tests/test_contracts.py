@@ -6,10 +6,21 @@ declares `CONTRACT_VERSION = N`. These tests assert the code agrees with the doc
 documented invariants hold.
 """
 #region: imports
+import importlib
+import pkgutil
 import re
 from pathlib import Path
 
-from app.schema import ClassifiedEvent, SieveResult
+import app.gatherers as gatherers_pkg
+from app.schema import (
+    ClassifiedEvent,
+    GathererConfig,
+    GathererResult,
+    ImageRef,
+    ScrapedEvent,
+    SieveResult,
+    SourceConfig,
+)
 from app.sieve.sieve import CONTRACT_VERSION, _CHANGED_FIELDS
 #endregion
 
@@ -111,4 +122,49 @@ def test_classify_is_idempotent(tmp_path):
     assert [c.id for c in first.new] == [c.id for c in second.new]
     assert [c.id for c in first.updated] == [c.id for c in second.updated]
     assert first.unchanged_ids == second.unchanged_ids
+#endregion
+
+
+#region: gatherer contract — shapes
+def test_source_config_fields_match_doc():
+    assert set(SourceConfig.model_fields) == {
+        "name", "gatherer", "url", "is_public", "priority", "default_categories",
+    }
+
+
+def test_gatherer_config_fields_match_doc():
+    assert set(GathererConfig.model_fields) == {"priority"}
+
+
+def test_image_ref_fields_match_doc():
+    assert set(ImageRef.model_fields) == {"url", "alt", "source_url"}
+
+
+def test_scraped_event_fields_match_doc():
+    assert set(ScrapedEvent.model_fields) == {
+        "uid", "title", "description", "location", "url", "images", "start_at",
+        "end_at", "timezone", "all_day", "rrule", "recurrence_id", "exdates",
+        "categories", "raw",
+    }
+
+
+def test_gatherer_result_fields_match_doc():
+    assert set(GathererResult.model_fields) == {"source", "events"}
+#endregion
+
+
+#region: gatherer contract — per-gatherer version
+def _gatherer_names() -> list[str]:
+    return [m.name for m in pkgutil.iter_modules(gatherers_pkg.__path__) if m.ispkg]
+
+
+def test_each_gatherer_version_matches_doc():
+    version = _read_version("GATHERER_CONTRACT.md")
+    names = _gatherer_names()
+    assert names, "no gatherers discovered"
+    for name in names:
+        mod = importlib.import_module(f"app.gatherers.{name}.gatherer")
+        assert mod.CONTRACT_VERSION == version, (
+            f"gatherer {name!r} declares v{mod.CONTRACT_VERSION}, contract is v{version}"
+        )
 #endregion
