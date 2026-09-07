@@ -8,6 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY pyproject.toml README.md ./
 COPY app ./app
 COPY tests ./tests
+COPY docs ./docs
 
 RUN pip install --no-cache-dir ".[dev]"
 
