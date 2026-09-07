@@ -24,9 +24,9 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [ ] F19 - Frontend (rva.rip - FullCalendar consuming `/events` + `/feed.ics`)
 - [ ] F20 - Community submission + approval system (deferred by design)
 - [ ] F23 - Backup mechanism: in-app scheduled snapshots of the SQLite DB to a configurable location (e.g. a `backup_dir` config field), with a retention policy. Part of the internal workings (not an external cron).
-- [ ] F36 - Implement Telegram communication and decisionmaking in the Decisionmaker. I want a telegram bot to be able to help me be notified of possible event conflicts and help choose
 - [ ] F16 - `/sources` public endpoint (deferred)
 - [ ] F41 - Convert tests to CI/CD Pipeline that automatically triggers on each push to git (Codeberg, Github, Gittea?).
+- [ ] F36 - Implement decisionmaking page and logic. I want a telegram bot to be able to help me be notified of possible event conflicts and help choose in the future, so this should be done via some kind of API communication or something so that the same interface. We can't implement the telegram bot yet, so let's make the interface via code and then make a debug page that allows for this to take place.
 - [ ] F43 - External API Contract
 
 ## In Progress
