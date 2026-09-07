@@ -6,7 +6,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
-- [ ] F46 - Tags contain both their name, and a class. The class is a higher level classification; with automatically intaken or intake.yaml source by source configuration given an `intake` class or through the automated machinations. There would also be an `external` class, which defines tags which are made external.
 - [ ] F49 - Live config and intake.yaml health checks. If one isn't working right or isn't configured right, it shows the error on the admin debug page.
 - [ ] F26 - Category to category symlinks (so that internal categories can be saved and referenced, but still be a part of real and exposed external categories)
 - [ ] F47 - In case it does become necessary to transition to a new tag altogether, mass movements of tags can occur programatically and through the interface. This isn't simply symlinking, but using some kind of heuristic to 
@@ -70,6 +69,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F34 + F34.01 - Decisionmaker Contract + versioning: `docs/DECISIONMAKER_CONTRACT.md` (Version: 1), `CONTRACT_VERSION = 1` in `app/decisionmaker/decisionmaker.py`, `tests/test_contract_decisionmaker.py`; deduped downstream sections out of `GATHERER_CONTRACT.md` (2026-09-07)
 - [x] F32 - Default location: optional per-source `SourceConfig.default_location` (no gatherer default), merged in the sieve (blank/missing → default, before hashing); gatherer + sieve contracts bumped to v2 (2026-09-07)
 - [x] F45 - Intake-store split: `intake.yaml` (sources/gatherers/category_symlinks) + `app/intake.py` (`load`/`save`, mtime-cached, atomic), system `config.yaml` slimmed to system settings + `intake_file`; registry reads intake (2026-09-07)
+- [x] F46 - Category classes: class-first `IntakeSettings.category_definitions` (`{class: [category]}`) + `app/services/categories.category_class()` (defaults to `intake`); model + resolver only (2026-09-07)
 
 ## Deleted
 - [ ] F30 - Deleted Event

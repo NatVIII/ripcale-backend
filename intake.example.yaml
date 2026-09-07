@@ -2,8 +2,8 @@
 #
 # NOTE: intake.yaml is gitignored (keeps your local/secret sources private).
 # This file holds the MUTABLE intake data — sources, per-gatherer defaults, and
-# category symlinks — separate from the system config in config.yaml so the
-# program (admin menu, automation) can write it safely.
+# the category system (symlinks + classes) — separate from the system config in
+# config.yaml so the program (admin menu, automation) can write it safely.
 #
 # The Studio Two Three source below is real, public community data included as
 # starter content — copy this file to intake.yaml and run `python -m app.ingest`
@@ -28,8 +28,30 @@ sources:
                                         # missing/blank location; omit to leave
                                         # such events' location null.
 
-# Optional: map internal (source-derived) category names to the exposed external
-# categories. Many internals can map to one external. Unmapped names pass through.
-# category_symlinks:
-#   "art-exhibition": "art"
-#   "live-music": "music"
+# ---------------------------------------------------------------------------
+# Category system
+# ---------------------------------------------------------------------------
+# Categories (a.k.a. tags) have two dimensions:
+#
+#   category_symlinks  — internal name -> external name.
+#       Source data arrives with messy/raw internal names ("visual-arts",
+#       "art-exhibition", ...). A symlink maps each internal name onto one
+#       canonical external name, so related raw names collapse into one exposed
+#       category. Many internals may point at the same external. Unmapped names
+#       pass through untouched.
+#
+#   category_definitions   — class -> [categories] (class-first).
+#       Each category has a *class*: `intake` (auto-ingested; the default for
+#       anything not listed) or `external` (promoted to the public set).
+#
+# Together they mean: raw source names are kept for provenance (intake class),
+# symlinked onto a small set of canonical external categories that are exposed.
+category_symlinks:
+  "visual-arts": "art"
+  "art-exhibition": "art"
+  "live-music": "music"
+
+category_definitions:
+  external:
+    - art
+    - music

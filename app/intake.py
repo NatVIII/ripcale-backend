@@ -27,6 +27,8 @@ class IntakeSettings(BaseModel):
     sources: list[SourceConfig] = Field(default_factory=list)
     gatherers: dict[str, GathererConfig] = Field(default_factory=dict)
     category_symlinks: dict[str, str] = Field(default_factory=dict)
+    # Class-first: `{class: [category, ...]}`. `intake` = auto-ingested, `external` = exposed.
+    category_definitions: dict[str, list[str]] = Field(default_factory=dict)
 #endregion
 
 

@@ -13,6 +13,7 @@ def test_load_missing_file_returns_defaults(tmp_path, monkeypatch):
     assert intake.sources == []
     assert intake.gatherers == {}
     assert intake.category_symlinks == {}
+    assert intake.category_definitions == {}
 
 
 def test_save_and_load_round_trip(tmp_path, monkeypatch):
@@ -26,6 +27,7 @@ def test_save_and_load_round_trip(tmp_path, monkeypatch):
             sources=[SourceConfig(name="S", gatherer="elfsight", url="https://x")],
             gatherers={"elfsight": GathererConfig(priority=5)},
             category_symlinks={"art-exhibition": "art"},
+            category_definitions={"external": ["art"]},
         )
     )
 
@@ -33,6 +35,7 @@ def test_save_and_load_round_trip(tmp_path, monkeypatch):
     assert [s.name for s in intake.sources] == ["S"]
     assert intake.gatherers["elfsight"].priority == 5
     assert intake.category_symlinks == {"art-exhibition": "art"}
+    assert intake.category_definitions == {"external": ["art"]}
 
 
 def test_save_is_atomic_and_leaves_no_tmp(tmp_path, monkeypatch):

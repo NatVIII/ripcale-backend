@@ -1,3 +1,13 @@
+## 2026-09-07 16:10:00 [AI]
+
+F46: category classes (intake vs external).
+
+- `app/intake.py`: `IntakeSettings.category_definitions` — class-first `{class: [category, ...]}`.
+- `app/services/categories.py` (new): `INTAKE`/`EXTERNAL`/`DEFAULT_CLASS` + `category_class(name)` (scans class lists; unlisted → `intake`).
+- `intake.example.yaml`: class-first example.
+- Tests: `tests/test_categories.py` (119 passing) + `test_intake.py` defaults/round-trip.
+- Model + resolver only — exposure behavior comes in F17.01/F26.
+
 ## 2026-09-07 15:50:00 [AI]
 
 F45: intake-store split (system `config.yaml` vs mutable `intake.yaml`).
