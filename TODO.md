@@ -6,7 +6,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
-- [ ] F33.03 - Separate contract tests into separate tests so they can be tested contract by contract and the tests don't become monolithic
 - [ ] F34 - Write the Decisionmaker Contract
 - [ ] F34.01 - Assign a version and signing in comments thing to the decisionmaker to make sure that they're compliant with the newest source of truth for how it ought to operate
 - [ ] F32 - Default location: configurable default location applied to events with a missing/blank `location` (config field; normalized in one shared place).
@@ -65,6 +64,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F42 - Magic-number cleanup: `LOG_TAIL_LINES`, `COLLECT_TIMEOUT`/`RUN_TIMEOUT`, `FETCH_TIMEOUT` (2026-09-06)
 - [x] F33 + F33.01 - Sieve Contract + versioning: `docs/SIEVE_CONTRACT.md` (Version: 1), `CONTRACT_VERSION = 1` in `app/sieve/sieve.py`, `tests/test_contracts.py` (version + pydantic-shape + invariant checks) (2026-09-07)
 - [x] F33.02 - Gatherer contract versioning: `docs/GATHERER_CONTRACT.md` (Version: 1), per-gatherer `CONTRACT_VERSION` (elfsight), `tests/test_contracts.py` field-consistency + per-gatherer version discovery check (2026-09-07)
+- [x] F33.03 - Split contract tests per stage: `tests/contract_helpers.py` (shared) + `tests/test_contract_sieve.py` + `tests/test_contract_gatherer.py` (2026-09-07)
 
 ## Deleted
 - [ ] F30 - Deleted Event

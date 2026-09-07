@@ -1,45 +1,20 @@
-"""Contract compliance tests: the docs are the source of truth; code must match.
+"""Sieve contract compliance tests.
 
-Each pipeline-stage contract doc carries a `Version: N` stamp; the stage module
-declares `CONTRACT_VERSION = N`. These tests assert the code agrees with the doc
-(version), that the pydantic shapes match the documented field sets, and that the
-documented invariants hold.
+The sieve contract lives in `docs/SIEVE_CONTRACT.md` (the source of truth).
+These tests assert the code's declared version matches the doc, that the pydantic
+shapes match the documented field sets, and that the documented invariants hold.
 """
 #region: imports
-import importlib
-import pkgutil
-import re
-from pathlib import Path
-
-import app.gatherers as gatherers_pkg
-from app.schema import (
-    ClassifiedEvent,
-    GathererConfig,
-    GathererResult,
-    ImageRef,
-    ScrapedEvent,
-    SieveResult,
-    SourceConfig,
-)
+from app.schema import ClassifiedEvent, SieveResult
 from app.sieve.sieve import CONTRACT_VERSION, _CHANGED_FIELDS
+
+from contract_helpers import read_contract_version
 #endregion
 
 
-#region: helpers
-DOCS = Path(__file__).resolve().parents[1] / "docs"
-
-
-def _read_version(doc_name: str) -> int:
-    text = (DOCS / doc_name).read_text()
-    match = re.search(r"^Version:\s*(\d+)\s*$", text, re.MULTILINE)
-    assert match is not None, f"{doc_name}: missing `Version:` stamp"
-    return int(match.group(1))
-#endregion
-
-
-#region: sieve contract — version + shapes
+#region: version + shapes
 def test_sieve_version_matches_doc():
-    assert CONTRACT_VERSION == _read_version("SIEVE_CONTRACT.md")
+    assert CONTRACT_VERSION == read_contract_version("SIEVE_CONTRACT.md")
 
 
 def test_sieve_result_fields_match_doc():
@@ -62,7 +37,7 @@ def test_changed_fields_match_doc():
 #endregion
 
 
-#region: sieve contract — invariants
+#region: invariants
 def test_classify_is_read_only(tmp_path):
     from sqlmodel import Session, SQLModel, create_engine, select
 
@@ -122,49 +97,4 @@ def test_classify_is_idempotent(tmp_path):
     assert [c.id for c in first.new] == [c.id for c in second.new]
     assert [c.id for c in first.updated] == [c.id for c in second.updated]
     assert first.unchanged_ids == second.unchanged_ids
-#endregion
-
-
-#region: gatherer contract — shapes
-def test_source_config_fields_match_doc():
-    assert set(SourceConfig.model_fields) == {
-        "name", "gatherer", "url", "is_public", "priority", "default_categories",
-    }
-
-
-def test_gatherer_config_fields_match_doc():
-    assert set(GathererConfig.model_fields) == {"priority"}
-
-
-def test_image_ref_fields_match_doc():
-    assert set(ImageRef.model_fields) == {"url", "alt", "source_url"}
-
-
-def test_scraped_event_fields_match_doc():
-    assert set(ScrapedEvent.model_fields) == {
-        "uid", "title", "description", "location", "url", "images", "start_at",
-        "end_at", "timezone", "all_day", "rrule", "recurrence_id", "exdates",
-        "categories", "raw",
-    }
-
-
-def test_gatherer_result_fields_match_doc():
-    assert set(GathererResult.model_fields) == {"source", "events"}
-#endregion
-
-
-#region: gatherer contract — per-gatherer version
-def _gatherer_names() -> list[str]:
-    return [m.name for m in pkgutil.iter_modules(gatherers_pkg.__path__) if m.ispkg]
-
-
-def test_each_gatherer_version_matches_doc():
-    version = _read_version("GATHERER_CONTRACT.md")
-    names = _gatherer_names()
-    assert names, "no gatherers discovered"
-    for name in names:
-        mod = importlib.import_module(f"app.gatherers.{name}.gatherer")
-        assert mod.CONTRACT_VERSION == version, (
-            f"gatherer {name!r} declares v{mod.CONTRACT_VERSION}, contract is v{version}"
-        )
 #endregion

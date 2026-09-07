@@ -1,3 +1,11 @@
+## 2026-09-07 14:55:00 [AI]
+
+F33.03: split contract tests per stage.
+
+- `tests/contract_helpers.py` (new) — shared `read_contract_version()` + `DOCS`.
+- `tests/test_contract_sieve.py` and `tests/test_contract_gatherer.py` (new) — the tests moved out of the deleted `tests/test_contracts.py`, grouped by stage.
+- AGENTS.md invariant updated to reference `tests/test_contract_*.py` + the shared helper.
+
 ## 2026-09-07 14:40:00 [AI]
 
 F33.02: version-sign the Gatherer contract (per-gatherer).
