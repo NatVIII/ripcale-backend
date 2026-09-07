@@ -37,6 +37,7 @@ class SourceConfig(BaseModel):
     is_public: bool = False
     priority: int | None = None  # None = inherit the gatherer default
     default_categories: list[str] = Field(default_factory=list)
+    default_location: str | None = None  # optional fallback for missing/blank locations
 #endregion
 
 

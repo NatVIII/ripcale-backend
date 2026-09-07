@@ -15,8 +15,8 @@ from app.schema import ClassifiedEvent, GathererResult, ScrapedEvent, SieveResul
 
 
 #region: contract
-# Contract: Sieve v1 (docs/SIEVE_CONTRACT.md)
-CONTRACT_VERSION = 1
+# Contract: Sieve v2 (docs/SIEVE_CONTRACT.md)
+CONTRACT_VERSION = 2
 #endregion
 
 
@@ -56,6 +56,17 @@ def _merge_default_categories(events: list[ScrapedEvent], defaults: list[str]) -
 #endregion
 
 
+#region: default-location merge
+def _merge_default_location(events: list[ScrapedEvent], default: str | None) -> None:
+    """Fill missing/blank locations with the source's default (before hashing)."""
+    if not default:
+        return
+    for event in events:
+        if not event.location or not event.location.strip():
+            event.location = default
+#endregion
+
+
 #region: field diffing
 def _changed_fields(event: ScrapedEvent, old: Event) -> list[str]:
     """Return which mutable fields differ between an incoming event and a stored one."""
@@ -84,6 +95,7 @@ def classify(session: Session, result: GathererResult) -> SieveResult:
     """Bucket incoming events into new / updated / unchanged vs the DB."""
     events = _relevance(result.events)
     _merge_default_categories(events, result.source.default_categories)
+    _merge_default_location(events, result.source.default_location)
     ids = [stable_id(result.source.name, e) for e in events]
 
     existing: dict[str, Event] = {}

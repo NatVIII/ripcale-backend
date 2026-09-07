@@ -1,3 +1,13 @@
+## 2026-09-07 15:25:00 [AI]
+
+F32: per-source default location.
+
+- `app/schema.py`: `SourceConfig.default_location: str | None = None` (optional, per-source only — no gatherer default).
+- `app/sieve/sieve.py`: `_merge_default_location()` fills missing/blank `location` (before hashing, so it participates in change detection); `CONTRACT_VERSION` 1→2.
+- `app/gatherers/elfsight/gatherer.py`: `CONTRACT_VERSION` 1→2 (re-affirm; no logic change).
+- Docs: `GATHERER_CONTRACT.md` and `SIEVE_CONTRACT.md` → v2; `config.example.yaml` documents `default_location`.
+- Tests: `tests/test_default_location.py` (110 passing) + `test_source_config_fields_match_doc` updated. No separate config contract (decision).
+
 ## 2026-09-07 15:10:00 [AI]
 
 F34 + F34.01: Decisionmaker Contract (versioned + test-enforced).

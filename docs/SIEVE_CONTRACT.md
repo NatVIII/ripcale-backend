@@ -1,6 +1,6 @@
 # Sieve Contract
 
-Version: 1
+Version: 2
 
 The contract between the **Sieve** (`app/sieve/sieve.py`) and the rest of the
 pipeline (Gatherer → Sieve → Decisionmaker → storage). This document is the
@@ -50,8 +50,9 @@ writes.
 For each incoming event the sieve:
 
 1. Runs `_relevance(events)` — pass-through today; future home for drop-past rules.
-2. Merges the source's `default_categories` into each event's `categories`
-   **before** computing `content_hash`, so defaults participate in change detection.
+2. Merges the source's `default_categories` into each event's `categories` and
+   fills missing/blank `location` with the source's `default_location`, **before**
+   computing `content_hash`, so both defaults participate in change detection.
 3. Computes `id = stable_id(source.name, event)` and `content_hash(event)`.
 4. Buckets each event:
    - **new** — no stored `Event` has this `id`.
@@ -70,8 +71,8 @@ The complete set of fields that, when they differ, mark an event **updated**:
 - **Read-only** — `classify()` never writes to the DB.
 - **Idempotent** — the same inputs + DB state always yield the same `SieveResult`.
 - **Deterministic** — no randomness, no I/O beyond the given `session`.
-- **Only normalizes `default_categories`** — every other field passes through
-  untouched; the sieve does not rewrite event content.
+- **Only normalizes `default_categories` and `default_location`** — every other
+  field passes through untouched; the sieve does not rewrite event content.
 - `content_hash` is a stability contract defined once in `app/identity.py`;
   changing its inputs re-flags every stored event as "updated".
 

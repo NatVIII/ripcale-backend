@@ -6,7 +6,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
-- [ ] F32 - Default location: configurable default location applied to events with a missing/blank `location` gatherer source by source (config field; normalized in one shared place).
 - [ ] F26 - Category to category symlinks (so that internal categories can be saved and referenced, but still be a part of real and exposed external categories)
 - [ ] F17 - Category → color mapping (Elfsight `categoryColor` not yet stored). Configured inside of the config.yaml, assigning colors to different categories. 
 - [ ] F17.01 There should also be a way to specify which categories are the "true" categories, which are meant to be publicly exposed as that kind for sortation (in truth a very small list of "true" categories) from the internal symlinked categories only kept so that data isn't being deleted from the original source.
@@ -64,6 +63,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F33.02 - Gatherer contract versioning: `docs/GATHERER_CONTRACT.md` (Version: 1), per-gatherer `CONTRACT_VERSION` (elfsight), `tests/test_contracts.py` field-consistency + per-gatherer version discovery check (2026-09-07)
 - [x] F33.03 - Split contract tests per stage: `tests/contract_helpers.py` (shared) + `tests/test_contract_sieve.py` + `tests/test_contract_gatherer.py` (2026-09-07)
 - [x] F34 + F34.01 - Decisionmaker Contract + versioning: `docs/DECISIONMAKER_CONTRACT.md` (Version: 1), `CONTRACT_VERSION = 1` in `app/decisionmaker/decisionmaker.py`, `tests/test_contract_decisionmaker.py`; deduped downstream sections out of `GATHERER_CONTRACT.md` (2026-09-07)
+- [x] F32 - Default location: optional per-source `SourceConfig.default_location` (no gatherer default), merged in the sieve (blank/missing → default, before hashing); gatherer + sieve contracts bumped to v2 (2026-09-07)
 
 ## Deleted
 - [ ] F30 - Deleted Event

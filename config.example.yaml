@@ -47,3 +47,6 @@ sources:
     # priority: 8   # optional — overrides the gatherer default (5) above.
                     # Omit to inherit it; falls back to 0 if neither is set.
     default_categories: ["art"]
+    # default_location: "Richmond, VA"  # optional — fills events with a
+                                        # missing/blank location; omit to leave
+                                        # such events' location null.

@@ -1,6 +1,6 @@
 # Gatherer Contract
 
-Version: 1
+Version: 2
 
 The contract between a **Gatherer** (a gatherer in `app/gatherers/*/gatherer.py`)
 and the rest of the pipeline (**Sieve → Decisionmaker → storage → API/ICS**).
@@ -34,6 +34,7 @@ Every source uses the same fields:
 | `is_public` | Whether this source is listed publicly. |
 | `priority` | Optional per-source override (`None` = inherit the gatherer default). |
 | `default_categories` | Tags applied to every event from this source. |
+| `default_location` | Optional fallback applied to events whose `location` is missing/blank. |
 
 ### Per-gatherer defaults (`GathererConfig`)
 
@@ -103,7 +104,8 @@ The sieve and decisionmaker are documented in their own contracts:
 - `docs/DECISIONMAKER_CONTRACT.md` — the `ScrapedEvent` → `Event` field mapping.
 
 A Gatherer's only downstream guarantee: the sieve normalizes **nothing except
-`default_categories`**; every other field passes through untouched.
+`default_categories` and `default_location`**; every other field passes through
+untouched.
 
 ## Images
 
