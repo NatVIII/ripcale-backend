@@ -17,7 +17,7 @@ DEFAULT_CLASS = INTAKE
 #endregion
 
 
-#region: resolver
+#region: class
 def category_class(name: str) -> str:
     """Return the class `name` belongs to (defaults to `intake` if unlisted)."""
     classes = load_intake().category_definitions
@@ -25,4 +25,20 @@ def category_class(name: str) -> str:
         if name in names:
             return class_name
     return DEFAULT_CLASS
+#endregion
+
+
+#region: symlinks
+def resolve_categories(categories: list[str], links: dict[str, str] | None = None) -> list[str]:
+    """Map each category via `category_symlinks` (else pass through); dedupe + sort."""
+    if links is None:
+        links = load_intake().category_symlinks
+    return sorted({links.get(c, c) for c in categories})
+
+
+def resolve_event_categories(comma_joined: str | None) -> list[str]:
+    """Split a stored comma-joined category string and resolve its symlinks."""
+    if not comma_joined:
+        return []
+    return resolve_categories([c for c in comma_joined.split(",") if c])
 #endregion

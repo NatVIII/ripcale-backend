@@ -6,7 +6,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
-- [ ] F26 - Category to category symlinks (so that internal categories can be saved and referenced, but still be a part of real and exposed external categories)
 - [ ] F47 - In case it does become necessary to transition to a new tag altogether, mass movements of tags can occur programatically and through the interface. This isn't simply symlinking, but using some kind of heuristic to 
 - [ ] F48 - PGP Authentication for the frontend; we need to start verifying the frontend and making sure that the person using it is actually the intended user; and PGP is like the gold standard in security, no? I'd like to make an interface where a user can log in, in order to verify authentication. I really don't know how this can be done in a truly secure fashion, part of why I'd still like this to remain behind the admin only port for now no matter what at this time, but I'd like to start laying the groundwork for my own knowledge of truly secure authentication and it's implementation, by working with you (我亲爱的LLM)
 - [ ] F17 - Category → color mapping (Elfsight `categoryColor` not yet stored). Configured inside of the config.yaml, assigning colors to different categories. 
@@ -70,6 +69,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F45 - Intake-store split: `intake.yaml` (sources/gatherers/category_symlinks) + `app/intake.py` (`load`/`save`, mtime-cached, atomic), system `config.yaml` slimmed to system settings + `intake_file`; registry reads intake (2026-09-07)
 - [x] F46 - Category classes: class-first `IntakeSettings.category_definitions` (`{class: [category]}`) + `app/services/categories.category_class()` (defaults to `intake`); model + resolver only (2026-09-07)
 - [x] F49 - Coherence checks: `app/services/coherence.check()` (intake structure + gatherer existence + category consistency + config sanity), fail-safe "coherence" section on `/debug` (2026-09-07)
+- [x] F26 - Category symlinks: read-time `resolve_categories`/`resolve_event_categories` wired into serializer/`?category=`/ICS + forward "symlink" column on `/debug` (external-only exposure) (2026-09-07)
 
 ## Deleted
 - [ ] F30 - Deleted Event

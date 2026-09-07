@@ -12,6 +12,7 @@ from robyn import Response, jsonify
 from sqlmodel import Session
 
 from app.db import engine
+from app.intake import load as load_intake
 from app.logging import LOG_TAIL_LINES, read_log_tail
 from app.security import debug_guard
 from app.services import stats
@@ -64,6 +65,10 @@ def register(app) -> None:
 
         statuses = read_status()
         rollup = gatherer_rollup(srcs, statuses)
+        try:
+            symlinks = load_intake().category_symlinks
+        except Exception:  # noqa: BLE001 — a broken intake must not break /debug
+            symlinks = {}
 
         by_gatherer: dict[str, list[dict]] = {}
         for s in srcs:
@@ -93,8 +98,11 @@ def register(app) -> None:
             f" · sources: {ov['sources']}</p>"
             + "<h2>categories</h2>"
             + table(
-                ["category", "count"],
-                [[c["name"], c["count"]] for c in ov["categories"]],
+                ["category", "count", "symlink"],
+                [
+                    [c["name"], c["count"], f"→ {symlinks[c['name']]}" if c["name"] in symlinks else ""]
+                    for c in ov["categories"]
+                ],
             )
             + "<h2>gatherers</h2>"
             + "".join(gatherer_blocks)

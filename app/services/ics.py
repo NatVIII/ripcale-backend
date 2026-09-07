@@ -14,6 +14,7 @@ from icalendar import Calendar, Event as VEvent, vRecur
 
 from app.models import Event
 from app.schema import load_exdates, load_images
+from app.services.categories import resolve_event_categories
 #endregion
 
 
@@ -77,7 +78,7 @@ def event_to_vevent(event: Event, source_name: str | None = None) -> VEvent:
     if event.recurrence_id is not None:
         v.add("recurrence-id", event.recurrence_id.date() if event.all_day else _utc(event.recurrence_id))
     if event.categories:
-        v.add("categories", [c for c in event.categories.split(",") if c])
+        v.add("categories", resolve_event_categories(event.categories))
     if event.timezone:
         v.add("x-rva-timezone", event.timezone)
     if source_name:

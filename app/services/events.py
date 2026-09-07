@@ -9,19 +9,12 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.models import Event, Source
+from app.services.categories import resolve_event_categories
 #endregion
 
 
 #region: defaults
 DEFAULT_LIMIT = 500  # max events returned by default (single source of truth)
-#endregion
-
-
-#region: category helpers
-def _categories_set(categories: str | None) -> set[str]:
-    if not categories:
-        return set()
-    return {c for c in categories.split(",") if c}
 #endregion
 
 
@@ -47,7 +40,7 @@ def query_events(
 
     events = list(session.exec(stmt).all())
     if category is not None:
-        events = [e for e in events if category in _categories_set(e.categories)]
+        events = [e for e in events if category in resolve_event_categories(e.categories)]
     if limit:
         events = events[:limit]
     return events

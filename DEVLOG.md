@@ -1,3 +1,12 @@
+## 2026-09-07 16:50:00 [AI]
+
+F26: category symlinks (read-time, external-only).
+
+- `app/services/categories.py`: `resolve_categories()` + `resolve_event_categories()` (map via `category_symlinks`, pass through unmapped, dedupe + sort).
+- Wired into `app/serializers.py` (extendedProps.categories), `app/services/events.py` (`?category=` filter), `app/services/ics.py` (CATEGORIES).
+- `app/routers/debug.py`: "categories" table gains a forward "symlink" column (`→ external`); the `load_intake()` call is wrapped so a broken intake.yaml can't break `/debug`.
+- Tests: `tests/test_categories.py` (139 passing) — resolver + serializer/filter/ICS/debug integration.
+
 ## 2026-09-07 16:35:00 [AI]
 
 F49: config/intake coherence checks.

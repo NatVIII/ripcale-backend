@@ -8,6 +8,7 @@ from datetime import datetime
 
 from app.models import Event
 from app.schema import load_exdates, load_images
+from app.services.categories import resolve_event_categories
 #endregion
 
 
@@ -19,12 +20,6 @@ def _iso(dt: datetime | None, all_day: bool = False) -> str | None:
     if all_day:
         return dt.date().isoformat()
     return dt.isoformat() + "Z"
-
-
-def _split_categories(categories: str | None) -> list[str]:
-    if not categories:
-        return []
-    return [c for c in categories.split(",") if c]
 #endregion
 
 
@@ -34,7 +29,7 @@ def to_fullcalendar(event: Event, source_name: str | None = None) -> dict:
     props = {
         "description": event.description,
         "location": event.location,
-        "categories": _split_categories(event.categories),
+        "categories": resolve_event_categories(event.categories),
         "images": [{"url": img.url, "alt": img.alt, "source_url": img.source_url} for img in load_images(event.images)],
         "timezone": event.timezone,
         "rrule": event.rrule,
