@@ -1,3 +1,15 @@
+## 2026-09-07 17:10:00 [AI]
+
+F50: categorization rule engine (new `categorize` stage).
+
+- `app/schema.py`: `CategoryRule` (`mode` regex/assign, `fields`, `regex`, `categories`) + `SourceConfig.rules`.
+- `app/categorize/categorize.py` (new, `CONTRACT_VERSION = 1`): `apply(source, events)` — implicit `assign` from `default_categories` + explicit `rules`, matched against `TEXT_FIELDS` (uid/title/description/location/url), categories sorted+deduped, applied before hashing.
+- `app/ingest.py`: `process_source` now runs `categorize` between gather and sieve.
+- `app/sieve/sieve.py`: dropped `_merge_default_categories` (moved to categorize), `CONTRACT_VERSION` 2→3; `docs/SIEVE_CONTRACT.md` v3.
+- `docs/CATEGORIZE_CONTRACT.md` (new, v1); `docs/GATHERER_CONTRACT.md` v3 (SourceConfig gains `rules`); `elfsight` gatherer re-stamped v3.
+- `app/services/coherence.py`: validates rules (missing/invalid regex, unknown field).
+- Tests: `tests/test_categorize.py` (behavior + before-hash re-classification), `tests/test_contract_categorize.py`, coherence rule checks (153 passing); `test_sieve`/`test_pipeline` updated for the new stage.
+
 ## 2026-09-07 16:50:00 [AI]
 
 F26: category symlinks (read-time, external-only).

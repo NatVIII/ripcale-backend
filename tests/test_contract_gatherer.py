@@ -25,7 +25,7 @@ from contract_helpers import read_contract_version
 def test_source_config_fields_match_doc():
     assert set(SourceConfig.model_fields) == {
         "name", "gatherer", "url", "is_public", "priority", "default_categories",
-        "default_location",
+        "default_location", "rules",
     }
 
 

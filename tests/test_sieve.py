@@ -66,24 +66,6 @@ def test_classify_buckets(tmp_path):
     assert sieved.updated[0].changed_fields == ["title"]
 
 
-def test_classify_merges_default_categories(tmp_path):
-    engine, source_id = _setup(tmp_path)
-    cfg = SourceConfig(
-        name="Test", gatherer="elfsight", url="https://x", default_categories=["art"]
-    )
-
-    incoming = GathererResult(
-        source=cfg,
-        events=[ScrapedEvent(uid="u1", title="One", categories=["workshop"])],
-    )
-
-    with Session(engine) as session:
-        sieved = classify(session, incoming)
-
-    assert sieved.new[0].event.categories == ["art", "workshop"]
-    assert sieved.new[0].content_hash == content_hash(sieved.new[0].event)
-
-
 def test_classify_images_change(tmp_path):
     engine, source_id = _setup(tmp_path)
     cfg = SourceConfig(name="Test", gatherer="elfsight", url="https://x")

@@ -1,9 +1,10 @@
 """The sieve: read-only change detection against the DB.
 
-`classify()` is called from `app/ingest.process_source()`. It classifies each
+`classify()` is called from `app.ingest.process_source()`. It classifies each
 incoming event as new / updated / unchanged relative to what's stored, without
-writing anything. It also merges the source's `default_categories` before
-hashing, and hosts the `_relevance` hook where future drop-past rules will live.
+writing anything. It fills the source's `default_location` before hashing and
+hosts the `_relevance` hook where future drop-past rules will live. (Category
+assignment happens upstream, in the categorize stage.)
 """
 #region: imports
 from sqlmodel import Session, select
@@ -15,8 +16,8 @@ from app.schema import ClassifiedEvent, GathererResult, ScrapedEvent, SieveResul
 
 
 #region: contract
-# Contract: Sieve v2 (docs/SIEVE_CONTRACT.md)
-CONTRACT_VERSION = 2
+# Contract: Sieve v3 (docs/SIEVE_CONTRACT.md)
+CONTRACT_VERSION = 3
 #endregion
 
 
@@ -43,16 +44,6 @@ def _relevance(events: list[ScrapedEvent]) -> list[ScrapedEvent]:
     # Future home for relevance rules (e.g. drop events that ended in the past).
     # For now this is an intentional pass-through.
     return events
-#endregion
-
-
-#region: default-category merge
-def _merge_default_categories(events: list[ScrapedEvent], defaults: list[str]) -> None:
-    """Tag every event with the source's default categories (before hashing)."""
-    if not defaults:
-        return
-    for event in events:
-        event.categories = sorted(set(event.categories) | set(defaults))
 #endregion
 
 
@@ -94,7 +85,6 @@ def _changed_fields(event: ScrapedEvent, old: Event) -> list[str]:
 def classify(session: Session, result: GathererResult) -> SieveResult:
     """Bucket incoming events into new / updated / unchanged vs the DB."""
     events = _relevance(result.events)
-    _merge_default_categories(events, result.source.default_categories)
     _merge_default_location(events, result.source.default_location)
     ids = [stable_id(result.source.name, e) for e in events]
 

@@ -27,6 +27,13 @@ sources:
     # default_location: "Richmond, VA"  # optional — fills events with a
                                         # missing/blank location; omit to leave
                                         # such events' location null.
+    # rules:                            # optional — categorization heuristics
+    #   - mode: regex                   # (mode: regex | assign; CATEGORIZE_CONTRACT)
+    #     fields: [title, description]  # string fields to search ([] / "*" = all)
+    #     regex: "(?i)workshop"         # the pattern to match
+    #     categories: [workshop]        # applied when the rule fires
+    #   - mode: assign                  # assign = tag every event unconditionally
+    #     categories: [community]
 
 # ---------------------------------------------------------------------------
 # Category system

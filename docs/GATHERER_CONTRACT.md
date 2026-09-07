@@ -1,6 +1,6 @@
 # Gatherer Contract
 
-Version: 2
+Version: 3
 
 The contract between a **Gatherer** (a gatherer in `app/gatherers/*/gatherer.py`)
 and the rest of the pipeline (**Sieve → Decisionmaker → storage → API/ICS**).
@@ -33,8 +33,9 @@ Every source uses the same fields:
 | `url` | The data endpoint the gatherer fetches (kept secret). |
 | `is_public` | Whether this source is listed publicly. |
 | `priority` | Optional per-source override (`None` = inherit the gatherer default). |
-| `default_categories` | Tags applied to every event from this source. |
+| `default_categories` | Tags applied to every event from this source (sugar for an `assign` rule). |
 | `default_location` | Optional fallback applied to events whose `location` is missing/blank. |
+| `rules` | Categorization heuristics applied to every event from this source (see `docs/CATEGORIZE_CONTRACT.md`). |
 
 ### Per-gatherer defaults (`GathererConfig`)
 
@@ -98,14 +99,16 @@ class GathererResult:
 
 ## Downstream stages
 
-The sieve and decisionmaker are documented in their own contracts:
+The categorize, sieve, and decisionmaker stages are documented in their own
+contracts:
 
+- `docs/CATEGORIZE_CONTRACT.md` — config-driven category assignment.
 - `docs/SIEVE_CONTRACT.md` — classification into new/updated/unchanged.
 - `docs/DECISIONMAKER_CONTRACT.md` — the `ScrapedEvent` → `Event` field mapping.
 
-A Gatherer's only downstream guarantee: the sieve normalizes **nothing except
-`default_categories` and `default_location`**; every other field passes through
-untouched.
+A Gatherer's only downstream guarantee: the categorize stage assigns categories
+and the sieve normalizes **nothing except `default_location`**; every other field
+passes through untouched.
 
 ## Images
 

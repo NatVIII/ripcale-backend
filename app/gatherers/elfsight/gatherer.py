@@ -5,8 +5,8 @@
 resolves the eventType/location ID lookups, and maps each event into a
 `ScrapedEvent`.
 """
-# Contract: Gatherer v2 (docs/GATHERER_CONTRACT.md)
-CONTRACT_VERSION = 2
+# Contract: Gatherer v3 (docs/GATHERER_CONTRACT.md)
+CONTRACT_VERSION = 3
 
 #region: imports
 from datetime import datetime

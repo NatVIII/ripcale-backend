@@ -9,6 +9,7 @@ the shapes the sieve and decisionmaker exchange:
 #region: imports
 import json
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 #endregion
@@ -27,6 +28,21 @@ class GathererConfig(BaseModel):
 #endregion
 
 
+#region: categorization rule
+class CategoryRule(BaseModel):
+    """One category-assignment rule (applied by the categorize stage).
+
+    `assign` unions `categories` into every event; `regex` unions them only when
+    the pattern matches one of the selected string fields.
+    """
+
+    mode: Literal["regex", "assign"] = "regex"
+    fields: list[str] = Field(default_factory=list)  # string fields to match ([]/"*" = all)
+    regex: str | None = None
+    categories: list[str] = Field(default_factory=list)
+#endregion
+
+
 #region: source config
 class SourceConfig(BaseModel):
     """One configured source (parsed from `intake.yaml`)."""
@@ -36,8 +52,9 @@ class SourceConfig(BaseModel):
     url: str
     is_public: bool = False
     priority: int | None = None  # None = inherit the gatherer default
-    default_categories: list[str] = Field(default_factory=list)
+    default_categories: list[str] = Field(default_factory=list)  # sugar for an assign rule
     default_location: str | None = None  # optional fallback for missing/blank locations
+    rules: list[CategoryRule] = Field(default_factory=list)  # categorization heuristics (F50)
 #endregion
 
 

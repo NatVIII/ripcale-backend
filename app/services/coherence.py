@@ -64,6 +64,34 @@ def _check_intake() -> list[dict]:
 
     issues.extend(_check_gatherers(intake))
     issues.extend(_check_categories(intake))
+    issues.extend(_check_rules(intake))
+    return issues
+
+
+def _check_rules(intake: IntakeSettings) -> list[dict]:
+    import re
+
+    from app.categorize.categorize import TEXT_FIELDS
+
+    issues: list[dict] = []
+    for cfg in intake.sources:
+        for rule in cfg.rules:
+            prefix = f"source {cfg.name!r}: rule {rule.mode!r}"
+            if rule.mode == "regex":
+                if not rule.regex:
+                    issues.append(_issue("error", "intake", f"{prefix} is missing a regex"))
+                    continue
+                try:
+                    re.compile(rule.regex)
+                except re.error as exc:
+                    issues.append(_issue("error", "intake", f"{prefix} has an invalid regex ({exc})"))
+                for field in rule.fields:
+                    if field not in TEXT_FIELDS and field != "*":
+                        issues.append(
+                            _issue("warning", "intake", f"{prefix} references unknown field {field!r}")
+                        )
+            elif rule.mode != "assign":
+                issues.append(_issue("error", "intake", f"{prefix} is not a known mode"))
     return issues
 
 

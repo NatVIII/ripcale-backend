@@ -6,7 +6,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
-- [ ] F50 - Figure out a way to integrate more complex heuristic analysis of event information to assign categories. Essentially, allow regex binary logic on various pieces of metadata that each source or gatherer can have as options on their intake.yaml. This would be source by source "categorization based on" heuristics with four pieces of input. First is the mode, for now the only valid option is `regex`. Second is the field(s) to look at, allowing a single entry or multiple fields to be looked for, with the fields being those returned by the JSON as part of the gatherer contract. The third piece is the regex to apply on the given JSON fields identified in the second piece. The fourth piece is the categorie(s) to apply to those events which this regex search has come back true for. The categories can be a single category or multiple which are all applied on a successful application of that. Given the complexity required, and the fact that this is meant to be gatherer-neutral (i.e. only processes on the JSON returned so it doesn't change how these are configured from gatherer to gatherer), maybe this requires another stage between the gatherer and the sieve? So that if the tags are changed and that means the events themselves update the sieve will accept these newly changed events (even though they way they're interpreted, not the source itself, has changed). That's kind of a lot, isn't it.
 - [ ] F50.01 - Allow the F50 feature to also apply to an entire range of gatherers (i.e. allow it to also be a gatherer by gatherer configuration for some reason).
 - [ ] F50.02 - Allow the F50 feature to be able to be configured in one place to apply to all events
 - [ ] F50.03 - Create a second mode which just assigns tags without any complexity or heuristic analysis, using the same framework established by F50
@@ -76,6 +75,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F46 - Category classes: class-first `IntakeSettings.category_definitions` (`{class: [category]}`) + `app/services/categories.category_class()` (defaults to `intake`); model + resolver only (2026-09-07)
 - [x] F49 - Coherence checks: `app/services/coherence.check()` (intake structure + gatherer existence + category consistency + config sanity), fail-safe "coherence" section on `/debug` (2026-09-07)
 - [x] F26 - Category symlinks: read-time `resolve_categories`/`resolve_event_categories` wired into serializer/`?category=`/ICS + forward "symlink" column on `/debug` (external-only exposure) (2026-09-07)
+- [x] F50 - Categorization rule engine: new `app/categorize/` stage (`CategoryRule`: `regex`/`assign`, string fields), `default_categories` unified into the rules engine, wired before the sieve; `docs/CATEGORIZE_CONTRACT.md` v1; sieve/gatherer contracts bumped to v3 (2026-09-07)
 
 ## Deleted
 - [ ] F30 - Deleted Event

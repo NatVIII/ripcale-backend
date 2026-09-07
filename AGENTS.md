@@ -23,20 +23,21 @@ It runs as two listeners:
 
 ## Architecture
 
-Data flows: **gatherer (gather) → sieve (sort) → decisionmaker (decide) → DB**.
+Data flows: **gatherer (gather) → categorize (assign categories) → sieve (sort) → decisionmaker (decide) → DB**.
 
 ```
 config.yaml → Settings (system)     intake.yaml → app/intake.py (sources/gatherers/symlinks)
   → registry.load_sources()
   → ingest.run() → gatherer.run(source)     # GathererResult (ScrapedEvent[])
+  → categorize.apply(source, events)        # category rules (defaults + regex), before hash
   → sieve.classify()                       # SieveResult (new/updated/unchanged)
   → decisionmaker.apply()                  # Event rows upserted
   → SQLite (data/ripcale.db, WAL)
 ```
 
-The Gatherer→Sieve→Decisionmaker data contract is specified in
-`docs/GATHERER_CONTRACT.md`; the Sieve and Decisionmaker stage contracts are
-`docs/SIEVE_CONTRACT.md` and `docs/DECISIONMAKER_CONTRACT.md`. Contract docs are
+The Gatherer→Categorize→Sieve→Decisionmaker data contracts are specified in
+`docs/GATHERER_CONTRACT.md`, `docs/CATEGORIZE_CONTRACT.md`,
+`docs/SIEVE_CONTRACT.md`, and `docs/DECISIONMAKER_CONTRACT.md`. Contract docs are
 version-stamped and test-enforced (see the "Contracts are versioned" invariant
 below).
 
@@ -48,12 +49,13 @@ Key files:
 - `app/models.py` — `Source`, `Event` (SQLModel).
 - `app/db.py` — `engine`, `init_db()`, `wipe_db()` (delete Event→Source, schema intact), WAL + foreign-key pragmas.
 - `app/schema.py` — pipeline contracts (`SourceConfig`, `ScrapedEvent`,
-  `ImageRef`, `GathererResult`, `ClassifiedEvent`, `SieveResult`) + `dump_images()`/`load_images()`.
+  `ImageRef`, `GathererResult`, `CategoryRule`, `ClassifiedEvent`, `SieveResult`) + `dump_images()`/`load_images()`.
 - `app/identity.py` — `stable_id()`, `content_hash()`.
 - `app/timeutil.py` — `to_utc_naive()`, `parse_iso_utc()`.
 - `app/registry.py` — `load_sources()`, `load_gatherer()`.
 - `app/gatherers/<name>/gatherer.py` — each gatherer exposes `run(source)`.
-- `app/sieve/` — `classify()` re-exported from `sieve.py` (change detection; `_relevance()` is a
+- `app/categorize/` — `apply()` re-exported from `categorize.py` (config-driven category assignment, before the sieve).
+- `app/sieve/` — `classify()` re-exported from `sieve.py` (change detection; fills `default_location`; `_relevance()` is a
   pass-through placeholder for future drop-past rules).
 - `app/decisionmaker/` — `apply()` re-exported from `decisionmaker.py` (persist; stub for future cross-source heuristics).
 - `app/ingest.py` — `run()` / `run_report()` / `process_source()` orchestrator (CLI + debug ingest page share `_run()`).
@@ -75,7 +77,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (139)
+.venv/bin/python -m pytest                       # test suite (153)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -127,8 +129,10 @@ docker compose up --build                        # public + admin services
 - **Docker port publishing DNATs to the container's eth0** — a `127.0.0.1` bind
   is unreachable through a published port. `app/admin.py` binds `0.0.0.0` when
   `in_docker()`; the host publish `127.0.0.1:8082:8082` keeps it loopback-only.
-- **Source `default_categories` and `default_location` are merged in the sieve**
-  (before hashing) so they participate in change detection.
+- **Category assignment happens in the categorize stage** (`default_categories`
+  is sugar for an `assign` rule, plus `sources[].rules`), and **`default_location`
+  is filled in the sieve** — both before hashing, so they participate in change
+  detection.
 - **Gatherer errors are caught, not fatal** — `ingest.run()` logs each failed
   source (with a rollback) and continues; the pipeline playground returns a
   clear error page. Logging is via `logging.getLogger(__name__)` (configured by
@@ -181,7 +185,7 @@ System fields in `config.yaml` (env prefix `RIPCALE_`; `.env` overrides):
 Intake fields in `intake.yaml` (`app/intake.py`):
 
 - `gatherers` — per-gatherer defaults, e.g. `{elfsight: {priority: 5}}` (extensible).
-- `sources` — list of `{name, gatherer, url, is_public, priority, default_categories, default_location}`; an optional source `priority` overrides the gatherer default (fallback 0); optional `default_location` fills missing/blank event locations.
+- `sources` — list of `{name, gatherer, url, is_public, priority, default_categories, default_location, rules}`; an optional source `priority` overrides the gatherer default (fallback 0); optional `default_location` fills missing/blank event locations; `rules` are categorization heuristics (see `docs/CATEGORIZE_CONTRACT.md`).
 - `category_symlinks` — `{internal: external}` category mapping, resolved at read time by `app/services/categories.resolve_event_categories()` (F26).
 - `category_definitions` — class-first `{class: [category, ...]}` (`intake` = auto-ingested, `external` = exposed); resolved by `app/services/categories.category_class()` (F46).
 

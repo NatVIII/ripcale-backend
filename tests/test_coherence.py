@@ -70,6 +70,26 @@ def test_self_symlink_reports_warning(tmp_path, monkeypatch):
 #endregion
 
 
+#region: rules
+def test_invalid_regex_reports_error(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch, "sources:\n  - name: X\n    gatherer: elfsight\n    url: https://x\n    rules:\n      - mode: regex\n        fields: [title]\n        regex: \"(\"\n        categories: [art]\n")
+    issues = check()
+    assert any("invalid regex" in i["message"] for i in issues)
+
+
+def test_regex_missing_pattern_reports_error(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch, "sources:\n  - name: X\n    gatherer: elfsight\n    url: https://x\n    rules:\n      - mode: regex\n        fields: [title]\n        categories: [art]\n")
+    issues = check()
+    assert any("missing a regex" in i["message"] for i in issues)
+
+
+def test_unknown_field_reports_warning(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch, "sources:\n  - name: X\n    gatherer: elfsight\n    url: https://x\n    rules:\n      - mode: regex\n        fields: [bogus]\n        regex: \"a\"\n        categories: [art]\n")
+    issues = check()
+    assert any(i["severity"] == "warning" and "unknown field" in i["message"] for i in issues)
+#endregion
+
+
 #region: route
 def _dashboard_client(tmp_path, monkeypatch):
     import app.routers.debug as debug_router_mod

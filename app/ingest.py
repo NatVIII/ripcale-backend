@@ -17,6 +17,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
+from app.categorize import apply as categorize
 from app.config import settings
 from app.db import engine, init_db
 from app.decisionmaker import apply
@@ -60,6 +61,7 @@ def process_source(
 ) -> tuple[SieveResult, dict | None]:
     """Run one source through gather -> sieve -> (decide). Returns (sieved, report)."""
     result = run_fn(cfg)                       # gather
+    categorize(result.source, result.events)   # categorize (assign rules, before hash)
     sieved = classify(session, result)         # sieve (reads DB)
 
     report = None

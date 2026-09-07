@@ -1,16 +1,16 @@
 # Sieve Contract
 
-Version: 2
+Version: 3
 
 The contract between the **Sieve** (`app/sieve/sieve.py`) and the rest of the
-pipeline (Gatherer → Sieve → Decisionmaker → storage). This document is the
-single source of truth for the sieve stage's behavior and data shapes.
+pipeline (Gatherer → Categorize → Sieve → Decisionmaker → storage). This document
+is the single source of truth for the sieve stage's behavior and data shapes.
 
 ## Data flow
 
 ```
-GathererResult → sieve.classify(session, result) → SieveResult
-                                                    → decisionmaker.apply(...)
+GathererResult → categorize.apply(...) → sieve.classify(session, result) → SieveResult
+                                                                          → decisionmaker.apply(...)
 ```
 
 ## Inputs
@@ -41,8 +41,8 @@ writes.
 | Field | Type | Meaning |
 |---|---|---|
 | `id` | `str` | `stable_id(source.name, event)`. |
-| `content_hash` | `str` | `content_hash(event)` (after default-category merge). |
-| `event` | `ScrapedEvent` | The (category-merged) incoming event. |
+| `content_hash` | `str` | `content_hash(event)` (after categorize). |
+| `event` | `ScrapedEvent` | The (categorized) incoming event. |
 | `changed_fields` | `list[str]` | Which mutable fields differ (updated events only). |
 
 ## Classification rules
@@ -50,9 +50,9 @@ writes.
 For each incoming event the sieve:
 
 1. Runs `_relevance(events)` — pass-through today; future home for drop-past rules.
-2. Merges the source's `default_categories` into each event's `categories` and
-   fills missing/blank `location` with the source's `default_location`, **before**
-   computing `content_hash`, so both defaults participate in change detection.
+2. Fills missing/blank `location` with the source's `default_location`, **before**
+   computing `content_hash`, so it participates in change detection. (Category
+   assignment happens upstream, in the categorize stage.)
 3. Computes `id = stable_id(source.name, event)` and `content_hash(event)`.
 4. Buckets each event:
    - **new** — no stored `Event` has this `id`.
@@ -71,8 +71,9 @@ The complete set of fields that, when they differ, mark an event **updated**:
 - **Read-only** — `classify()` never writes to the DB.
 - **Idempotent** — the same inputs + DB state always yield the same `SieveResult`.
 - **Deterministic** — no randomness, no I/O beyond the given `session`.
-- **Only normalizes `default_categories` and `default_location`** — every other
-  field passes through untouched; the sieve does not rewrite event content.
+- **Only normalizes `default_location`** — every other field passes through
+  untouched; the sieve does not rewrite event content (categories are assigned by
+  the categorize stage).
 - `content_hash` is a stability contract defined once in `app/identity.py`;
   changing its inputs re-flags every stored event as "updated".
 

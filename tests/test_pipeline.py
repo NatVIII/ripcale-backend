@@ -10,6 +10,7 @@ from pathlib import Path
 import app.gatherers.elfsight.gatherer as elfsight_gatherer
 from sqlmodel import Session, SQLModel, create_engine, select
 
+from app.categorize import apply as categorize
 from app.decisionmaker import apply
 from app.ingest import _ensure_source, process_source
 from app.models import Event
@@ -39,7 +40,10 @@ def test_full_pipeline_end_to_end(tmp_path, monkeypatch):
     assert len(result.events) == 3
     assert result.events[0].uid == "70e8fcb0-92de-476f-81ec-49d21da955a3"
 
-    # -- Stage 2: sieve (sort, read-only) ---------------------------------
+    # -- Stage 2: categorize (assign rules, before hash) -------------------
+    categorize(result.source, result.events)
+
+    # -- Stage 3: sieve (sort, read-only) ---------------------------------
     with Session(engine) as session:
         sieved = classify(session, result)
     assert len(sieved.new) == 3
