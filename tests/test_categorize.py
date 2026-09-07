@@ -3,12 +3,20 @@
 from datetime import datetime
 
 from app.categorize import apply
-from app.schema import CategoryRule, ScrapedEvent, SourceConfig
+from app.schema import CategoryRule, GathererConfig, ScrapedEvent, SourceConfig
 #endregion
 
 
 def _cfg(**kwargs):
     return SourceConfig(name="Test", gatherer="elfsight", url="https://x", **kwargs)
+
+
+def _set_gatherers(tmp_path, monkeypatch, gatherers):
+    from app.config import settings
+    from app.intake import IntakeSettings, save
+
+    monkeypatch.setattr(settings, "intake_file", str(tmp_path / "intake.yaml"))
+    save(IntakeSettings(gatherers=gatherers))
 
 
 def _event(title, **kwargs):
@@ -80,6 +88,39 @@ def test_rules_apply_in_order(tmp_path):
     events = [_event("A workshop")]
     apply(cfg, events)
     assert events[0].categories == ["first", "second"]
+#endregion
+
+
+#region: gatherer scope
+def test_gatherer_rules_apply(tmp_path, monkeypatch):
+    _set_gatherers(
+        tmp_path, monkeypatch,
+        {"elfsight": GathererConfig(priority=5, rules=[CategoryRule(mode="regex", fields=["title"], regex="(?i)workshop", categories=["workshop"])])},
+    )
+    events = [_event("A pottery workshop")]
+    apply(_cfg(), events)
+    assert events[0].categories == ["workshop"]
+
+
+def test_gatherer_and_source_rules_both_apply(tmp_path, monkeypatch):
+    _set_gatherers(
+        tmp_path, monkeypatch,
+        {"elfsight": GathererConfig(rules=[CategoryRule(mode="assign", categories=["gatherer-tag"])])},
+    )
+    cfg = _cfg(rules=[CategoryRule(mode="assign", categories=["source-tag"])])
+    events = [_event("One")]
+    apply(cfg, events)
+    assert events[0].categories == ["gatherer-tag", "source-tag"]
+
+
+def test_unrelated_gatherer_rules_do_not_apply(tmp_path, monkeypatch):
+    _set_gatherers(
+        tmp_path, monkeypatch,
+        {"other": GathererConfig(rules=[CategoryRule(mode="assign", categories=["nope"])])},
+    )
+    events = [_event("One")]
+    apply(_cfg(), events)
+    assert events[0].categories == []
 #endregion
 
 

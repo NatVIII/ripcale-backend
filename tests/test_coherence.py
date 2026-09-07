@@ -87,6 +87,12 @@ def test_unknown_field_reports_warning(tmp_path, monkeypatch):
     _setup(tmp_path, monkeypatch, "sources:\n  - name: X\n    gatherer: elfsight\n    url: https://x\n    rules:\n      - mode: regex\n        fields: [bogus]\n        regex: \"a\"\n        categories: [art]\n")
     issues = check()
     assert any(i["severity"] == "warning" and "unknown field" in i["message"] for i in issues)
+
+
+def test_gatherer_rule_invalid_regex_reports_error(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch, "gatherers:\n  elfsight:\n    rules:\n      - mode: regex\n        fields: [title]\n        regex: \"(\"\n        categories: [art]\n")
+    issues = check()
+    assert any("gatherer 'elfsight'" in i["message"] and "invalid regex" in i["message"] for i in issues)
 #endregion
 
 

@@ -25,6 +25,7 @@ class GathererConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     priority: int = 0
+    rules: list[CategoryRule] = Field(default_factory=list)  # applied to every source of this gatherer
 #endregion
 
 

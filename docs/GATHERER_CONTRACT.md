@@ -1,6 +1,6 @@
 # Gatherer Contract
 
-Version: 3
+Version: 4
 
 The contract between a **Gatherer** (a gatherer in `app/gatherers/*/gatherer.py`)
 and the rest of the pipeline (**Sieve → Decisionmaker → storage → API/ICS**).
@@ -40,7 +40,8 @@ Every source uses the same fields:
 ### Per-gatherer defaults (`GathererConfig`)
 
 The `gatherers:` block in `intake.yaml` holds defaults keyed by gatherer name —
-`priority` today, extensible with more typed fields over time. Gatherer-level
+`priority` and `rules` (categorization heuristics applied to every source of that
+gatherer) today, extensible with more typed fields over time. Gatherer-level
 resolution is centralized (e.g. `registry.source_priority`), never duplicated
 per gatherer.
 

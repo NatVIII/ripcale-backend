@@ -6,7 +6,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
-- [ ] F50.01 - Allow the F50 feature to also apply to an entire range of gatherers (i.e. allow it to also be a gatherer by gatherer configuration for some reason).
 - [ ] F50.02 - Allow the F50 feature to be able to be configured in one place to apply to all events
 - [ ] F50.03 - Create a second mode which just assigns tags without any complexity or heuristic analysis, using the same framework established by F50
 - [ ] F50.04 - The logic which assigns the categories based on whatever configuration modes only happens and is written in one place to make sure that code doesn't diverge with multiple implementations of the same thing. Every time categories are being applied that isn't done inherently to the gatherer based on some extra information it picks up when scraping; the way that it's defined is identical. For example, adding categories to an entire gatherer should have the same exact method for adding categories to a single source, wherever it's being instantiated shouldn't matter as to how it's formatted for the most portability possible.
@@ -76,6 +75,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F49 - Coherence checks: `app/services/coherence.check()` (intake structure + gatherer existence + category consistency + config sanity), fail-safe "coherence" section on `/debug` (2026-09-07)
 - [x] F26 - Category symlinks: read-time `resolve_categories`/`resolve_event_categories` wired into serializer/`?category=`/ICS + forward "symlink" column on `/debug` (external-only exposure) (2026-09-07)
 - [x] F50 - Categorization rule engine: new `app/categorize/` stage (`CategoryRule`: `regex`/`assign`, string fields), `default_categories` unified into the rules engine, wired before the sieve; `docs/CATEGORIZE_CONTRACT.md` v1; sieve/gatherer contracts bumped to v3 (2026-09-07)
+- [x] F50.01 - Gatherer-scope rules: `GathererConfig.rules`, applied first in `categorize.apply()` (gatherer → default_categories → source); CATEGORIZE_CONTRACT v2, GATHERER_CONTRACT v4 (2026-09-07)
 
 ## Deleted
 - [ ] F30 - Deleted Event

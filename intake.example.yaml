@@ -15,6 +15,11 @@
 gatherers:
   elfsight:
     priority: 5
+    # rules:                          # optional — applies to every source of this
+    #   - mode: regex                 # gatherer (same CategoryRule shape as sources)
+    #     fields: [title]
+    #     regex: "(?i)workshop"
+    #     categories: [workshop]
 
 sources:
   - name: "Studio Two Three"

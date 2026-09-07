@@ -74,24 +74,28 @@ def _check_rules(intake: IntakeSettings) -> list[dict]:
     from app.categorize.categorize import TEXT_FIELDS
 
     issues: list[dict] = []
-    for cfg in intake.sources:
-        for rule in cfg.rules:
-            prefix = f"source {cfg.name!r}: rule {rule.mode!r}"
+
+    def check_rule_list(prefix: str, rules) -> None:
+        for rule in rules:
+            p = f"{prefix}: rule {rule.mode!r}"
             if rule.mode == "regex":
                 if not rule.regex:
-                    issues.append(_issue("error", "intake", f"{prefix} is missing a regex"))
+                    issues.append(_issue("error", "intake", f"{p} is missing a regex"))
                     continue
                 try:
                     re.compile(rule.regex)
                 except re.error as exc:
-                    issues.append(_issue("error", "intake", f"{prefix} has an invalid regex ({exc})"))
+                    issues.append(_issue("error", "intake", f"{p} has an invalid regex ({exc})"))
                 for field in rule.fields:
                     if field not in TEXT_FIELDS and field != "*":
-                        issues.append(
-                            _issue("warning", "intake", f"{prefix} references unknown field {field!r}")
-                        )
+                        issues.append(_issue("warning", "intake", f"{p} references unknown field {field!r}"))
             elif rule.mode != "assign":
-                issues.append(_issue("error", "intake", f"{prefix} is not a known mode"))
+                issues.append(_issue("error", "intake", f"{p} is not a known mode"))
+
+    for name, gatherer in intake.gatherers.items():
+        check_rule_list(f"gatherer {name!r}", gatherer.rules)
+    for cfg in intake.sources:
+        check_rule_list(f"source {cfg.name!r}", cfg.rules)
     return issues
 
 

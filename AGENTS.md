@@ -77,7 +77,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (153)
+.venv/bin/python -m pytest                       # test suite (157)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -184,7 +184,7 @@ System fields in `config.yaml` (env prefix `RIPCALE_`; `.env` overrides):
 
 Intake fields in `intake.yaml` (`app/intake.py`):
 
-- `gatherers` — per-gatherer defaults, e.g. `{elfsight: {priority: 5}}` (extensible).
+- `gatherers` — per-gatherer defaults, e.g. `{elfsight: {priority: 5}}` (extensible); `rules` apply to every source of that gatherer.
 - `sources` — list of `{name, gatherer, url, is_public, priority, default_categories, default_location, rules}`; an optional source `priority` overrides the gatherer default (fallback 0); optional `default_location` fills missing/blank event locations; `rules` are categorization heuristics (see `docs/CATEGORIZE_CONTRACT.md`).
 - `category_symlinks` — `{internal: external}` category mapping, resolved at read time by `app/services/categories.resolve_event_categories()` (F26).
 - `category_definitions` — class-first `{class: [category, ...]}` (`intake` = auto-ingested, `external` = exposed); resolved by `app/services/categories.category_class()` (F46).

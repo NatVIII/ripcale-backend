@@ -6,12 +6,13 @@ so category assignment participates in change detection. Rules are declared in
 `intake.yaml` (`sources[].rules`, plus the implicit `default_categories` assign
 rule) — a single implementation for all category assignment (F50.04).
 """
-# Contract: Categorize v1 (docs/CATEGORIZE_CONTRACT.md)
-CONTRACT_VERSION = 1
+# Contract: Categorize v2 (docs/CATEGORIZE_CONTRACT.md)
+CONTRACT_VERSION = 2
 
 #region: imports
 import re
 
+from app.intake import load as load_intake
 from app.schema import CategoryRule, ScrapedEvent, SourceConfig
 #endregion
 
@@ -26,6 +27,13 @@ def _default_rules(source: SourceConfig) -> list[CategoryRule]:
     if not source.default_categories:
         return []
     return [CategoryRule(mode="assign", categories=source.default_categories)]
+
+
+def _gatherer_rules(source: SourceConfig) -> list[CategoryRule]:
+    gatherer = load_intake().gatherers.get(source.gatherer)
+    if gatherer is None:
+        return []
+    return list(gatherer.rules)
 
 
 def _selected_fields(rule: CategoryRule) -> list[str]:
@@ -56,7 +64,8 @@ def _apply_rule(rule: CategoryRule, events: list[ScrapedEvent]) -> None:
 
 #region: apply
 def apply(source: SourceConfig, events: list[ScrapedEvent]) -> None:
-    """Apply the source's category rules (defaults + explicit) in place."""
-    for rule in _default_rules(source) + source.rules:
+    """Apply the source's category rules (gatherer + defaults + source) in place."""
+    rules = _gatherer_rules(source) + _default_rules(source) + source.rules
+    for rule in rules:
         _apply_rule(rule, events)
 #endregion

@@ -1,3 +1,13 @@
+## 2026-09-07 17:30:00 [AI]
+
+F50.01: gatherer-scope categorization rules.
+
+- `app/schema.py`: `GathererConfig.rules: list[CategoryRule]`.
+- `app/categorize/categorize.py`: `_gatherer_rules()` + `apply()` now resolves rules in order `gatherer → default_categories → source`; `CONTRACT_VERSION` 1→2.
+- `docs/CATEGORIZE_CONTRACT.md` v2 (gatherer rules in semantics); `docs/GATHERER_CONTRACT.md` v4 (GathererConfig `rules`); `elfsight` re-stamped v4.
+- `app/services/coherence.py`: `_check_rules` now also validates gatherer-level rules.
+- Tests: `test_categorize.py` (gatherer/combined/unrelated-scope), `test_contract_gatherer.py` (GathererConfig fields), `test_coherence.py` (gatherer invalid regex) — 157 passing.
+
 ## 2026-09-07 17:10:00 [AI]
 
 F50: categorization rule engine (new `categorize` stage).

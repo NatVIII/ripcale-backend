@@ -30,7 +30,7 @@ def test_source_config_fields_match_doc():
 
 
 def test_gatherer_config_fields_match_doc():
-    assert set(GathererConfig.model_fields) == {"priority"}
+    assert set(GathererConfig.model_fields) == {"priority", "rules"}
 
 
 def test_image_ref_fields_match_doc():
