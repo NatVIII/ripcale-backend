@@ -15,6 +15,7 @@ from app.db import engine
 from app.logging import LOG_TAIL_LINES, read_log_tail
 from app.security import debug_guard
 from app.services import stats
+from app.services.coherence import check as coherence_check
 from app.services.status import gatherer_rollup, read_status, source_status
 from app.web import escape, json_pre, page, pre, table
 #endregion
@@ -26,6 +27,24 @@ _STATUS_EMOJI = {"ok": "🟢", "warning": "🟡", "error": "🔴", "never": "⚪
 
 def _html(body: str) -> Response:
     return Response(status_code=200, headers={"Content-Type": "text/html"}, description=body)
+
+
+def _coherence_section() -> str:
+    """Render the live coherence checks; never raises (the page must always render)."""
+    try:
+        issues = coherence_check()
+    except Exception as exc:  # noqa: BLE001 — a broken check must not break /debug
+        issues = [{"severity": "warning", "scope": "debug", "message": f"coherence check failed: {exc}"}]
+
+    if not issues:
+        return "<h2>coherence</h2><p>🟢 all good</p>"
+
+    emoji = {"error": "🔴", "warning": "🟡"}
+    lines = "".join(
+        f"<p>{emoji.get(i['severity'], '⚠️')} {escape(i['scope'])}: {escape(i['message'])}</p>"
+        for i in issues
+    )
+    return "<h2>coherence</h2>" + lines
 #endregion
 
 
@@ -69,7 +88,8 @@ def register(app) -> None:
             )
 
         body = (
-            f"<p>events: {ov['events']} (upcoming {ov['upcoming']}, past {ov['past']})"
+            _coherence_section()
+            + f"<p>events: {ov['events']} (upcoming {ov['upcoming']}, past {ov['past']})"
             f" · sources: {ov['sources']}</p>"
             + "<h2>categories</h2>"
             + table(

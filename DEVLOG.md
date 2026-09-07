@@ -1,3 +1,11 @@
+## 2026-09-07 16:35:00 [AI]
+
+F49: config/intake coherence checks.
+
+- `app/services/coherence.py` (new): `check()` returns issues `{severity, scope, message}` — intake structure (YAML/shape validation), semantic (gatherer existence, category multi-class/unknown-class/self-symlink), config sanity (`data_dir` writable). Every check is defensive; `check()` never raises.
+- `app/routers/debug.py`: a fail-safe "coherence" section at the top of `/debug` (🟢 all good / 🔴🟡 list); the `coherence_check()` call is wrapped so a broken check can never lock out the dashboard.
+- Tests: `tests/test_coherence.py` (130 passing) — structural + semantic + route rendering.
+
 ## 2026-09-07 16:10:00 [AI]
 
 F46: category classes (intake vs external).

@@ -61,6 +61,7 @@ Key files:
 - `app/services/events.py` — `query_events()`, `get_event()`, `source_names()`.
 - `app/services/ics.py` — `event_to_vevent()`, `events_to_ics()`.
 - `app/services/stats.py` — `overview()`, `sources()`, `event_dump()`, `stale_events()`, `read_last_ingest()`.
+- `app/services/coherence.py` — `check()` (live config/intake coherence checks, fail-safe).
 - `app/services/status.py` — per-source run status store (`data/status.json`): `read_status()` / `record_status()` / `record_run()` / `reset_status()` + `source_status()` / `gatherer_rollup()`.
 - `app/services/wipe.py` — `wipe_all()` (DB wipe + reset status/last-ingest).
 - `app/services/testrunner.py` — `collect_tests()` / `run_tests()` (subprocess `python -m pytest`).
@@ -74,7 +75,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (119)
+.venv/bin/python -m pytest                       # test suite (130)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
