@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 #region: gatherer config
 class GathererConfig(BaseModel):
-    """Per-gatherer defaults from `config.yaml`.
+    """Per-gatherer defaults from `intake.yaml`.
 
     Extensible with more per-gatherer keys over time (`extra="allow"`).
     """
@@ -29,7 +29,7 @@ class GathererConfig(BaseModel):
 
 #region: source config
 class SourceConfig(BaseModel):
-    """One configured source (parsed from `config.yaml`)."""
+    """One configured source (parsed from `intake.yaml`)."""
 
     name: str
     gatherer: str

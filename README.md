@@ -35,13 +35,18 @@ loopback-only so the interactive surface isn't reachable over the network).
 
 ## Configuration
 
-Configuration lives in `config.yaml` (gitignored — keep private/secret sources
-there). `config.example.yaml` is the tracked template and ships one real *public*
-source (Studio Two Three) as starter data; copy it to `config.yaml` and adjust.
-API keys and secrets go in `.env` (see `.env.example`), never in `config.yaml`.
-Env vars / `.env` override `config.yaml`.
+Configuration is split in two:
 
-`./data/` holds only generated data (the SQLite DB) and is safe to wipe.
+- **`config.yaml`** — system settings (hosts/ports, logging, debug access). Hand-edited.
+- **`intake.yaml`** — intake data (sources, per-gatherer defaults, category
+  symlinks). Hand-editable *and* written by the program (via the admin menu).
+
+Both are gitignored; `config.example.yaml` and `intake.example.yaml` are the
+tracked templates. `intake.example.yaml` ships one real *public* source (Studio
+Two Three) as starter data. API keys and secrets go in `.env` (see
+`.env.example`), never in `config.yaml`. Env vars / `.env` override `config.yaml`.
+
+`./data/` holds only generated data (the SQLite DB, logs, status) and is safe to wipe.
 
 ## Ingest
 

@@ -23,7 +23,7 @@ def utcnow() -> datetime:
 
 #region: source
 class Source(SQLModel, table=True):
-    """A calendar source configured in `config.yaml` (the secret feed URL)."""
+    """A calendar source configured in `intake.yaml` (the secret feed URL)."""
 
     id: int | None = Field(default=None, primary_key=True)
     name: str

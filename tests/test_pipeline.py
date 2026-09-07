@@ -125,15 +125,14 @@ def test_change_detection_on_reingest(tmp_path, monkeypatch):
         assert len(session.exec(select(Event)).all()) == 3
 
 
-def test_registry_load_sources(monkeypatch):
-    """load_sources() returns the configured source list."""
+def test_registry_load_sources(tmp_path, monkeypatch):
+    """load_sources() returns the configured source list from intake.yaml."""
     from app.config import settings
     from app.registry import load_sources
 
-    monkeypatch.setattr(
-        settings,
-        "sources",
-        [SourceConfig(name="X", gatherer="elfsight", url="https://x")],
+    (tmp_path / "intake.yaml").write_text(
+        "sources:\n  - name: X\n    gatherer: elfsight\n    url: https://x\n"
     )
+    monkeypatch.setattr(settings, "intake_file", str(tmp_path / "intake.yaml"))
     srcs = load_sources()
     assert [s.name for s in srcs] == ["X"]

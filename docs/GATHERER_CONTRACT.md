@@ -38,7 +38,7 @@ Every source uses the same fields:
 
 ### Per-gatherer defaults (`GathererConfig`)
 
-The `gatherers:` block in `config.yaml` holds defaults keyed by gatherer name —
+The `gatherers:` block in `intake.yaml` holds defaults keyed by gatherer name —
 `priority` today, extensible with more typed fields over time. Gatherer-level
 resolution is centralized (e.g. `registry.source_priority`), never duplicated
 per gatherer.
@@ -174,7 +174,7 @@ the *first* occurrence (`DTSTART`) and whose `rrule` generates the rest.
 - Naive-UTC storage; `timezone` holds the IANA name.
 - `content_hash` is a stability contract — defined once in `app/identity.py`.
 - `uid` must be stable across fetches.
-- Secret source URLs live in `config.yaml`; never expose them via events.
+- Secret source URLs live in `intake.yaml`; never expose them via events.
 
 ## Known gaps (future tickets)
 

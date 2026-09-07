@@ -26,7 +26,8 @@ It runs as two listeners:
 Data flows: **gatherer (gather) → sieve (sort) → decisionmaker (decide) → DB**.
 
 ```
-config.yaml → Settings → registry.load_sources()
+config.yaml → Settings (system)     intake.yaml → app/intake.py (sources/gatherers/symlinks)
+  → registry.load_sources()
   → ingest.run() → gatherer.run(source)     # GathererResult (ScrapedEvent[])
   → sieve.classify()                       # SieveResult (new/updated/unchanged)
   → decisionmaker.apply()                  # Event rows upserted
@@ -41,7 +42,8 @@ below).
 
 Key files:
 
-- `app/config.py` — `Settings` (config.yaml + .env; env > dotenv > yaml > defaults).
+- `app/config.py` — `Settings` (system `config.yaml` + .env; env > dotenv > yaml > defaults).
+- `app/intake.py` — `IntakeSettings` + `load()`/`save()` for the mutable `intake.yaml` (sources, gatherers, category symlinks).
 - `app/logging.py` — `setup_logging()` (console + rotating `data/ripcale.log`, idempotent) + `read_log_tail()` (constant-time backward tail for `/debug/logs`).
 - `app/models.py` — `Source`, `Event` (SQLModel).
 - `app/db.py` — `engine`, `init_db()`, `wipe_db()` (delete Event→Source, schema intact), WAL + foreign-key pragmas.
@@ -72,7 +74,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (110)
+.venv/bin/python -m pytest                       # test suite (114)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -110,7 +112,7 @@ docker compose up --build                        # public + admin services
   `DEFAULT_LIMIT` (500) unless a `?limit=` is passed (`None`/`0` = unbounded, used
   by the ICS feed). The default lives in one place: `app/services/events.py`.
 - **Source URLs are never exposed by the API.** Private/secret sources live in
-  `config.yaml` (gitignored); `config.example.yaml` is the tracked template and
+  `intake.yaml` (gitignored); `intake.example.yaml` is the tracked template and
   ships one real *public* source (Studio Two Three) as starter data.
 - **Robyn router cannot express `:param.suffix`** — `/feed/:tag.ics` becomes a
   single param literally named `tag.ics`; hence `/feed.ics?tag=` and `/events/{id}/ics`.
@@ -156,20 +158,30 @@ docker compose up --build                        # public + admin services
 
 ## Configuration
 
-Fields in `config.yaml` (env prefix `RIPCALE_`; `.env` overrides):
+Configuration is split into two files: **system** settings (`config.yaml`, hand-edited,
+never written by the program) and **intake** data (`intake.yaml`, hand-editable *and*
+program-editable via `app/intake.py`). Both are gitignored with tracked `*.example.yaml`
+templates.
+
+System fields in `config.yaml` (env prefix `RIPCALE_`; `.env` overrides):
 
 - `public_host` / `public_port` — read-only listener (default `0.0.0.0` / `8081`).
 - `admin_host` / `admin_port` — debug listener (default `127.0.0.1` / `8082`).
 - `data_dir` — SQLite + `last_ingest.json` location (default `data`).
 - `database_url` — optional override (defaults to `sqlite:///{data_dir}/ripcale.db`).
+- `intake_file` — path to the intake settings file (default `intake.yaml`).
 - `log_file` — rotating log path (relative → `data_dir`; empty → `data/ripcale.log`).
 - `log_max_bytes` — rotate once the file reaches this size (default `1000000`).
 - `log_backup_count` — rotated backups to keep (default `3`).
 - `cors_origins` — CORS origin list (default `*`).
 - `debug_allowed_cidrs` — extra IPv4 CIDRs for the admin endpoints (loopback always allowed).
 - `debug_token` — optional fixed CSRF token (auto-generated if empty).
+
+Intake fields in `intake.yaml` (`app/intake.py`):
+
 - `gatherers` — per-gatherer defaults, e.g. `{elfsight: {priority: 5}}` (extensible).
 - `sources` — list of `{name, gatherer, url, is_public, priority, default_categories, default_location}`; an optional source `priority` overrides the gatherer default (fallback 0); optional `default_location` fills missing/blank event locations.
+- `category_symlinks` — `{internal: external}` category mapping (F26).
 
 ## Maintenance (do this on every change)
 

@@ -8,6 +8,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./config.yaml:/app/config.yaml:ro
+      - ./intake.yaml:/app/intake.yaml
     env_file:
       - path: .env
         required: false
@@ -22,6 +23,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./config.yaml:/app/config.yaml:ro
+      - ./intake.yaml:/app/intake.yaml
     env_file:
       - path: .env
         required: false

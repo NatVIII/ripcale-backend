@@ -7,22 +7,22 @@
 import importlib
 from typing import Callable
 
-from app.config import settings
+from app.intake import load as load_intake
 from app.schema import GathererResult, SourceConfig
 #endregion
 
 
 #region: sources
 def load_sources() -> list[SourceConfig]:
-    """Return the configured sources (parsed from config.yaml into settings)."""
-    return list(settings.sources)
+    """Return the configured sources (parsed from intake.yaml)."""
+    return list(load_intake().sources)
 
 
 def source_priority(cfg: SourceConfig) -> int:
     """Resolve a source's priority (config-side): source override > gatherer default > 0."""
     if cfg.priority is not None:
         return cfg.priority
-    gatherer = settings.gatherers.get(cfg.gatherer)
+    gatherer = load_intake().gatherers.get(cfg.gatherer)
     return gatherer.priority if gatherer else 0
 #endregion
 

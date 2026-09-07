@@ -47,18 +47,22 @@ def test_ingest_idempotent(tmp_path, monkeypatch):
         assert len(session.exec(select(Event)).all()) == 3
 
 
-def test_source_priority(monkeypatch):
+def test_source_priority(tmp_path, monkeypatch):
+    from app.config import settings
+    from app.intake import IntakeSettings, save
     from app.registry import source_priority
+
+    monkeypatch.setattr(settings, "intake_file", str(tmp_path / "intake.yaml"))
 
     # source override wins
     cfg = SourceConfig(name="S", gatherer="elfsight", url="x", priority=8)
     assert source_priority(cfg) == 8
 
     # gatherer default
-    monkeypatch.setattr("app.registry.settings.gatherers", {"elfsight": GathererConfig(priority=5)})
+    save(IntakeSettings(gatherers={"elfsight": GathererConfig(priority=5)}))
     cfg2 = SourceConfig(name="S", gatherer="elfsight", url="x")
     assert source_priority(cfg2) == 5
 
-    # fallback 0
-    monkeypatch.setattr("app.registry.settings.gatherers", {})
+    # fallback 0 (gatherer not configured)
+    save(IntakeSettings(gatherers={}))
     assert source_priority(cfg2) == 0

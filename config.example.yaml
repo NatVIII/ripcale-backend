@@ -32,21 +32,7 @@ cors_origins: "*"
 # Optional fixed CSRF token for the pipeline playground (auto-generated if empty).
 # debug_token: ""
 
-# Optional: per-gatherer defaults. Higher `priority` = higher priority.
-# Applied to every source gathered by that gatherer unless the source overrides it
-# below. Extensible with more per-gatherer keys in the future.
-gatherers:
-  elfsight:
-    priority: 5
-
-sources:
-  - name: "Studio Two Three"
-    gatherer: "elfsight"
-    url: "https://core.service.elfsight.com/p/boot/?page=https%3A%2F%2Fwww.studiotwothree.org%2Fcommunity-events&w=24ddbed9-c732-4102-abd2-02990fae125b"
-    is_public: true
-    # priority: 8   # optional — overrides the gatherer default (5) above.
-                    # Omit to inherit it; falls back to 0 if neither is set.
-    default_categories: ["art"]
-    # default_location: "Richmond, VA"  # optional — fills events with a
-                                        # missing/blank location; omit to leave
-                                        # such events' location null.
+# Intake settings (sources, per-gatherer defaults, category symlinks) live in a
+# SEPARATE file — `intake.yaml` — so the program can edit them (via the admin
+# menu) without touching this hand-edited system config. See `intake.example.yaml`.
+# Path is configurable via `intake_file` (default: "intake.yaml").

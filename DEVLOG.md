@@ -1,3 +1,15 @@
+## 2026-09-07 15:50:00 [AI]
+
+F45: intake-store split (system `config.yaml` vs mutable `intake.yaml`).
+
+- `app/intake.py` (new): `IntakeSettings` (`sources`, `gatherers`, `category_symlinks`) + `load()` (path+mtime-cached, missing→defaults) + `save()` (atomic temp+rename). The single place the program writes intake data.
+- `app/config.py`: dropped `sources`/`gatherers`; added `intake_file: str = "intake.yaml"`.
+- `app/registry.py`: `load_sources()`/`source_priority()` now read `intake.load()`.
+- `intake.example.yaml` (new, tracked) + `config.example.yaml` slimmed; `.gitignore` + `docker-compose.yml` mount `intake.yaml`.
+- Tests: `tests/test_intake.py` (114 passing) + `conftest.py` isolates `settings.intake_file`; `test_registry_load_sources`/`test_source_priority` use a temp `intake.yaml`.
+- Docs: AGENTS.md (config split), README.md, schema/models + GATHERER_CONTRACT wording (`config.yaml`→`intake.yaml`).
+- Manual migration: move `sources`/`gatherers` from your `config.yaml` into `intake.yaml`.
+
 ## 2026-09-07 15:25:00 [AI]
 
 F32: per-source default location.

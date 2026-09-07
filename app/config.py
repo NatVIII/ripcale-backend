@@ -6,7 +6,9 @@ loaded with this precedence:
 
     init kwargs > environment / `.env` > `config.yaml` > defaults
 
-API keys and secrets belong in `.env`; everything else in `config.yaml`.
+API keys and secrets belong in `.env`; system settings in `config.yaml`; the
+mutable intake data (sources, gatherers, category symlinks) in `intake.yaml`
+(see `app/intake.py`).
 """
 #region: imports
 from pydantic_settings import (
@@ -14,8 +16,6 @@ from pydantic_settings import (
     SettingsConfigDict,
     YamlConfigSettingsSource,
 )
-
-from app.schema import GathererConfig, SourceConfig
 #endregion
 
 
@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     # -- storage ----------------------------------------------------------
     data_dir: str = "data"
     database_url: str | None = None
+    # Intake settings file (sources, gatherers, category symlinks) — separate
+    # from this system config so the program can edit it (see app/intake.py).
+    intake_file: str = "intake.yaml"
 
     # -- logging ----------------------------------------------------------
     # Path to the rotating log file. Relative paths are resolved against
@@ -62,11 +65,6 @@ class Settings(BaseSettings):
     # Optional fixed CSRF token for the pipeline playground. If empty, an
     # ephemeral token is generated at startup.
     debug_token: str = ""
-
-    # -- gatherers / sources ---------------------------------------------
-    # Per-gatherer defaults, extensible (e.g. `priority`). See GathererConfig.
-    gatherers: dict[str, GathererConfig] = {}
-    sources: list[SourceConfig] = []
 
     @classmethod
     def settings_customise_sources(

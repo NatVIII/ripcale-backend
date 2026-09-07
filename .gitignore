@@ -9,6 +9,7 @@ venv/
 # Environment / secrets
 .env
 config.yaml
+intake.yaml
 
 # Local data (sqlite, generated data)
 data/
