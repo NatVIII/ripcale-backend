@@ -13,6 +13,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [ ] F13 - Relevance/expiry filter in `sieve._relevance()`: drop events older than X days and farther than Y days in the future (currently pass-through). Single config + single shared expiry logic (with F22).
 - [ ] F22 - DB trash handling / garbage collection: archive (soft-delete) events older than X days instead of deleting them - keep them saved for future reference, but exclude them from the normal read path. Shares the same expiry config + logic as F13 (one implementation, no duplicated handlers).
 - [ ] F28 - Event Editor: Edit events on the backend using the /debug API. Keep just regular HTML, no Javascript for this
+- [ ] F44 - Find a preferred way to set up an automatic build pipeline; where development builds can be compiled into releases on github (using the command line preferably because I like it, or without having to create releases and instead just being able to trigger a re-grab and re-build using my terminal with the server) and on release an automatic deployment to a server can occur. Selfishly, this is so that I can build on my PC and then deploy on my testing server.
 - [ ] F25 - Gatherer: Google Calendar Gatherer
 - [ ] F21 - Gatherer: Instagram source (research HikerAPI - see DEVLOG note)
 - [ ] F40 - Post-Sieve Feature, FITB with image OCR. The Instagram 
