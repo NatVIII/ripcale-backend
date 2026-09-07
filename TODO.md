@@ -6,6 +6,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
+- [ ] F45 - Split config.yaml and intake.yaml into two separate files. One is truly system level configuration which govern how the system operates (config.yaml) and the other is a constantly evolving document which allows manual entry but also has entry by the program itself, over time expanding the list of sources and other points of data to reflect the growth of it's internal state over time. Yes.... arise.... ARISE!!!! This is what will make it self-aware and begin to be self-governing. This is the self awareness that makes a separate backend so important. FINALLY I WON'T HAVE TO EDIT A GIT REPOSITORY EVERY TIME I WANT TO ADD A NEW CALENDAR. MWAHAHAHAHA!!!!
 - [ ] F26 - Category to category symlinks (so that internal categories can be saved and referenced, but still be a part of real and exposed external categories)
 - [ ] F17 - Category → color mapping (Elfsight `categoryColor` not yet stored). Configured inside of the config.yaml, assigning colors to different categories. 
 - [ ] F17.01 There should also be a way to specify which categories are the "true" categories, which are meant to be publicly exposed as that kind for sortation (in truth a very small list of "true" categories) from the internal symlinked categories only kept so that data isn't being deleted from the original source.
