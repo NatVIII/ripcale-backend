@@ -1,3 +1,12 @@
+## 2026-09-07 10:30:00 [AI]
+
+F33 + F33.01: Sieve Contract (versioned + test-enforced).
+
+- `docs/SIEVE_CONTRACT.md` (new) — source of truth for the sieve: inputs/outputs (`SieveResult`, `ClassifiedEvent`), classification rules, the `changed_fields` set, and invariants (read-only, idempotent, deterministic, only normalizes `default_categories`).
+- `app/sieve/sieve.py`: `CONTRACT_VERSION = 1` + `# Contract: Sieve v1` comment.
+- `tests/test_contracts.py` (new, 95 passing) — `_read_version()` helper, version-consistency, pydantic-shape/field-consistency, and read-only + idempotent `classify` checks.
+- AGENTS.md: "Contracts are versioned + test-enforced" invariant. Pattern reused by F33.02 (gatherer), F34/F34.01 (decisionmaker).
+
 ## 2026-09-06 19:30:00 [AI]
 
 Magic-number cleanup.

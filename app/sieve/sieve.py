@@ -14,6 +14,12 @@ from app.schema import ClassifiedEvent, GathererResult, ScrapedEvent, SieveResul
 #endregion
 
 
+#region: contract
+# Contract: Sieve v1 (docs/SIEVE_CONTRACT.md)
+CONTRACT_VERSION = 1
+#endregion
+
+
 #region: change-detection constants
 _CHANGED_FIELDS = (
     "title",
