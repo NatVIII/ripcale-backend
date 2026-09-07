@@ -65,8 +65,7 @@ def process_source(
     report = None
     if not dry_run:
         source = _ensure_source(session, cfg)
-        report = apply(session, source, sieved)  # decide (writes DB)
-        source.last_fetched_at = utcnow()
+        report = apply(session, source, sieved)  # decide (writes DB; sets source.last_fetched_at)
         session.add(source)
 
     return sieved, report
@@ -78,7 +77,7 @@ def _print_report(name: str, sieved: SieveResult, report: dict | None) -> None:
     """Human-readable per-source summary to stdout."""
     line = f"{name}: {len(sieved.new)} new, {len(sieved.updated)} updated, {sieved.unchanged} unchanged"
     if report is not None:
-        line += f"  -> inserted {report['inserted']}, updated {report['updated']}"
+        line += f"  -> inserted {report['inserted']}, updated {report['updated']}, removed {report['removed']}"
     print(line)
     for classified in sieved.new:
         print(f"  NEW    {classified.event.title!r}")
@@ -131,6 +130,7 @@ def _run(dry_run: bool = False) -> tuple[list[SieveResult], list[dict]]:
                     "unchanged": sieved.unchanged,
                     "inserted": report["inserted"] if report else None,
                     "updated_rows": report["updated"] if report else None,
+                    "removed": report["removed"] if report else None,
                 }
             )
             if not dry_run:

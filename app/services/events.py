@@ -12,6 +12,11 @@ from app.models import Event, Source
 #endregion
 
 
+#region: defaults
+DEFAULT_LIMIT = 500  # max events returned by default (single source of truth)
+#endregion
+
+
 #region: category helpers
 def _categories_set(categories: str | None) -> set[str]:
     if not categories:
@@ -26,15 +31,19 @@ def query_events(
     start: datetime | None = None,
     end: datetime | None = None,
     category: str | None = None,
-    limit: int | None = 200,
+    limit: int | None = DEFAULT_LIMIT,
 ) -> list[Event]:
-    """List events, optionally filtered by date overlap, category, and limit."""
+    """List events, optionally filtered by date overlap, category, and limit.
+
+    Ordered by `start_at` descending (furthest in the future first); events with
+    a NULL `start_at` sort last. `limit=None`/`0` means no limit.
+    """
     stmt = select(Event)
     if start is not None:
         stmt = stmt.where(func.coalesce(Event.end_at, Event.start_at) >= start)
     if end is not None:
         stmt = stmt.where(func.coalesce(Event.start_at, Event.end_at) <= end)
-    stmt = stmt.order_by(Event.start_at)
+    stmt = stmt.order_by(Event.start_at.desc())
 
     events = list(session.exec(stmt).all())
     if category is not None:

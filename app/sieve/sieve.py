@@ -88,6 +88,7 @@ def classify(session: Session, result: GathererResult) -> SieveResult:
     new: list[ClassifiedEvent] = []
     updated: list[ClassifiedEvent] = []
     unchanged = 0
+    unchanged_ids: list[str] = []
 
     for event, event_id in zip(events, ids):
         digest = content_hash(event)
@@ -105,6 +106,13 @@ def classify(session: Session, result: GathererResult) -> SieveResult:
             )
         else:
             unchanged += 1
+            unchanged_ids.append(event_id)
 
-    return SieveResult(source=result.source, new=new, updated=updated, unchanged=unchanged)
+    return SieveResult(
+        source=result.source,
+        new=new,
+        updated=updated,
+        unchanged=unchanged,
+        unchanged_ids=unchanged_ids,
+    )
 #endregion

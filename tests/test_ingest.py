@@ -29,7 +29,7 @@ def test_ingest_idempotent(tmp_path, monkeypatch):
         sieved, report = process_source(session, _cfg(), elfsight_gatherer.run)
         session.commit()
 
-    assert report == {"inserted": 3, "updated": 0, "unchanged": 0}
+    assert report == {"inserted": 3, "updated": 0, "unchanged": 0, "removed": 0}
 
     with Session(engine) as session:
         assert len(session.exec(select(Event)).all()) == 3
@@ -41,7 +41,7 @@ def test_ingest_idempotent(tmp_path, monkeypatch):
     assert sieved2.unchanged == 3
     assert len(sieved2.new) == 0
     assert len(sieved2.updated) == 0
-    assert report2 == {"inserted": 0, "updated": 0, "unchanged": 3}
+    assert report2 == {"inserted": 0, "updated": 0, "unchanged": 3, "removed": 0}
 
     with Session(engine) as session:
         assert len(session.exec(select(Event)).all()) == 3

@@ -16,6 +16,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 #endregion
 
 
+#region: timeouts
+COLLECT_TIMEOUT = 120  # seconds allowed for `pytest --collect-only`
+RUN_TIMEOUT = 300      # seconds allowed for a test run
+#endregion
+
+
 #region: helpers
 def _run(cmd: list[str], timeout: int) -> subprocess.CompletedProcess:
     return subprocess.run(
@@ -31,7 +37,7 @@ def _run(cmd: list[str], timeout: int) -> subprocess.CompletedProcess:
 #region: collect
 def collect_tests() -> list[str]:
     """Return the collected test node ids (e.g. `tests/test_db.py::test_x`)."""
-    proc = _run(["--collect-only", "-q"], timeout=120)
+    proc = _run(["--collect-only", "-q"], timeout=COLLECT_TIMEOUT)
     return [
         line.strip()
         for line in proc.stdout.splitlines()
@@ -46,6 +52,6 @@ def run_tests(node_id: str | None = None) -> tuple[int, str]:
     cmd = ["-q"]
     if node_id:
         cmd.append(node_id)
-    proc = _run(cmd, timeout=300)
+    proc = _run(cmd, timeout=RUN_TIMEOUT)
     return proc.returncode, (proc.stdout + proc.stderr).strip()
 #endregion

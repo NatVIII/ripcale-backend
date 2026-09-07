@@ -55,11 +55,12 @@ def _result_table(summaries: list[dict]) -> str:
             s.get("unchanged", "—"),
             s.get("inserted", "—") if s.get("inserted") is not None else "—",
             s.get("updated_rows", "—") if s.get("updated_rows") is not None else "—",
+            s.get("removed", "—") if s.get("removed") is not None else "—",
             s.get("message") or "",
         ]
         for s in summaries
     ]
-    return table(["", "source", "new", "updated", "unchanged", "inserted", "rows updated", "message"], rows)
+    return table(["", "source", "new", "updated", "unchanged", "inserted", "rows updated", "removed", "message"], rows)
 #endregion
 
 

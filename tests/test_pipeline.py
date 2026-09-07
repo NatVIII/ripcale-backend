@@ -51,7 +51,7 @@ def test_full_pipeline_end_to_end(tmp_path, monkeypatch):
         source = _ensure_source(session, cfg)
         report = apply(session, source, sieved)
         session.commit()
-    assert report == {"inserted": 3, "updated": 0, "unchanged": 0}
+    assert report == {"inserted": 3, "updated": 0, "unchanged": 0, "removed": 0}
 
     # -- Stage 4: DB ------------------------------------------------------
     with Session(engine) as session:
@@ -103,7 +103,7 @@ def test_change_detection_on_reingest(tmp_path, monkeypatch):
     with Session(engine) as session:
         _, report = process_source(session, cfg, elfsight_gatherer.run)
         session.commit()
-    assert report == {"inserted": 3, "updated": 0, "unchanged": 0}
+    assert report == {"inserted": 3, "updated": 0, "unchanged": 0, "removed": 0}
 
     # mutate one event's title in a deep copy of the fixture
     changed = json.loads(json.dumps(FIXTURE))
@@ -119,7 +119,7 @@ def test_change_detection_on_reingest(tmp_path, monkeypatch):
     assert sieved.unchanged == 2
     assert len(sieved.updated) == 1
     assert sieved.updated[0].changed_fields == ["title"]
-    assert report == {"inserted": 0, "updated": 1, "unchanged": 2}
+    assert report == {"inserted": 0, "updated": 1, "unchanged": 2, "removed": 0}
 
     with Session(engine) as session:
         assert len(session.exec(select(Event)).all()) == 3

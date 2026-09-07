@@ -1,3 +1,32 @@
+## 2026-09-06 19:30:00 [AI]
+
+Magic-number cleanup.
+
+- `app/logging.py`: `LOG_TAIL_LINES = 200` (single source); `read_log_tail(n=LOG_TAIL_LINES)`; `/debug/logs` uses the default + an f-string label.
+- `app/services/testrunner.py`: `COLLECT_TIMEOUT = 120`, `RUN_TIMEOUT = 300`.
+- `app/gatherers/base.py`: `FETCH_TIMEOUT = 30.0`.
+
+## 2026-09-06 19:30:00 [AI]
+
+Event listing: default limit + future-first ordering.
+
+- `app/services/events.py`: `DEFAULT_LIMIT = 500` (single source of truth); `query_events()` default changed 200→500 and orders by `start_at` descending (furthest future first, NULL last).
+- `app/routers/events.py`: `/events` default limit now imports `DEFAULT_LIMIT` (no more hardcoded 200).
+- Caching deferred by decision (single-digit-ms WAL read + serialization; multi-process invalidation not worth it yet).
+- Tests: updated order-sensitive assertions in `test_events.py` + `test_default_limit` (89 passing).
+
+## 2026-09-06 19:10:00 [AI]
+
+F15: stale/removal detection (events deleted at the source).
+
+- `app/models.py`: `Event.last_seen_at: datetime | None` (naive UTC). Schema change → wipe + re-ingest.
+- `app/schema.py`: `SieveResult.unchanged_ids`; `app/sieve/sieve.py` populates it (keeps `unchanged` count).
+- `app/decisionmaker/decisionmaker.py`: `apply()` computes `run_ts = utcnow()` and stamps `last_seen_at` on new/updated/unchanged events, sets `source.last_fetched_at = run_ts` (single source of truth), then detects stale events (`last_seen_at IS NULL OR != run_ts` for that source) and returns `removed` in the report.
+- `app/ingest.py`: dropped the now-redundant `source.last_fetched_at = utcnow()` in `process_source`; `_print_report` + per-source summaries carry `removed`.
+- `app/services/stats.py`: `stale_events()` (join Source; NULL or != last_fetched_at); `/debug/stale` HTML page + dashboard link; `/debug/ingest` table gains a `removed` column.
+- Tests: `tests/test_stale.py` (88 passing) — unchanged_ids, last_seen_at on seen events, end-to-end removal, NULL migration case, `stale_events` service, and the `/debug/stale` route; updated 6 existing exact-report assertions to include `removed`.
+- Detection only: stale events remain served by `/events` until F22 archives them.
+
 ## 2026-09-06 18:50:00 [AI]
 
 F37.05: run the pytest suite from the browser.

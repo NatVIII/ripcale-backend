@@ -6,7 +6,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
-- [ ] F15 - Stale/removal detection (events deleted at the source; needs `last_seen_at`)
 - [ ] F33 - Write the Sieve Contract as the highest source of truth
 - [ ] F33.01 - Add a "version" to the contract to act as a stamp at the top, and make this something which indicates what the current form of the contract is, and is included in the comments of relevant components of code to indicate what the latest version they were adapted and running well for is. 
 - [ ] F33.02 - Do the version signing thing for the gatherer contract and logic
@@ -63,6 +62,8 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F37.03 - Wipe Database: `/debug/wipe` two-layer verification (arm button → type sentence in full → confirm), CSRF+IP gated; `wipe_db()` (Event→Source) + `wipe_all()` (also resets status/last-ingest); schema survives + server resumes (2026-09-06)
 - [x] F37.04 - Debug ingest trigger: `/debug/ingest` (dry-run checkbox, IP+CSRF) runs `ingest.run_report()` — same `_run()` core as `python -m app.ingest` (2026-09-06)
 - [x] F37.05 - Tests page: `/debug/tests` runs pytest out-of-process (`app/services/testrunner.py` subprocess), run-all + per-test buttons, pass/fail + output; Docker image now ships `tests/` + `[dev]` extras (2026-09-06)
+- [x] F15 - Stale/removal detection: `Event.last_seen_at` stamped per run, `SieveResult.unchanged_ids`, `apply()` reports `removed`, `stats.stale_events()` + `/debug/stale` listing (detect only; F22 archives) (2026-09-06)
+- [x] F42 - Magic-number cleanup: `LOG_TAIL_LINES`, `COLLECT_TIMEOUT`/`RUN_TIMEOUT`, `FETCH_TIMEOUT` (2026-09-06)
 
 ## Deleted
 - [ ] F30 - Deleted Event

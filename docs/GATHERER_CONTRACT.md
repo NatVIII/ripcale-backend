@@ -104,6 +104,8 @@ class GathererResult:
 4. Buckets each event **new / updated / unchanged** vs the DB; "updated" events
    carry `changed_fields` from the mutable set:
    `title, description, location, url, images, start_at, end_at, timezone, all_day, rrule, exdates, categories`.
+   `SieveResult` also carries `unchanged_ids` (the ids of unchanged events) so
+   the decisionmaker can stamp `last_seen_at` on them.
 
 A Gatherer must not assume the sieve normalizes anything except
 `default_categories`; every other field passes through untouched.
@@ -130,6 +132,7 @@ A Gatherer must not assume the sieve normalizes anything except
 | `exdates` (list) | `exdates` (JSON text) |
 | `categories` (list) | `categories` (comma-joined) |
 | (derived) | `content_hash` |
+| (derived) | `last_seen_at` (stamped per ingest; stale detection) |
 
 Not carried: `raw` (discarded). `Event.geo` exists but has no `ScrapedEvent`
 counterpart yet (F30).

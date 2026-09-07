@@ -61,6 +61,7 @@ class Event(SQLModel, table=True):
     priority: int | None = None   # manual override; None = inherit source priority (F31.01)
     categories: str = ""          # comma-separated tags
     content_hash: str = Field(default="", index=True)  # used by the sieve for diffing
+    last_seen_at: datetime | None = None  # last ingest run that saw this event (F15 stale detection)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 #endregion

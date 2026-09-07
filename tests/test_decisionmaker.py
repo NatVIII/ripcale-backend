@@ -57,7 +57,7 @@ def test_apply_inserts_and_updates(tmp_path):
         report = apply(session, source, sieved)
         session.commit()
 
-    assert report == {"inserted": 1, "updated": 1, "unchanged": 0}
+    assert report == {"inserted": 1, "updated": 1, "unchanged": 0, "removed": 0}
 
     with Session(engine) as session:
         three = session.get(Event, stable_id("Test", make_scraped("u3", "Three")))

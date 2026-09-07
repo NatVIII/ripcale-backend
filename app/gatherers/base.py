@@ -8,10 +8,15 @@ import httpx
 #endregion
 
 
+#region: defaults
+FETCH_TIMEOUT = 30.0  # seconds allowed for a source HTTP request
+#endregion
+
+
 #region: fetch
 def fetch_json(url: str) -> dict:
     """GET `url` and return its JSON body (raises on HTTP errors)."""
-    resp = httpx.get(url, follow_redirects=True, timeout=30.0)
+    resp = httpx.get(url, follow_redirects=True, timeout=FETCH_TIMEOUT)
     resp.raise_for_status()
     return resp.json()
 #endregion

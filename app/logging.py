@@ -19,6 +19,11 @@ from app.config import settings
 #endregion
 
 
+#region: defaults
+LOG_TAIL_LINES = 200  # lines shown by /debug/logs (single source of truth)
+#endregion
+
+
 #region: log path
 def log_path() -> Path:
     """Return the resolved log file path.
@@ -36,7 +41,7 @@ def log_path() -> Path:
 
 
 #region: tail
-def read_log_tail(n: int = 200) -> str:
+def read_log_tail(n: int = LOG_TAIL_LINES) -> str:
     """Return the last `n` lines of the log file (or fewer if shorter).
 
     Constant-time with respect to file size: seeks to the end and reads

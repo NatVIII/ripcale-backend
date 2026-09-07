@@ -103,6 +103,7 @@ class SieveResult(BaseModel):
     new: list[ClassifiedEvent] = Field(default_factory=list)
     updated: list[ClassifiedEvent] = Field(default_factory=list)
     unchanged: int = 0
+    unchanged_ids: list[str] = Field(default_factory=list)  # ids of unchanged events (for last_seen_at)
 #endregion
 
 

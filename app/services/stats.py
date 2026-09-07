@@ -9,7 +9,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
 from app.config import settings
@@ -113,6 +113,34 @@ def event_dump(session: Session, event_id: str) -> dict | None:
         "created_at": event.created_at.isoformat() if event.created_at else None,
         "updated_at": event.updated_at.isoformat() if event.updated_at else None,
     }
+#endregion
+
+
+#region: stale events
+def stale_events(session: Session) -> list[dict]:
+    """Return events that were removed at the source (not seen on the latest run).
+
+    An event is stale when its `last_seen_at` differs from its source's
+    `last_fetched_at` (or is NULL — never seen since the column was added).
+    """
+    stale = session.exec(
+        select(Event).join(Source, Event.source_id == Source.id).where(
+            or_(Event.last_seen_at.is_(None), Event.last_seen_at != Source.last_fetched_at)
+        )
+    ).all()
+    names = {s.id: s.name for s in session.exec(select(Source)).all()}
+    out = []
+    for event in stale:
+        src = names.get(event.source_id)
+        out.append(
+            {
+                "id": event.id,
+                "source": src,
+                "title": event.title,
+                "last_seen_at": event.last_seen_at.isoformat() if event.last_seen_at else None,
+            }
+        )
+    return out
 #endregion
 
 

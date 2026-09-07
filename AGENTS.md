@@ -16,9 +16,10 @@ It runs as two listeners:
 - **admin** (`app/admin.py`) — debug dashboard + pipeline playground on
   `admin_host:admin_port` (default `127.0.0.1:8082`): `/debug`, `/debug/pipeline/*`
   (write surface via the `decide` stage), `/debug/ingest` (full-batch ingest),
-  `/debug/logs`, `/debug/wipe` (two-layer-verified DB wipe), `/debug/tests`
-  (run the pytest suite). Loopback-only; inside Docker it auto-binds `0.0.0.0`
-  and accepts the Docker bridge subnet (see gotchas).
+  `/debug/logs`, `/debug/wipe` (two-layer-verified DB wipe), `/debug/stale`
+  (removed-at-source events), `/debug/tests` (run the pytest suite). Loopback-only;
+  inside Docker it auto-binds `0.0.0.0` and accepts the Docker bridge subnet
+  (see gotchas).
 
 ## Architecture
 
@@ -54,7 +55,7 @@ Key files:
 - `app/serializers.py` — `Event` → FullCalendar dict.
 - `app/services/events.py` — `query_events()`, `get_event()`, `source_names()`.
 - `app/services/ics.py` — `event_to_vevent()`, `events_to_ics()`.
-- `app/services/stats.py` — `overview()`, `sources()`, `event_dump()`, `read_last_ingest()`.
+- `app/services/stats.py` — `overview()`, `sources()`, `event_dump()`, `stale_events()`, `read_last_ingest()`.
 - `app/services/status.py` — per-source run status store (`data/status.json`): `read_status()` / `record_status()` / `record_run()` / `reset_status()` + `source_status()` / `gatherer_rollup()`.
 - `app/services/wipe.py` — `wipe_all()` (DB wipe + reset status/last-ingest).
 - `app/services/testrunner.py` — `collect_tests()` / `run_tests()` (subprocess `python -m pytest`).
@@ -68,7 +69,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (82)
+.venv/bin/python -m pytest                       # test suite (89)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -91,6 +92,10 @@ docker compose up --build                        # public + admin services
   (per-occurrence overrides/deletions, wired in F31.02 — an override's id is
   `sha256(source+uid+recurrence_id)`) and `redirect_to_id` (event
   redirects/symlinks, groundwork) live on `Event`.
+- **Event listing is future-first, capped by default** — `query_events()` orders by
+  `start_at` descending (furthest future first; NULL start sorts last) and caps at
+  `DEFAULT_LIMIT` (500) unless a `?limit=` is passed (`None`/`0` = unbounded, used
+  by the ICS feed). The default lives in one place: `app/services/events.py`.
 - **Source URLs are never exposed by the API.** Private/secret sources live in
   `config.yaml` (gitignored); `config.example.yaml` is the tracked template and
   ships one real *public* source (Studio Two Three) as starter data.
@@ -128,6 +133,13 @@ docker compose up --build                        # public + admin services
   shells out to `python -m pytest` (same as the CLI), isolated from the server.
   The Docker image installs the `[dev]` extras and ships `tests/` so this works
   in-container too.
+- **Stale/removal detection (F15)** — `Event.last_seen_at` is stamped with the
+  source's run timestamp on every seen event during `apply()` (new/updated/
+  unchanged), and `source.last_fetched_at` is set to the same `run_ts`. An event
+  is "removed at the source" when `last_seen_at != source.last_fetched_at` (or is
+  NULL). `apply()` reports a `removed` count; `stats.stale_events()` / `/debug/stale`
+  list them. Detection only — stale events are still served by `/events` until
+  F22 archives them.
 
 ## Configuration
 

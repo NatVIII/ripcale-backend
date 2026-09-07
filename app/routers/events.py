@@ -11,7 +11,7 @@ from sqlmodel import Session
 
 from app.db import engine
 from app.serializers import to_fullcalendar
-from app.services.events import get_event, query_events, source_names
+from app.services.events import DEFAULT_LIMIT, get_event, query_events, source_names
 from app.timeutil import parse_iso_utc
 #endregion
 
@@ -47,7 +47,7 @@ def register(app) -> None:
         start = parse_iso_utc(_unquote(q.get("start", None)))
         end = parse_iso_utc(_unquote(q.get("end", None)))
         category = _unquote(q.get("category", None))
-        limit = _int_or(q.get("limit", None), 200)
+        limit = _int_or(q.get("limit", None), DEFAULT_LIMIT)
         with Session(engine) as session:
             events = query_events(session, start, end, category, limit)
             names = source_names(session, events)

@@ -4,7 +4,7 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from app.models import Event, Source
 from app.serializers import to_fullcalendar
-from app.services.events import query_events
+from app.services.events import DEFAULT_LIMIT, query_events
 from app.timeutil import parse_iso_utc
 
 
@@ -100,11 +100,15 @@ def test_query_events(tmp_path):
         session.commit()
 
     with Session(engine) as session:
-        assert [e.title for e in query_events(session)] == ["Past", "Now"]
+        assert [e.title for e in query_events(session)] == ["Now", "Past"]
         assert [e.title for e in query_events(session, start=datetime(2026, 1, 1))] == ["Now"]
         assert [e.title for e in query_events(session, end=datetime(2025, 1, 1))] == ["Past"]
         assert [e.title for e in query_events(session, category="art")] == ["Now"]
-        assert [e.title for e in query_events(session, limit=1)] == ["Past"]
+        assert [e.title for e in query_events(session, limit=1)] == ["Now"]
+
+
+def test_default_limit():
+    assert DEFAULT_LIMIT == 500
 
 
 def test_endpoints(tmp_path, monkeypatch):
@@ -141,9 +145,9 @@ def test_endpoints(tmp_path, monkeypatch):
     r = client.get("/events")
     assert r.status_code == 200
     data = r.json()
-    assert [e["title"] for e in data] == ["Past", "Upcoming"]
-    assert data[1]["extendedProps"]["categories"] == ["art", "workshop"]
-    assert data[1]["extendedProps"]["source"] == "Studio Two Three"
+    assert [e["title"] for e in data] == ["Upcoming", "Past"]
+    assert data[0]["extendedProps"]["categories"] == ["art", "workshop"]
+    assert data[0]["extendedProps"]["source"] == "Studio Two Three"
 
     r = client.get("/events", query_params={"category": "art"})
     assert [e["title"] for e in r.json()] == ["Upcoming"]

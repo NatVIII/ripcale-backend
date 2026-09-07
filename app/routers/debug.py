@@ -12,7 +12,7 @@ from robyn import Response, jsonify
 from sqlmodel import Session
 
 from app.db import engine
-from app.logging import read_log_tail
+from app.logging import LOG_TAIL_LINES, read_log_tail
 from app.security import debug_guard
 from app.services import stats
 from app.services.status import gatherer_rollup, read_status, source_status
@@ -81,6 +81,7 @@ def register(app) -> None:
             + "<details><summary>status (raw)</summary>" + json_pre(statuses) + "</details>"
             + "<h2>last ingest</h2>"
             + (json_pre(last) if last else "<p>no ingest run yet</p>")
+            + "<p><a href='/debug/stale'>stale events</a></p>"
             + "<h2>danger zone</h2>"
             + "<p><a href='/debug/wipe'>wipe database</a></p>"
         )
@@ -92,12 +93,29 @@ def register(app) -> None:
         guard = debug_guard(request)
         if guard:
             return guard
-        tail = read_log_tail(200)
+        tail = read_log_tail()
         body = (
-            "<p>last 200 log lines — reload to refresh.</p>"
+            f"<p>last {LOG_TAIL_LINES} log lines — reload to refresh.</p>"
             + (pre(tail) if tail else "<p>no log entries yet.</p>")
         )
         return _html(page("ripcale logs", body))
+
+    # -- HTML: stale events ---------------------------------------------------
+    @app.get("/debug/stale")
+    def stale_page(request):
+        guard = debug_guard(request)
+        if guard:
+            return guard
+        with Session(engine) as session:
+            stale = stats.stale_events(session)
+        if not stale:
+            body = "<p>no stale events.</p>"
+        else:
+            body = f"<p>{len(stale)} stale events (removed at source):</p>" + table(
+                ["source", "title", "id", "last seen"],
+                [[s["source"], s["title"], s["id"], s["last_seen_at"] or "—"] for s in stale],
+            )
+        return _html(page("ripcale · stale events", body))
 
     # -- JSON: stats --------------------------------------------------------
     @app.get("/debug/stats")
