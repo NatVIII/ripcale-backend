@@ -1,3 +1,9 @@
+## 2026-09-07 18:20:00 [AI]
+
+F50.03: closed as already-satisfied.
+
+- The `assign` mode was implemented during F50's `default_categories` unification (`CategoryRule.mode: "regex" | "assign"`, handled by `_apply_rule`, documented in `docs/CATEGORIZE_CONTRACT.md`, validated by coherence, shown in `intake.example.yaml`). No separate work needed; marked Done.
+
 ## 2026-09-07 18:10:00 [AI]
 
 F50.02: global-scope categorization rules.

@@ -6,7 +6,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
-- [ ] F50.03 - Create a second mode which just assigns tags without any complexity or heuristic analysis, using the same framework established by F50
 - [ ] F50.04 - The logic which assigns the categories based on whatever configuration modes only happens and is written in one place to make sure that code doesn't diverge with multiple implementations of the same thing. Every time categories are being applied that isn't done inherently to the gatherer based on some extra information it picks up when scraping; the way that it's defined is identical. For example, adding categories to an entire gatherer should have the same exact method for adding categories to a single source, wherever it's being instantiated shouldn't matter as to how it's formatted for the most portability possible.
 - [ ] F50.05 - Build a debug tool that implements this entire logic pipeline using any custom combination onto a gatherer, with a dry-run checkbox that's true by default and displaying of results, so that one can either test to make sure their string will work or be able to run one time commands to implement this.
 - [ ] F47 - In case it does become necessary to transition to a new tag altogether, mass movements of tags can occur programatically and through the interface. This isn't simply symlinking, but using some kind of parameters to trigger large changes to sections of the database.
@@ -77,6 +76,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F50.01 - Gatherer-scope rules: `GathererConfig.rules`, applied first in `categorize.apply()` (gatherer → default_categories → source); CATEGORIZE_CONTRACT v2, GATHERER_CONTRACT v4 (2026-09-07)
 - [x] F51 - Class:name category identity + slug normalization: `class:name` baked at ingest (part of content_hash), dynamic classes (only `intake` default), slugify `[a-z0-9-]` at the categorize gate, symlinks read-time `class:name → class:name`; CATEGORIZE_CONTRACT v3 (2026-09-07)
 - [x] F50.02 - Global-scope rules: top-level `IntakeSettings.rules` applied to all events, prepended in `categorize.apply()` (global → gatherer → default_categories → source); CATEGORIZE_CONTRACT v4 (2026-09-07)
+- [x] F50.03 - `assign` mode (satisfied by F50: implemented during `default_categories` unification — no separate work needed) (2026-09-07)
 
 ## Deleted
 - [ ] F30 - Deleted Event
