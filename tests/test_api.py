@@ -77,11 +77,24 @@ def test_api_correct_token_returns_200(tmp_path, monkeypatch):
 #region: envelope + read
 def test_api_error_envelope(tmp_path, monkeypatch):
     client, _ = _make_client(tmp_path, monkeypatch, TOKEN)
-    r = client.post("/api/v1/wipe", headers=AUTH, json_data={})
+    r = client.post("/api/v1/wipe/confirm", headers=AUTH, json_data={})
     assert r.status_code == 400
     body = r.json()
     assert body["ok"] is False
     assert "error" in body
+
+
+def test_api_events_enumeration(tmp_path, monkeypatch):
+    client, engine = _make_client(tmp_path, monkeypatch, TOKEN)
+    _seed_event(engine, "e1", "Alpha", "intake:art")
+    _seed_event(engine, "e2", "Beta", "external:music")
+
+    r = client.get("/api/v1/events", headers=AUTH)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    titles = sorted(e["title"] for e in body["data"])
+    assert titles == ["Alpha", "Beta"]
 #endregion
 
 
@@ -106,22 +119,39 @@ def test_api_retag_dry_run_vs_commit(tmp_path, monkeypatch):
         assert session.get(Event, "e1").categories == "external:art"
 
 
-def test_api_wipe_confirm(tmp_path, monkeypatch):
+def test_api_wipe_challenge_response(tmp_path, monkeypatch):
     client, engine = _make_client(tmp_path, monkeypatch, TOKEN)
     _seed_event(engine, "e1", "A", "intake:art")
 
-    r = client.post("/api/v1/wipe", headers=AUTH, json_data={"confirm": True})
+    # begin -> challenge, no wipe
+    r = client.post("/api/v1/wipe/begin", headers=AUTH, json_data={})
+    assert r.status_code == 200
+    challenge = r.json()["data"]["challenge"]
+    with Session(engine) as session:
+        assert session.get(Event, "e1") is not None
+
+    # wrong challenge -> error, still not wiped
+    r = client.post("/api/v1/wipe/confirm", headers=AUTH, json_data={"challenge": "nope"})
+    assert r.status_code == 400
+    assert r.json()["ok"] is False
+    with Session(engine) as session:
+        assert session.get(Event, "e1") is not None
+
+    # correct challenge -> wiped
+    r = client.post("/api/v1/wipe/confirm", headers=AUTH, json_data={"challenge": challenge})
     assert r.status_code == 200
     assert r.json()["ok"] is True
     with Session(engine) as session:
         assert session.get(Event, "e1") is None
 
 
-def test_api_ingest_empty(tmp_path, monkeypatch):
+def test_api_ingest_echoes_dry_run(tmp_path, monkeypatch):
     client, _ = _make_client(tmp_path, monkeypatch, TOKEN)
     r = client.post("/api/v1/ingest", headers=AUTH, json_data={"dry_run": True})
     assert r.status_code == 200
-    assert r.json()["data"] == []
+    data = r.json()["data"]
+    assert data["dry_run"] is True
+    assert data["sources"] == []
 #endregion
 
 

@@ -1,3 +1,10 @@
+## 2026-09-07 20:00:00 [AI]
+
+F54: JSON admin API hardening.
+
+- `app/routers/api.py`: robust `_json_body()` (`request.json()` then `request.body` fallback); a `_route` decorator wrapping every handler with `api_guard` + `try/except → {ok:false, error}` (no raw 500 HTML); `dry_run` echoed on `ingest`; challenge-response wipe (`POST /api/v1/wipe/begin` → token, `POST /api/v1/wipe/confirm` with the token → wipe, 60s TTL); `GET /api/v1/events` enumeration (reuses `query_events`/`to_fullcalendar`).
+- Tests: `tests/test_api.py` (10 tests — wipe challenge flow, events enumeration, ingest dry_run echo, error envelope) — 186 passing.
+
 ## 2026-09-07 19:45:00 [AI]
 
 Missing-api_token signal.

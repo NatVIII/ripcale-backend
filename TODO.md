@@ -79,6 +79,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F50.05 - Categorize playground: `/debug/pipeline/categorize` (single custom rule, include-configured checkbox, dry-run default, ephemeral commit); `categorize.resolve_rules()` + `apply(rules=)` override, `process_source(rules=)`; CATEGORIZE_CONTRACT v5 (2026-09-07)
 - [x] F47 - Mass retag: `app/services/retag.py::retag()` (rename/remove a `class:name` across all events, token-aware, categories-only) + `/debug/retag` (dry-run default + commit) (2026-09-07)
 - [x] F52 - JSON admin API: `/api/v1/*` (`{ok, data|error}`, `Authorization: Bearer <api_token>`, IP-gated) — read + ingest/retag/wipe/tests + pipeline stages, wrapping services; `api_token` setting + `verify_api_token`/`api_guard`; API-first convention recorded in AGENTS.md (2026-09-07)
+- [x] F54 - API hardening: robust `_json_body` (request.json + body), uniform `_route` decorator (guard + `{ok,error}` on any failure), `dry_run` echoed on ingest, challenge-response wipe (`wipe/begin` + `wipe/confirm`), `GET /api/v1/events` enumeration (2026-09-07)
 
 ## Deleted
 - [ ] F30 - Deleted Event
