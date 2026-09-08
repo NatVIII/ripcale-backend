@@ -24,7 +24,7 @@ from app.decisionmaker import apply
 from app.logging import setup_logging
 from app.models import Source, utcnow
 from app.registry import load_gatherer, load_sources
-from app.schema import GathererResult, SieveResult, SourceConfig
+from app.schema import CategoryRule, GathererResult, SieveResult, SourceConfig
 from app.services.status import record_run, record_status
 from app.sieve import classify
 
@@ -58,10 +58,15 @@ def process_source(
     run_fn: Callable[[SourceConfig], GathererResult],
     *,
     dry_run: bool = False,
+    rules: list[CategoryRule] | None = None,
 ) -> tuple[SieveResult, dict | None]:
-    """Run one source through gather -> sieve -> (decide). Returns (sieved, report)."""
+    """Run one source through gather -> categorize -> sieve -> (decide).
+
+    `rules=None` uses the configured rules; otherwise the given list is applied
+    (debug playground). Returns (sieved, report).
+    """
     result = run_fn(cfg)                       # gather
-    categorize(result.source, result.events)   # categorize (assign rules, before hash)
+    categorize(result.source, result.events, rules=rules)   # categorize (assign rules, before hash)
     sieved = classify(session, result)         # sieve (reads DB)
 
     report = None

@@ -1,6 +1,6 @@
 # Categorize Contract
 
-Version: 4
+Version: 5
 
 The contract between the **Categorize** stage (`app/categorize/categorize.py`) and
 the rest of the pipeline (Gatherer → Categorize → Sieve → Decisionmaker → storage).
@@ -17,11 +17,14 @@ GathererResult → categorize.apply(source, events) → (events mutated in place
 ## Signature
 
 ```python
-categorize.apply(source: SourceConfig, events: list[ScrapedEvent]) -> None
+categorize.apply(source: SourceConfig, events: list[ScrapedEvent], rules: list[CategoryRule] | None = None) -> None
+categorize.resolve_rules(source: SourceConfig) -> list[CategoryRule]
 ```
 
-Mutates each event's `categories` **in place**, and runs **before** the sieve
-hashes, so assigned categories participate in change detection.
+`apply` mutates each event's `categories` **in place**, and runs **before** the
+sieve hashes, so assigned categories participate in change detection. With
+`rules=None` it applies `resolve_rules(source)`; otherwise it applies the given
+list (the debug playground uses this to test custom rules).
 
 ## Inputs
 

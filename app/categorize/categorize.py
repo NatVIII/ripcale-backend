@@ -10,8 +10,8 @@ Every assigned/gathered name is then slugified + qualified to a `class:name`
 identity before the sieve sees it, so the DB only ever stores clean category
 slugs.
 """
-# Contract: Categorize v4 (docs/CATEGORIZE_CONTRACT.md)
-CONTRACT_VERSION = 4
+# Contract: Categorize v5 (docs/CATEGORIZE_CONTRACT.md)
+CONTRACT_VERSION = 5
 
 #region: imports
 import re
@@ -71,14 +71,24 @@ def _apply_rule(rule: CategoryRule, events: list[ScrapedEvent]) -> None:
 #endregion
 
 
-#region: apply
-def apply(source: SourceConfig, events: list[ScrapedEvent]) -> None:
-    """Apply category rules (global + gatherer + defaults + source) in place.
+#region: resolve
+def resolve_rules(source: SourceConfig) -> list[CategoryRule]:
+    """Return the configured rules for `source` (global → gatherer → defaults → source)."""
+    return _global_rules() + _gatherer_rules(source) + _default_rules(source) + source.rules
+#endregion
 
-    After all rules run, every name is slugified and qualified to `class:name`
-    (empty slugs are dropped), so the resulting categories are clean identities.
+
+#region: apply
+def apply(source: SourceConfig, events: list[ScrapedEvent], rules: list[CategoryRule] | None = None) -> None:
+    """Apply category rules in place.
+
+    `rules=None` resolves the configured rules (global + gatherer + defaults +
+    source); otherwise the given list is applied (used by the debug playground to
+    test custom rules). After all rules run, every name is slugified and
+    qualified to `class:name` (empty slugs dropped).
     """
-    rules = _global_rules() + _gatherer_rules(source) + _default_rules(source) + source.rules
+    if rules is None:
+        rules = resolve_rules(source)
     for rule in rules:
         _apply_rule(rule, events)
 

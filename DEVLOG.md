@@ -1,3 +1,13 @@
+## 2026-09-07 18:40:00 [AI]
+
+F50.05: categorize playground (`/debug/pipeline/categorize`).
+
+- `app/categorize/categorize.py`: extracted `resolve_rules(source)` (public) + `apply(source, events, rules=None)` (explicit-rule override); `CONTRACT_VERSION` 4→5. `app/categorize/__init__.py` re-exports `resolve_rules`.
+- `app/ingest.py`: `process_source(..., rules=None)` threads the override to `categorize()`.
+- `docs/CATEGORIZE_CONTRACT.md` v5 (signature + `resolve_rules` + rules override).
+- `app/routers/pipeline.py`: new categorize stage — single custom rule (mode/fields/regex/categories), "include configured rules" + "dry-run" checkboxes; dry-run shows `[title, categories]`, commit runs `process_source(rules=...)` (one-off, ephemeral). Linked from `/debug/pipeline`.
+- Tests: `test_categorize.py` (resolve_rules + rules override), `test_pipeline_playground.py` (dry-run vs commit) — 167 passing.
+
 ## 2026-09-07 18:25:00 [AI]
 
 F50.04: single implementation, locked by guard tests.

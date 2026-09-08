@@ -2,7 +2,7 @@
 #region: imports
 from datetime import datetime
 
-from app.categorize import apply
+from app.categorize import apply, resolve_rules
 from app.schema import CategoryRule, GathererConfig, ScrapedEvent, SourceConfig
 #endregion
 
@@ -188,6 +188,23 @@ def test_same_rule_across_scopes_is_identical(tmp_path, monkeypatch):
     apply(_cfg(rules=[CategoryRule(mode="assign", categories=["shared"])]), s)
 
     assert g[0].categories == h[0].categories == s[0].categories == ["intake:shared"]
+#endregion
+
+
+#region: rules override (F50.05)
+def test_resolve_rules_returns_configured_list(tmp_path, monkeypatch):
+    _set_gatherers(tmp_path, monkeypatch, {"elfsight": GathererConfig(rules=[CategoryRule(mode="assign", categories=["gatherer"])])})
+    cfg = _cfg(default_categories=["art"], rules=[CategoryRule(mode="assign", categories=["source"])])
+    rules = resolve_rules(cfg)
+    assert [r.categories for r in rules] == [["gatherer"], ["art"], ["source"]]
+
+
+def test_apply_rules_override_ignores_configured(tmp_path, monkeypatch):
+    _set_gatherers(tmp_path, monkeypatch, {"elfsight": GathererConfig(rules=[CategoryRule(mode="assign", categories=["gatherer"])])})
+    cfg = _cfg(default_categories=["art"])
+    events = [_event("One", categories=["workshop"])]
+    apply(cfg, events, rules=[CategoryRule(mode="assign", categories=["custom"])])
+    assert events[0].categories == ["intake:custom", "intake:workshop"]
 #endregion
 
 

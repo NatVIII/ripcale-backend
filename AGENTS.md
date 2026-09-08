@@ -15,9 +15,10 @@ It runs as two listeners:
   `/events/{id}/ics`, `/healthz`.
 - **admin** (`app/admin.py`) — debug dashboard + pipeline playground on
   `admin_host:admin_port` (default `127.0.0.1:8082`): `/debug`, `/debug/pipeline/*`
-  (write surface via the `decide` stage), `/debug/ingest` (full-batch ingest),
-  `/debug/logs`, `/debug/wipe` (two-layer-verified DB wipe), `/debug/stale`
-  (removed-at-source events), `/debug/tests` (run the pytest suite). Loopback-only;
+  (write surface via the `decide` and `categorize` stages), `/debug/ingest`
+  (full-batch ingest), `/debug/logs`, `/debug/wipe` (two-layer-verified DB wipe),
+  `/debug/stale` (removed-at-source events), `/debug/tests` (run the pytest
+  suite). Loopback-only;
   inside Docker it auto-binds `0.0.0.0` and accepts the Docker bridge subnet
   (see gotchas).
 
@@ -77,7 +78,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (162)
+.venv/bin/python -m pytest                       # test suite (167)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
