@@ -1,3 +1,11 @@
+## 2026-09-07 19:00:00 [AI]
+
+F47: mass retag (rename/remove a category across the whole DB).
+
+- `app/services/retag.py` (new): `_replace_token()` (exact `class:name` token replace/remove) + `retag(session, from_cat, to_cat=None) -> (changed, preview)`. Categories-only edit — content_hash/updated_at untouched.
+- `app/routers/retag.py` (new, registered in admin): `/debug/retag` with a `from`/`to` form, dry-run checkbox (default), preview + commit; IP+CSRF gated. Linked from `/debug`.
+- Tests: `tests/test_retag.py` (7 tests: token replace, rename/remove, no partial match, dry-run vs commit, CSRF) — 174 passing.
+
 ## 2026-09-07 18:40:00 [AI]
 
 F50.05: categorize playground (`/debug/pipeline/categorize`).

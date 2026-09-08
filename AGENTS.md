@@ -17,8 +17,8 @@ It runs as two listeners:
   `admin_host:admin_port` (default `127.0.0.1:8082`): `/debug`, `/debug/pipeline/*`
   (write surface via the `decide` and `categorize` stages), `/debug/ingest`
   (full-batch ingest), `/debug/logs`, `/debug/wipe` (two-layer-verified DB wipe),
-  `/debug/stale` (removed-at-source events), `/debug/tests` (run the pytest
-  suite). Loopback-only;
+  `/debug/stale` (removed-at-source events), `/debug/retag` (mass category
+  rename/remove), `/debug/tests` (run the pytest suite). Loopback-only;
   inside Docker it auto-binds `0.0.0.0` and accepts the Docker bridge subnet
   (see gotchas).
 
@@ -67,6 +67,7 @@ Key files:
 - `app/services/coherence.py` — `check()` (live config/intake coherence checks, fail-safe).
 - `app/services/status.py` — per-source run status store (`data/status.json`): `read_status()` / `record_status()` / `record_run()` / `reset_status()` + `source_status()` / `gatherer_rollup()`.
 - `app/services/wipe.py` — `wipe_all()` (DB wipe + reset status/last-ingest).
+- `app/services/retag.py` — `retag()` (mass category rename/remove across all events).
 - `app/services/testrunner.py` — `collect_tests()` / `run_tests()` (subprocess `python -m pytest`).
 - `app/security.py` — `in_docker()`, `is_debug_allowed()`, CSRF, `form_data()`.
 - `app/web.py` — HTML helpers (dashboard + playground pages).
@@ -78,7 +79,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (167)
+.venv/bin/python -m pytest                       # test suite (174)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
