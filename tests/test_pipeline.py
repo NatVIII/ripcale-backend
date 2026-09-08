@@ -48,7 +48,7 @@ def test_full_pipeline_end_to_end(tmp_path, monkeypatch):
         sieved = classify(session, result)
     assert len(sieved.new) == 3
     assert sieved.unchanged == 0
-    assert sieved.new[0].event.categories == ["Film Screenings", "art"]
+    assert sieved.new[0].event.categories == ["intake:art", "intake:film-screenings"]
 
     # -- Stage 3: decide (persist) ----------------------------------------
     with Session(engine) as session:

@@ -76,6 +76,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F26 - Category symlinks: read-time `resolve_categories`/`resolve_event_categories` wired into serializer/`?category=`/ICS + forward "symlink" column on `/debug` (external-only exposure) (2026-09-07)
 - [x] F50 - Categorization rule engine: new `app/categorize/` stage (`CategoryRule`: `regex`/`assign`, string fields), `default_categories` unified into the rules engine, wired before the sieve; `docs/CATEGORIZE_CONTRACT.md` v1; sieve/gatherer contracts bumped to v3 (2026-09-07)
 - [x] F50.01 - Gatherer-scope rules: `GathererConfig.rules`, applied first in `categorize.apply()` (gatherer → default_categories → source); CATEGORIZE_CONTRACT v2, GATHERER_CONTRACT v4 (2026-09-07)
+- [x] F51 - Class:name category identity + slug normalization: `class:name` baked at ingest (part of content_hash), dynamic classes (only `intake` default), slugify `[a-z0-9-]` at the categorize gate, symlinks read-time `class:name → class:name`; CATEGORIZE_CONTRACT v3 (2026-09-07)
 
 ## Deleted
 - [ ] F30 - Deleted Event

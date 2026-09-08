@@ -57,10 +57,10 @@ def test_category_multiclass_reports_error(tmp_path, monkeypatch):
     assert any("multiple classes" in i["message"] for i in issues)
 
 
-def test_unknown_class_reports_warning(tmp_path, monkeypatch):
-    _setup(tmp_path, monkeypatch, "category_definitions:\n  weird: [art]\n")
+def test_non_slug_class_reports_warning(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch, "category_definitions:\n  \"External Class\": [art]\n")
     issues = check()
-    assert any(i["severity"] == "warning" and "unknown category class" in i["message"] for i in issues)
+    assert any(i["severity"] == "warning" and "not a valid slug" in i["message"] for i in issues)
 
 
 def test_self_symlink_reports_warning(tmp_path, monkeypatch):

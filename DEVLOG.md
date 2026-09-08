@@ -1,3 +1,15 @@
+## 2026-09-07 17:50:00 [AI]
+
+F51: `class:name` category identity + slug normalization.
+
+- `app/services/categories.py`: `slugify()` (`[a-z0-9-]`, spaces→dashes, collapse+trim), `qualify(name) -> class:name`, dynamic classes (removed `INTAKE`/`EXTERNAL`; only `DEFAULT_CLASS = "intake"`), `resolve_categories`/`resolve_event_categories` are now symlink-only (`class:name` in → `class:name` out).
+- `app/categorize/categorize.py`: after rules, slugifies + qualifies every name to `class:name` before the sieve; `CONTRACT_VERSION` 2→3.
+- `docs/CATEGORIZE_CONTRACT.md` v3 (identity + slug normalization section).
+- `app/services/coherence.py`: dropped "unknown class" warning (classes dynamic); added non-slug class warning; slug-aware multi-class check.
+- Config: `intake.example.yaml` symlinks rewritten as `"intake:visual-arts": "external:art"`.
+- Tests: `test_categories.py` rewritten for class:name/slug semantics; `test_categorize.py`, `test_coherence.py`, `test_pipeline.py` updated (159 passing).
+- Migration: wipe + re-ingest (categories changed from names to `class:name`; `content_hash` changed).
+
 ## 2026-09-07 17:30:00 [AI]
 
 F50.01: gatherer-scope categorization rules.

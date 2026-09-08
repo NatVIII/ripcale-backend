@@ -28,40 +28,37 @@ sources:
     is_public: true
     # priority: 8   # optional — overrides the gatherer default (5) above.
                     # Omit to inherit it; falls back to 0 if neither is set.
-    default_categories: ["art"]
+    rules:                            # categorization heuristics (CATEGORIZE_CONTRACT)
+      - mode: assign                  # assign = tag every event unconditionally
+        categories: [art]             # (this replaces the old `default_categories`)
+      - mode: regex                   # regex = tag when the pattern matches a field
+        fields: [title, description]  # string fields to search ([] / "*" = all)
+        regex: "(?i)workshop"         # the pattern to match
+        categories: [workshop]        # applied when the rule fires
     # default_location: "Richmond, VA"  # optional — fills events with a
                                         # missing/blank location; omit to leave
                                         # such events' location null.
-    # rules:                            # optional — categorization heuristics
-    #   - mode: regex                   # (mode: regex | assign; CATEGORIZE_CONTRACT)
-    #     fields: [title, description]  # string fields to search ([] / "*" = all)
-    #     regex: "(?i)workshop"         # the pattern to match
-    #     categories: [workshop]        # applied when the rule fires
-    #   - mode: assign                  # assign = tag every event unconditionally
-    #     categories: [community]
 
 # ---------------------------------------------------------------------------
 # Category system
 # ---------------------------------------------------------------------------
-# Categories (a.k.a. tags) have two dimensions:
+# Categories are `class:name` identities. The class is a fully dynamic label;
+# `intake` is the default class for tags a gatherer introduces, and any other
+# class (e.g. `external`) is just a label you use — nothing special in code.
 #
-#   category_symlinks  — internal name -> external name.
-#       Source data arrives with messy/raw internal names ("visual-arts",
-#       "art-exhibition", ...). A symlink maps each internal name onto one
-#       canonical external name, so related raw names collapse into one exposed
-#       category. Many internals may point at the same external. Unmapped names
-#       pass through untouched.
+#   category_definitions — class -> [names] (class-first).
+#       Maps each name to its class. Unlisted names default to `intake`.
 #
-#   category_definitions   — class -> [categories] (class-first).
-#       Each category has a *class*: `intake` (auto-ingested; the default for
-#       anything not listed) or `external` (promoted to the public set).
+#   category_symlinks — "class:name" -> "class:name" (read-time).
+#       Resolves a raw internal category onto a canonical external one. Both
+#       sides are full class:name identities.
 #
-# Together they mean: raw source names are kept for provenance (intake class),
-# symlinked onto a small set of canonical external categories that are exposed.
+# Names and classes are slugified to `[a-z0-9-]` at ingest, so write them
+# lowercase with dashes.
 category_symlinks:
-  "visual-arts": "art"
-  "art-exhibition": "art"
-  "live-music": "music"
+  "intake:visual-arts": "external:art"
+  "intake:art-exhibition": "external:art"
+  "intake:live-music": "external:music"
 
 category_definitions:
   external:

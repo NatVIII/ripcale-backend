@@ -14,7 +14,7 @@ from pydantic import ValidationError
 
 from app.config import settings
 from app.intake import IntakeSettings
-from app.services.categories import EXTERNAL, INTAKE
+from app.services.categories import slugify
 #endregion
 
 
@@ -119,14 +119,14 @@ def _check_categories(intake: IntakeSettings) -> list[dict]:
     membership: dict[str, list[str]] = {}
     for class_name, names in intake.category_definitions.items():
         for name in names:
-            membership.setdefault(name, []).append(class_name)
+            membership.setdefault(slugify(name), []).append(class_name)
     for name, classes in membership.items():
         if len(classes) > 1:
             issues.append(_issue("error", "intake", f"category {name!r} is listed under multiple classes: {classes}"))
 
     for class_name in intake.category_definitions:
-        if class_name not in {INTAKE, EXTERNAL}:
-            issues.append(_issue("warning", "intake", f"unknown category class {class_name!r}"))
+        if slugify(class_name) != class_name:
+            issues.append(_issue("warning", "intake", f"class {class_name!r} is not a valid slug (becomes {slugify(class_name)!r})"))
 
     for internal, external in intake.category_symlinks.items():
         if internal == external:

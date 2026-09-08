@@ -5,15 +5,20 @@ the sieve. It mutates `ScrapedEvent.categories` in place BEFORE the sieve hashes
 so category assignment participates in change detection. Rules are declared in
 `intake.yaml` (`sources[].rules`, plus the implicit `default_categories` assign
 rule) — a single implementation for all category assignment (F50.04).
+
+Every assigned/gathered name is then slugified + qualified to a `class:name`
+identity before the sieve sees it, so the DB only ever stores clean category
+slugs.
 """
-# Contract: Categorize v2 (docs/CATEGORIZE_CONTRACT.md)
-CONTRACT_VERSION = 2
+# Contract: Categorize v3 (docs/CATEGORIZE_CONTRACT.md)
+CONTRACT_VERSION = 3
 
 #region: imports
 import re
 
 from app.intake import load as load_intake
 from app.schema import CategoryRule, ScrapedEvent, SourceConfig
+from app.services.categories import qualify, slugify
 #endregion
 
 
@@ -64,8 +69,15 @@ def _apply_rule(rule: CategoryRule, events: list[ScrapedEvent]) -> None:
 
 #region: apply
 def apply(source: SourceConfig, events: list[ScrapedEvent]) -> None:
-    """Apply the source's category rules (gatherer + defaults + source) in place."""
+    """Apply the source's category rules (gatherer + defaults + source) in place.
+
+    After all rules run, every name is slugified and qualified to `class:name`
+    (empty slugs are dropped), so the resulting categories are clean identities.
+    """
     rules = _gatherer_rules(source) + _default_rules(source) + source.rules
     for rule in rules:
         _apply_rule(rule, events)
+
+    for event in events:
+        event.categories = sorted({qualify(name) for name in event.categories if slugify(name)})
 #endregion

@@ -1,6 +1,6 @@
 # Categorize Contract
 
-Version: 2
+Version: 3
 
 The contract between the **Categorize** stage (`app/categorize/categorize.py`) and
 the rest of the pipeline (Gatherer → Categorize → Sieve → Decisionmaker → storage).
@@ -54,13 +54,28 @@ any) first, then the source's implicit `default_categories` `assign` rule, then
 Applied categories are always **sorted + deduped**. `default_categories` is
 sugar for an `assign` rule (single engine — no second code path).
 
+## Identity + slug normalization
+
+After all rules run, every category name is **slugified** and **qualified** to
+its `class:name` identity:
+
+- `slugify(name)` — lowercase; spaces → dashes; drop non-`[a-z0-9-]`; collapse
+  dash runs; trim edge dashes. Empty slugs are dropped.
+- `qualify(name)` — `class:name`, where the class is looked up in
+  `category_definitions` and defaults to `intake`.
+
+So the DB only ever stores clean `class:name` slugs (e.g. `intake:art`,
+`external:workshop`). Classes are fully dynamic; `intake` is the sole default
+class for auto-ingested tags.
+
 ## Invariants
 
 - **Read-only** — never touches the DB (takes no `session`).
 - **Deterministic** — same config + events yield the same categories.
 - **Gatherer-neutral** — operates only on `ScrapedEvent` string fields.
-- **Single implementation** — all category assignment (gatherer rules, defaults,
-  regex, and future global scope) goes through this one stage.
+- **Single implementation** — all category assignment and slug normalization
+  (gatherer rules, defaults, regex, and future global scope) goes through this
+  one stage.
 
 ## What the Sieve relies on
 
