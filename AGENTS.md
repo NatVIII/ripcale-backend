@@ -18,7 +18,8 @@ It runs as two listeners:
   (write surface via the `decide` and `categorize` stages), `/debug/ingest`
   (full-batch ingest), `/debug/logs`, `/debug/wipe` (two-layer-verified DB wipe),
   `/debug/stale` (removed-at-source events), `/debug/retag` (mass category
-  rename/remove), `/debug/tests` (run the pytest suite). Loopback-only;
+  rename/remove), `/debug/tests` (run the pytest suite), and `/api/v1/*` (the
+  JSON admin API, `api_token`-gated). Loopback-only;
   inside Docker it auto-binds `0.0.0.0` and accepts the Docker bridge subnet
   (see gotchas).
 
@@ -71,7 +72,7 @@ Key files:
 - `app/services/testrunner.py` — `collect_tests()` / `run_tests()` (subprocess `python -m pytest`).
 - `app/security.py` — `in_docker()`, `is_debug_allowed()`, CSRF, `form_data()`.
 - `app/web.py` — HTML helpers (dashboard + playground pages).
-- `app/routers/{events,feeds,debug,pipeline,ingest,wipe,tests}.py` — HTTP handlers.
+- `app/routers/{events,feeds,debug,pipeline,ingest,wipe,tests,retag,api}.py` — HTTP handlers.
 - `app/public.py`, `app/admin.py` — the two listeners.
 - `app/main.py` — local-dev launcher (spawns both; Docker runs the two directly).
 
@@ -79,7 +80,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (174)
+.venv/bin/python -m pytest                       # test suite (185)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -91,6 +92,12 @@ docker compose up --build                        # public + admin services
 
 ## Invariants & gotchas
 
+- **Admin/debug interactivity is API-first** — every interactive/admin capability
+  is exposed as a versioned JSON endpoint under `/api/v1/*` (`{ok, data|error}`
+  envelope, `Authorization: Bearer <api_token>`, IP-gated); HTML debug pages are
+  thin clients of those endpoints, never a second implementation. All real logic
+  lives in `app/services/*`. New interactive work defaults to this; existing HTML
+  pages migrate to it over time.
 - **Contracts are versioned + test-enforced** — each stage contract doc
   (`docs/*_CONTRACT.md`) carries a `Version: N` stamp; the stage module declares
   `CONTRACT_VERSION = N` (with a `# Contract: <stage> vN` comment);
@@ -183,6 +190,7 @@ System fields in `config.yaml` (env prefix `RIPCALE_`; `.env` overrides):
 - `cors_origins` — CORS origin list (default `*`).
 - `debug_allowed_cidrs` — extra IPv4 CIDRs for the admin endpoints (loopback always allowed).
 - `debug_token` — optional fixed CSRF token (auto-generated if empty).
+- `api_token` — bearer token for `/api/v1/*` (empty = API disabled).
 
 Intake fields in `intake.yaml` (`app/intake.py`):
 

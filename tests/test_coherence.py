@@ -102,6 +102,24 @@ def test_global_rule_invalid_regex_reports_error(tmp_path, monkeypatch):
 #endregion
 
 
+#region: config
+def test_api_token_missing_reports_warning(tmp_path, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "api_token", "")
+    issues = check()
+    assert any(i["severity"] == "warning" and "api_token is not set" in i["message"] for i in issues)
+
+
+def test_api_token_configured_no_warning(tmp_path, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "api_token", "configured")
+    issues = check()
+    assert not any("api_token" in i["message"] for i in issues)
+#endregion
+
+
 #region: route
 def _dashboard_client(tmp_path, monkeypatch):
     import app.routers.debug as debug_router_mod

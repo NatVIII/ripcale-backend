@@ -6,6 +6,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
+- [ ] F53 - Migrate the existing HTML debug pages (wipe, retag, ingest, tests, pipeline/*, logs, stale, dashboard) to be thin clients of the /api/v1/* endpoints (API-first convention).
 - [ ] F48 - PGP Authentication for the frontend; we need to start verifying the frontend and making sure that the person using it is actually the intended user; and PGP is like the gold standard in security, no? I'd like to make an interface where a user can log in, in order to verify authentication. I really don't know how this can be done in a truly secure fashion, part of why I'd still like this to remain behind the admin only port for now no matter what at this time, but I'd like to start laying the groundwork for my own knowledge of truly secure authentication and it's implementation, by working with you (我亲爱的LLM)
 - [ ] F17 - Category → color mapping (Elfsight `categoryColor` not yet stored). Configured inside of the config.yaml, assigning colors to different categories. 
 - [ ] F17.01 There should also be a way to specify which categories are the "true" categories, which are meant to be publicly exposed as that kind for sortation (in truth a very small list of "true" categories) from the internal symlinked categories only kept so that data isn't being deleted from the original source.
@@ -77,6 +78,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F50.04 - Single implementation (satisfied by design; added guard tests locking `default_categories` == `assign` rule and same-rule-across-scopes) (2026-09-07)
 - [x] F50.05 - Categorize playground: `/debug/pipeline/categorize` (single custom rule, include-configured checkbox, dry-run default, ephemeral commit); `categorize.resolve_rules()` + `apply(rules=)` override, `process_source(rules=)`; CATEGORIZE_CONTRACT v5 (2026-09-07)
 - [x] F47 - Mass retag: `app/services/retag.py::retag()` (rename/remove a `class:name` across all events, token-aware, categories-only) + `/debug/retag` (dry-run default + commit) (2026-09-07)
+- [x] F52 - JSON admin API: `/api/v1/*` (`{ok, data|error}`, `Authorization: Bearer <api_token>`, IP-gated) — read + ingest/retag/wipe/tests + pipeline stages, wrapping services; `api_token` setting + `verify_api_token`/`api_guard`; API-first convention recorded in AGENTS.md (2026-09-07)
 
 ## Deleted
 - [ ] F30 - Deleted Event

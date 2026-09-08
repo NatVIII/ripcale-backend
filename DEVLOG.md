@@ -1,3 +1,21 @@
+## 2026-09-07 19:45:00 [AI]
+
+Missing-api_token signal.
+
+- `app/admin.py`: log a warning at startup when `api_token` is unset (`/api/v1/* is disabled`).
+- `app/services/coherence.py`: `_check_config()` reports a warning issue when `api_token` is empty (surfaces on `/debug`).
+- Tests: `conftest.py` sets a placeholder `api_token` so valid-config checks stay clean; `tests/test_coherence.py` gains missing/configured cases (185 passing).
+
+## 2026-09-07 19:30:00 [AI]
+
+F52: JSON admin API (`/api/v1/*`).
+
+- `app/config.py`: `api_token: str = ""` (empty = API disabled); `config.example.yaml` note.
+- `app/security.py`: `verify_api_token()` (constant-time `secrets.compare_digest` on `Authorization: Bearer`) + `api_guard()` (IP allowlist → 404, unconfigured → 503, bad token → 401).
+- `app/routers/api.py` (new, registered in admin): versioned `{ok, data|error}` JSON surface — GET `stats`/`sources`/`events/:id`/`stale`/`coherence`/`logs`/`tests`, POST `ingest`/`retag`/`wipe`/`tests`/`pipeline/gather|sieve|decide|categorize` — all thin wrappers over services (dry-run default true).
+- Convention recorded in AGENTS.md: "Admin/debug interactivity is API-first"; added F53 (migrate existing HTML pages to the API).
+- Tests: `tests/test_api.py` (9 tests — auth 401/503, envelope, retag dry-run vs commit, wipe confirm, ingest empty, pipeline gather) — 183 passing.
+
 ## 2026-09-07 19:00:00 [AI]
 
 F47: mass retag (rename/remove a category across the whole DB).

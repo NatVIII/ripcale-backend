@@ -66,6 +66,9 @@ class Settings(BaseSettings):
     # ephemeral token is generated at startup.
     debug_token: str = ""
 
+    # Bearer token for the /api/v1/* admin API. If empty, the API is disabled.
+    api_token: str = ""
+
     @classmethod
     def settings_customise_sources(
         cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings

@@ -31,6 +31,9 @@ cors_origins: "*"
 # debug_allowed_cidrs: "10.0.0.0/8,192.168.1.0/24"
 # Optional fixed CSRF token for the pipeline playground (auto-generated if empty).
 # debug_token: ""
+# Bearer token for the /api/v1/* admin API (empty = API disabled).
+# Generate with: openssl rand -hex 32
+# api_token: ""
 
 # Intake settings (sources, per-gatherer defaults, category symlinks) live in a
 # SEPARATE file — `intake.yaml` — so the program can edit them (via the admin

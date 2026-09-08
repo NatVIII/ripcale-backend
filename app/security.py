@@ -15,7 +15,7 @@ import os
 import secrets
 from urllib.parse import parse_qs
 
-from robyn import Response
+from robyn import Response, jsonify
 
 from app.config import settings
 #endregion
@@ -116,4 +116,34 @@ def debug_guard(request) -> Response | None:
     if is_debug_allowed(getattr(request, "ip_addr", None)):
         return None
     return Response(status_code=404, headers={}, description="")
+#endregion
+
+
+#region: api auth
+def verify_api_token(request) -> bool:
+    """Return True if the request's `Authorization: Bearer` carries the API token."""
+    token = settings.api_token
+    if not token:
+        return False
+    headers = getattr(request, "headers", None)
+    header = headers.get("authorization") if headers else None
+    if not header:
+        return False
+    if header.startswith("Bearer "):
+        header = header[len("Bearer "):].strip()
+    return secrets.compare_digest(header, token)
+
+
+def api_guard(request) -> Response | None:
+    """Return a Response if the request may not use the API, else None.
+
+    404 (disallowed IP), 503 (API not configured), 401 (missing/bad token).
+    """
+    if not is_debug_allowed(getattr(request, "ip_addr", None)):
+        return Response(status_code=404, headers={}, description="")
+    if not settings.api_token:
+        return Response(status_code=503, headers={"Content-Type": "application/json"}, description=jsonify({"ok": False, "error": "API not configured"}))
+    if not verify_api_token(request):
+        return Response(status_code=401, headers={"Content-Type": "application/json"}, description=jsonify({"ok": False, "error": "unauthorized"}))
+    return None
 #endregion
