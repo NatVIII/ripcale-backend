@@ -156,6 +156,41 @@ def test_global_and_source_rules_combine(tmp_path, monkeypatch):
 #endregion
 
 
+#region: single implementation (F50.04)
+def test_default_categories_is_sugar_for_assign_rule():
+    events_default = [_event("One", categories=["workshop"])]
+    apply(_cfg(default_categories=["art"]), events_default)
+
+    events_rule = [_event("One", categories=["workshop"])]
+    apply(_cfg(rules=[CategoryRule(mode="assign", categories=["art"])]), events_rule)
+
+    assert events_default[0].categories == events_rule[0].categories == ["intake:art", "intake:workshop"]
+
+
+def test_same_rule_across_scopes_is_identical(tmp_path, monkeypatch):
+    from app.config import settings
+    from app.intake import IntakeSettings, save
+
+    monkeypatch.setattr(settings, "intake_file", str(tmp_path / "intake.yaml"))
+
+    # global scope
+    save(IntakeSettings(rules=[CategoryRule(mode="assign", categories=["shared"])]))
+    g = [_event("One")]
+    apply(_cfg(), g)
+
+    # gatherer scope
+    save(IntakeSettings(gatherers={"elfsight": GathererConfig(rules=[CategoryRule(mode="assign", categories=["shared"])])}))
+    h = [_event("One")]
+    apply(_cfg(), h)
+
+    # source scope
+    s = [_event("One")]
+    apply(_cfg(rules=[CategoryRule(mode="assign", categories=["shared"])]), s)
+
+    assert g[0].categories == h[0].categories == s[0].categories == ["intake:shared"]
+#endregion
+
+
 #region: before-hash guarantee (integration)
 def test_rule_change_reclassifies_events(tmp_path):
     from sqlmodel import Session, SQLModel, create_engine, select

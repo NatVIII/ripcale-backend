@@ -1,3 +1,10 @@
+## 2026-09-07 18:25:00 [AI]
+
+F50.04: single implementation, locked by guard tests.
+
+- The category-assignment engine is already single (`app/categorize/categorize.py` — `apply()` resolves all scopes into one flat list, `_apply_rule()` is the only interpreter of `CategoryRule`, `default_categories` is sugar for an `assign` rule).
+- Added two guard tests to `tests/test_categorize.py`: `default_categories` == explicit `assign` rule, and the same rule across global/gatherer/source scopes yields identical output (164 passing).
+
 ## 2026-09-07 18:20:00 [AI]
 
 F50.03: closed as already-satisfied.
