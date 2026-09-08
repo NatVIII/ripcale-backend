@@ -16,7 +16,7 @@ import yaml
 from pydantic import BaseModel, Field
 
 from app.config import settings
-from app.schema import GathererConfig, SourceConfig
+from app.schema import CategoryRule, GathererConfig, SourceConfig
 #endregion
 
 
@@ -29,6 +29,8 @@ class IntakeSettings(BaseModel):
     category_symlinks: dict[str, str] = Field(default_factory=dict)
     # Class-first: `{class: [category, ...]}`. `intake` = auto-ingested, `external` = exposed.
     category_definitions: dict[str, list[str]] = Field(default_factory=dict)
+    # Categorization rules applied to every event (global scope).
+    rules: list[CategoryRule] = Field(default_factory=list)
 #endregion
 
 

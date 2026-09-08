@@ -1,7 +1,7 @@
 """Tests for the intake settings store (app/intake.py)."""
 #region: imports
 from app.intake import IntakeSettings, load, save
-from app.schema import GathererConfig, SourceConfig
+from app.schema import CategoryRule, GathererConfig, SourceConfig
 #endregion
 
 
@@ -14,6 +14,7 @@ def test_load_missing_file_returns_defaults(tmp_path, monkeypatch):
     assert intake.gatherers == {}
     assert intake.category_symlinks == {}
     assert intake.category_definitions == {}
+    assert intake.rules == []
 
 
 def test_save_and_load_round_trip(tmp_path, monkeypatch):
@@ -28,6 +29,7 @@ def test_save_and_load_round_trip(tmp_path, monkeypatch):
             gatherers={"elfsight": GathererConfig(priority=5)},
             category_symlinks={"art-exhibition": "art"},
             category_definitions={"external": ["art"]},
+            rules=[CategoryRule(mode="assign", categories=["community"])],
         )
     )
 
@@ -36,6 +38,7 @@ def test_save_and_load_round_trip(tmp_path, monkeypatch):
     assert intake.gatherers["elfsight"].priority == 5
     assert intake.category_symlinks == {"art-exhibition": "art"}
     assert intake.category_definitions == {"external": ["art"]}
+    assert [r.mode for r in intake.rules] == ["assign"]
 
 
 def test_save_is_atomic_and_leaves_no_tmp(tmp_path, monkeypatch):

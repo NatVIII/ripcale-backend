@@ -9,6 +9,14 @@
 # starter content — copy this file to intake.yaml and run `python -m app.ingest`
 # to load events immediately.
 
+# Optional: global categorization rules — apply to every event from every source.
+# (Same CategoryRule shape as gatherer/source rules; applied before them.)
+# rules:
+#   - mode: regex
+#     fields: [title]
+#     regex: "(?i)free"
+#     categories: [free]
+
 # Optional: per-gatherer defaults. Higher `priority` = higher priority.
 # Applied to every source gathered by that gatherer unless the source overrides it
 # below. Extensible with more per-gatherer keys in the future.

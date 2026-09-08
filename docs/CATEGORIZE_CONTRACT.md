@@ -1,6 +1,6 @@
 # Categorize Contract
 
-Version: 3
+Version: 4
 
 The contract between the **Categorize** stage (`app/categorize/categorize.py`) and
 the rest of the pipeline (Gatherer → Categorize → Sieve → Decisionmaker → storage).
@@ -43,9 +43,10 @@ The matchable string fields are exactly:
 
 ## Semantics
 
-Rules are applied in order: the gatherer's `rules` (if the source's gatherer has
-any) first, then the source's implicit `default_categories` `assign` rule, then
-`source.rules` in declared order.
+Rules are applied in order: global `rules` (applies to every event) first, then
+the gatherer's `rules` (if the source's gatherer has any), then the source's
+implicit `default_categories` `assign` rule, then `source.rules` in declared
+order.
 
 - **`assign`** — unions `categories` into every event unconditionally.
 - **`regex`** — `re.search(pattern, value)` across the selected fields; unions
@@ -74,7 +75,7 @@ class for auto-ingested tags.
 - **Deterministic** — same config + events yield the same categories.
 - **Gatherer-neutral** — operates only on `ScrapedEvent` string fields.
 - **Single implementation** — all category assignment and slug normalization
-  (gatherer rules, defaults, regex, and future global scope) goes through this
+  (global rules, gatherer rules, defaults, and source rules) goes through this
   one stage.
 
 ## What the Sieve relies on

@@ -10,8 +10,8 @@ Every assigned/gathered name is then slugified + qualified to a `class:name`
 identity before the sieve sees it, so the DB only ever stores clean category
 slugs.
 """
-# Contract: Categorize v3 (docs/CATEGORIZE_CONTRACT.md)
-CONTRACT_VERSION = 3
+# Contract: Categorize v4 (docs/CATEGORIZE_CONTRACT.md)
+CONTRACT_VERSION = 4
 
 #region: imports
 import re
@@ -32,6 +32,10 @@ def _default_rules(source: SourceConfig) -> list[CategoryRule]:
     if not source.default_categories:
         return []
     return [CategoryRule(mode="assign", categories=source.default_categories)]
+
+
+def _global_rules() -> list[CategoryRule]:
+    return list(load_intake().rules)
 
 
 def _gatherer_rules(source: SourceConfig) -> list[CategoryRule]:
@@ -69,12 +73,12 @@ def _apply_rule(rule: CategoryRule, events: list[ScrapedEvent]) -> None:
 
 #region: apply
 def apply(source: SourceConfig, events: list[ScrapedEvent]) -> None:
-    """Apply the source's category rules (gatherer + defaults + source) in place.
+    """Apply category rules (global + gatherer + defaults + source) in place.
 
     After all rules run, every name is slugified and qualified to `class:name`
     (empty slugs are dropped), so the resulting categories are clean identities.
     """
-    rules = _gatherer_rules(source) + _default_rules(source) + source.rules
+    rules = _global_rules() + _gatherer_rules(source) + _default_rules(source) + source.rules
     for rule in rules:
         _apply_rule(rule, events)
 

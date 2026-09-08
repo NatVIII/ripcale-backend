@@ -124,6 +124,38 @@ def test_unrelated_gatherer_rules_do_not_apply(tmp_path, monkeypatch):
 #endregion
 
 
+#region: global scope
+def _set_global_rules(tmp_path, monkeypatch, rules):
+    from app.config import settings
+    from app.intake import IntakeSettings, save
+
+    monkeypatch.setattr(settings, "intake_file", str(tmp_path / "intake.yaml"))
+    save(IntakeSettings(rules=rules))
+
+
+def test_global_rules_apply(tmp_path, monkeypatch):
+    _set_global_rules(
+        tmp_path, monkeypatch,
+        [CategoryRule(mode="regex", fields=["title"], regex="(?i)free", categories=["free"])],
+    )
+    events = [_event("A free concert"), _event("A paid concert")]
+    apply(_cfg(), events)
+    assert events[0].categories == ["intake:free"]
+    assert events[1].categories == []
+
+
+def test_global_and_source_rules_combine(tmp_path, monkeypatch):
+    _set_global_rules(
+        tmp_path, monkeypatch,
+        [CategoryRule(mode="assign", categories=["global-tag"])],
+    )
+    cfg = _cfg(rules=[CategoryRule(mode="assign", categories=["source-tag"])])
+    events = [_event("One")]
+    apply(cfg, events)
+    assert events[0].categories == ["intake:global-tag", "intake:source-tag"]
+#endregion
+
+
 #region: before-hash guarantee (integration)
 def test_rule_change_reclassifies_events(tmp_path):
     from sqlmodel import Session, SQLModel, create_engine, select

@@ -92,6 +92,7 @@ def _check_rules(intake: IntakeSettings) -> list[dict]:
             elif rule.mode != "assign":
                 issues.append(_issue("error", "intake", f"{p} is not a known mode"))
 
+    check_rule_list("global", intake.rules)
     for name, gatherer in intake.gatherers.items():
         check_rule_list(f"gatherer {name!r}", gatherer.rules)
     for cfg in intake.sources:

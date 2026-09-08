@@ -1,3 +1,13 @@
+## 2026-09-07 18:10:00 [AI]
+
+F50.02: global-scope categorization rules.
+
+- `app/intake.py`: `IntakeSettings.rules: list[CategoryRule]` (top-level, applies to all events).
+- `app/categorize/categorize.py`: `_global_rules()` + `apply()` order is now `global → gatherer → default_categories → source`; `CONTRACT_VERSION` 3→4.
+- `docs/CATEGORIZE_CONTRACT.md` v4; `app/services/coherence.py` validates global rules.
+- `intake.example.yaml`: commented global `rules:` example.
+- Tests: `test_categorize.py` (global apply + combine), `test_intake.py` (rules default/round-trip), `test_coherence.py` (global invalid regex) — 162 passing.
+
 ## 2026-09-07 17:50:00 [AI]
 
 F51: `class:name` category identity + slug normalization.
