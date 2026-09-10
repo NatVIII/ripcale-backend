@@ -106,3 +106,10 @@ Thanks for reading (˶˃ ᵕ ˂˶) .ᐟ.ᐟ
 ||
 🇵🇸
 🚩
+
+
+## Edit: The PSL
+
+Only a couple days later, [an article came out written by Marissa Sanchez](https://theyeisblind.substack.com/p/the-eyes-is-blind-that-will-not-see), a former member of the Central Committee of the Party for Socialism and Liberation (it's highest executive political organ). Although I was never specific in the article above, I faced many of the same tactics, yet out of the belief that the local branch had some issues that could be worked through, I chose not to come public about my experiences. I was also isolated, specifically asked not to talk about the abuse of trust that I'd faced, and sidelined. I do not blame my local comrades here in Virginia, I think every single one is amazing with incredibly few exceptions, but I see this as a structural issue with the party as a whole.
+
+It's been incredibly upsetting to see that this is such a deeply-seated problem within the party. I maintain firmly that the United States needs a fighting socialist party in order to win, as per the lessons of [If We Burn by Vincent Bevins](https://vincentbevins.com/book2/), but I can not pretend that I am not disgusted with these recent revelations of the party's nature. I do not reccomend joining it at this time.
