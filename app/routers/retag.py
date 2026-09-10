@@ -4,15 +4,14 @@
 
 Renames or removes one `class:name` category across the whole DB, with a dry-run
 checkbox (checked by default) so you can preview the affected events before
-committing.
+committing. Thin client over `app.services.actions.retag`.
 """
 #region: imports
 from robyn import Response
-from sqlmodel import Session
 
-from app.db import engine
 from app.security import debug_csrf_token, debug_guard, form_data, verify_csrf
-from app.services.retag import retag
+from app.services import actions
+from app.services.actions import ActionError
 from app.web import escape, page, table
 #endregion
 
@@ -65,20 +64,17 @@ def register(app) -> None:
         to_cat = (form.get("to", None) or "").strip() or None
         dry_run = form.get("dry_run") == "1"
 
-        if not from_cat:
-            return _html(page("ripcale · retag", "<p>a 'from' category is required.</p>", back="/debug"))
-
-        with Session(engine) as session:
-            changed, preview = retag(session, from_cat, to_cat)
-            if not dry_run:
-                session.commit()
+        try:
+            result = actions.retag(from_cat, to_cat, dry_run)
+        except ActionError as exc:
+            return _html(page("ripcale · retag", f"<p>{escape(exc)}</p>", back="/debug/retag"))
 
         action = "dry run — nothing written" if dry_run else "committed"
-        body = f"<p>{action} · {changed} events changed</p>"
-        if preview:
+        body = f"<p>{action} · {result['changed']} events changed</p>"
+        if result["preview"]:
             body += "<h2>affected events</h2>" + table(
                 ["title", "before", "after"],
-                [[title, before, after] for title, before, after in preview],
+                [[p["title"], p["before"], p["after"]] for p in result["preview"]],
             )
         return _html(page("ripcale · retag", body, back="/debug/retag"))
 #endregion

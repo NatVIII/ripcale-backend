@@ -21,11 +21,11 @@ def _make_client(tmp_path, monkeypatch, token):
 
     import app.db as db_mod
     import app.ingest as ingest_mod
-    import app.routers.api as api_router_mod
+    import app.services.actions as actions_mod
 
     engine = create_engine(f"sqlite:///{tmp_path / 'api.db'}")
     SQLModel.metadata.create_all(engine)
-    monkeypatch.setattr(api_router_mod, "engine", engine)
+    monkeypatch.setattr(actions_mod, "engine", engine)
     monkeypatch.setattr(db_mod, "engine", engine)
     monkeypatch.setattr(ingest_mod, "engine", engine)
 

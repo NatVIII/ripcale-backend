@@ -64,10 +64,10 @@ def test_run_tests_concats_stdout_and_stderr(monkeypatch):
 
 #region: route
 def test_tests_route_get_and_post(tmp_path, monkeypatch):
-    import app.routers.tests as tests_router_mod
+    import app.services.actions as actions_mod
 
     monkeypatch.setattr(
-        tests_router_mod, "collect_tests",
+        actions_mod, "tests_list",
         lambda: ["tests/test_db.py::test_a", "tests/test_x.py::test_b"],
     )
 
@@ -83,14 +83,14 @@ def test_tests_route_get_and_post(tmp_path, monkeypatch):
     assert "test_a" in r.text
 
     # pass
-    monkeypatch.setattr(tests_router_mod, "run_tests", lambda node_id: (0, "1 passed"))
+    monkeypatch.setattr(actions_mod, "tests_run", lambda node_id: {"exit": 0, "output": "1 passed"})
     r = client.post("/debug/tests", form_data={"csrf_token": debug_csrf_token(), "test": "tests/test_db.py::test_a"})
     assert r.status_code == 200
     assert "🟢" in r.text
     assert "passed" in r.text
 
     # fail
-    monkeypatch.setattr(tests_router_mod, "run_tests", lambda node_id: (1, "1 failed"))
+    monkeypatch.setattr(actions_mod, "tests_run", lambda node_id: {"exit": 1, "output": "1 failed"})
     r = client.post("/debug/tests", form_data={"csrf_token": debug_csrf_token(), "test": ""})
     assert r.status_code == 200
     assert "🔴" in r.text
@@ -98,10 +98,10 @@ def test_tests_route_get_and_post(tmp_path, monkeypatch):
 
 
 def test_tests_route_requires_csrf(tmp_path, monkeypatch):
-    import app.routers.tests as tests_router_mod
+    import app.services.actions as actions_mod
 
-    monkeypatch.setattr(tests_router_mod, "collect_tests", lambda: [])
-    monkeypatch.setattr(tests_router_mod, "run_tests", lambda node_id: (0, ""))
+    monkeypatch.setattr(actions_mod, "tests_list", lambda: [])
+    monkeypatch.setattr(actions_mod, "tests_run", lambda node_id: {"exit": 0, "output": ""})
 
     from robyn.testing import TestClient
 

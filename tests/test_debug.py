@@ -129,8 +129,7 @@ def test_debug_and_pipeline_routes(tmp_path, monkeypatch):
         session.add(Event(id="e1", source_id=src.id, title="Upcoming", start_at=datetime(2030, 1, 1, 0, 0), categories="art"))
         session.commit()
 
-    monkeypatch.setattr(debug_router_mod, "engine", engine)
-    monkeypatch.setattr(pipeline_router_mod, "engine", engine)
+    monkeypatch.setattr("app.services.actions.engine", engine)
     monkeypatch.setattr(elfsight_gatherer, "fetch_json", lambda url: {
         "data": {"widgets": {"w": {"data": {"settings": {"eventTypes": [], "locations": [], "events": []}}}}}
     })

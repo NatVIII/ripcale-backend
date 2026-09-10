@@ -1,16 +1,18 @@
 """Interactive pipeline playground (IP-gated + CSRF).
 
-`register(app)` is called from `app/main.py`.
+`register(app)` is called from `app/admin.py`.
 
 Lets you drive each pipeline stage from the browser — against a configured
 source or an arbitrary URL — and see the complete, untruncated result:
 
-  * /debug/pipeline          home page (links to the three stages)
+  * /debug/pipeline          home page (links to the four stages)
   * /debug/pipeline/gather   run a gatherer, show the full GathererResult
+  * /debug/pipeline/categorize  apply custom rules, show the resulting categories
   * /debug/pipeline/sieve    run a gatherer + diff vs DB (no writes)
   * /debug/pipeline/decide   run + diff + persist (writes)
 
-POST handlers require the CSRF token embedded in the forms.
+POST handlers require the CSRF token embedded in the forms. All operations are
+thin clients over `app.services.actions`.
 """
 #region: imports
 import importlib
@@ -19,15 +21,10 @@ import pkgutil
 
 import app.gatherers as gatherers_pkg
 from robyn import Response, jsonify
-from sqlmodel import Session
-
-from app.categorize import apply as categorize, resolve_rules
-from app.db import engine
-from app.ingest import process_source
-from app.registry import load_gatherer, load_sources
-from app.schema import CategoryRule, SourceConfig
+from app.registry import load_sources
+from app.schema import CategoryRule
 from app.security import debug_csrf_token, debug_guard, form_data, verify_csrf
-from app.services.status import record_run, record_status
+from app.services import actions
 from app.web import escape, json_pre, page, table
 
 logger = logging.getLogger(__name__)
@@ -63,23 +60,6 @@ def _available_gatherers() -> list[str]:
             logger.warning("gatherer %r failed to import: %s", mod.name, exc)
             continue
     return sorted(names)
-
-
-def _resolve_source(form: dict) -> SourceConfig | None:
-    """Build a SourceConfig from a submitted form (configured or manual)."""
-    source_name = (form.get("source", None) or "").strip()
-    if source_name and source_name != "manual":
-        for cfg in load_sources():
-            if cfg.name == source_name:
-                return cfg
-        return None
-
-    name = (form.get("name", None) or "").strip() or "manual"
-    gatherer = (form.get("gatherer", None) or "").strip()
-    url = (form.get("url", None) or "").strip()
-    if not gatherer or not url:
-        return None
-    return SourceConfig(name=name, gatherer=gatherer, url=url)
 
 
 def _form(action: str, note: str, *, extra: str = "") -> str:
@@ -137,16 +117,14 @@ def register(app) -> None:
             return guard
         if not verify_csrf(request):
             return _forbidden()
-        cfg = _resolve_source(form_data(request))
+        cfg = actions.resolve_source_spec(form_data(request))
         if cfg is None:
             return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · gather", "<p>missing source (pick one) or gatherer+url</p>", back="/debug/pipeline"))
         try:
-            result = load_gatherer(cfg.gatherer)(cfg)
+            data = actions.gather(cfg)
         except Exception as exc:
-            record_status(cfg.name, "error", message=str(exc))
             return _error_page("gather", exc)
-        record_run(cfg.name, len(result.events))
-        body = f"<p>source: {escape(cfg.name)} · events: {len(result.events)}</p>" + json_pre(result.model_dump(mode="json"))
+        body = f"<p>source: {escape(cfg.name)} · events: {len(data['events'])}</p>" + json_pre(data)
         return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · gather", body, back="/debug/pipeline"))
 
     # -- categorize ---------------------------------------------------------
@@ -177,7 +155,7 @@ def register(app) -> None:
         if not verify_csrf(request):
             return _forbidden()
         form = form_data(request)
-        cfg = _resolve_source(form)
+        cfg = actions.resolve_source_spec(form)
         if cfg is None:
             return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · categorize", "<p>missing source or gatherer+url</p>", back="/debug/pipeline"))
 
@@ -194,42 +172,20 @@ def register(app) -> None:
         rule = CategoryRule(mode=mode, fields=fields, regex=regex, categories=categories)
         include_configured = form.get("include_configured") == "1"
         dry_run = form.get("dry_run") == "1"
-        rules = (resolve_rules(cfg) + [rule]) if include_configured else [rule]
-
-        if dry_run:
-            try:
-                run_fn = load_gatherer(cfg.gatherer)
-                result = run_fn(cfg)
-                categorize(result.source, result.events, rules=rules)
-            except Exception as exc:
-                record_status(cfg.name, "error", message=str(exc))
-                return _error_page("categorize", exc)
-            body = f"<p>source: {escape(cfg.name)} · events: {len(result.events)} · dry run</p>"
-            body += "<h2>resulting categories</h2>" + table(
-                ["title", "categories"],
-                [[e.title, ", ".join(e.categories)] for e in result.events],
-            )
-            return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · categorize", body, back="/debug/pipeline"))
 
         try:
-            run_fn = load_gatherer(cfg.gatherer)
-            with Session(engine) as session:
-                sieved, report = process_source(session, cfg, run_fn, dry_run=False, rules=rules)
-                session.commit()
+            result = actions.categorize(cfg, [rule], include_configured=include_configured, dry_run=dry_run)
         except Exception as exc:
-            record_status(cfg.name, "error", message=str(exc))
             return _error_page("categorize", exc)
 
-        record_run(cfg.name, len(sieved.new) + len(sieved.updated) + sieved.unchanged)
-        body = f"<p>committed · inserted {report['inserted']} · updated {report['updated']} · unchanged {report['unchanged']}</p>"
-        body += "<h2>new</h2>" + table(
-            ["id", "title"],
-            [[e.id, e.event.title] for e in sieved.new],
-        )
-        body += "<h2>updated</h2>" + table(
-            ["id", "title", "changed"],
-            [[e.id, e.event.title, ", ".join(e.changed_fields)] for e in sieved.updated],
-        )
+        if dry_run:
+            body = f"<p>source: {escape(cfg.name)} · events: {len(result['events'])} · dry run</p>"
+            body += "<h2>resulting categories</h2>" + table(
+                ["title", "categories"],
+                [[e["title"], ", ".join(e["categories"])] for e in result["events"]],
+            )
+        else:
+            body = f"<p>committed · inserted {result['report']['inserted']} · updated {result['report']['updated']} · unchanged {result['report']['unchanged']}</p>"
         return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · categorize", body, back="/debug/pipeline"))
 
     # -- sieve --------------------------------------------------------------
@@ -247,27 +203,24 @@ def register(app) -> None:
             return guard
         if not verify_csrf(request):
             return _forbidden()
-        cfg = _resolve_source(form_data(request))
+        cfg = actions.resolve_source_spec(form_data(request))
         if cfg is None:
             return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · sieve", "<p>missing source or gatherer+url</p>", back="/debug/pipeline"))
         try:
-            run_fn = load_gatherer(cfg.gatherer)
-            with Session(engine) as session:
-                sieved, _ = process_source(session, cfg, run_fn, dry_run=True)
+            sieved = actions.sieve(cfg)
         except Exception as exc:
-            record_status(cfg.name, "error", message=str(exc))
             return _error_page("sieve", exc)
-        record_run(cfg.name, len(sieved.new) + len(sieved.updated) + sieved.unchanged)
-        body = f"<p>{len(sieved.new)} new · {len(sieved.updated)} updated · {sieved.unchanged} unchanged</p>"
+
+        body = f"<p>{len(sieved['new'])} new · {len(sieved['updated'])} updated · {sieved['unchanged']} unchanged</p>"
         body += "<h2>new</h2>" + table(
             ["id", "title", "categories"],
-            [[e.id, e.event.title, ", ".join(e.event.categories)] for e in sieved.new],
+            [[e["id"], e["event"]["title"], ", ".join(e["event"]["categories"])] for e in sieved["new"]],
         )
         body += "<h2>updated</h2>" + table(
             ["id", "title", "changed"],
-            [[e.id, e.event.title, ", ".join(e.changed_fields)] for e in sieved.updated],
+            [[e["id"], e["event"]["title"], ", ".join(e["changed_fields"])] for e in sieved["updated"]],
         )
-        body += "<h2>full result</h2>" + json_pre(sieved.model_dump(mode="json"))
+        body += "<h2>full result</h2>" + json_pre(sieved)
         return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · sieve", body, back="/debug/pipeline"))
 
     # -- decide -------------------------------------------------------------
@@ -294,42 +247,37 @@ def register(app) -> None:
         if not verify_csrf(request):
             return _forbidden()
         form = form_data(request)
-        cfg = _resolve_source(form)
+        cfg = actions.resolve_source_spec(form)
         if cfg is None:
             return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · decide", "<p>missing source or gatherer+url</p>", back="/debug/pipeline"))
         dry_run = form.get("dry_run") == "1"
         try:
-            run_fn = load_gatherer(cfg.gatherer)
-            with Session(engine) as session:
-                sieved, report = process_source(session, cfg, run_fn, dry_run=dry_run)
-                if not dry_run:
-                    session.commit()
+            result = actions.decide(cfg, dry_run=dry_run)
         except Exception as exc:
-            record_status(cfg.name, "error", message=str(exc))
             return _error_page("decide", exc)
 
-        record_run(cfg.name, len(sieved.new) + len(sieved.updated) + sieved.unchanged)
-
+        sieved = result["sieved"]
         if dry_run:
-            body = f"<p>dry run — nothing written · {len(sieved.new)} new · {len(sieved.updated)} updated · {sieved.unchanged} unchanged</p>"
+            body = f"<p>dry run — nothing written · {len(sieved['new'])} new · {len(sieved['updated'])} updated · {sieved['unchanged']} unchanged</p>"
             body += "<h2>new</h2>" + table(
                 ["id", "title", "categories"],
-                [[e.id, e.event.title, ", ".join(e.event.categories)] for e in sieved.new],
+                [[e["id"], e["event"]["title"], ", ".join(e["event"]["categories"])] for e in sieved["new"]],
             )
             body += "<h2>updated</h2>" + table(
                 ["id", "title", "changed"],
-                [[e.id, e.event.title, ", ".join(e.changed_fields)] for e in sieved.updated],
+                [[e["id"], e["event"]["title"], ", ".join(e["changed_fields"])] for e in sieved["updated"]],
             )
-            body += "<h2>full result</h2>" + json_pre(sieved.model_dump(mode="json"))
+            body += "<h2>full result</h2>" + json_pre(sieved)
         else:
+            report = result["report"]
             body = f"<p>inserted {report['inserted']} · updated {report['updated']} · unchanged {report['unchanged']} — committed</p>"
             body += "<h2>new</h2>" + table(
                 ["id", "title"],
-                [[e.id, e.event.title] for e in sieved.new],
+                [[e["id"], e["event"]["title"]] for e in sieved["new"]],
             )
             body += "<h2>updated</h2>" + table(
                 ["id", "title", "changed"],
-                [[e.id, e.event.title, ", ".join(e.changed_fields)] for e in sieved.updated],
+                [[e["id"], e["event"]["title"], ", ".join(e["changed_fields"])] for e in sieved["updated"]],
             )
         return _html(page("ദ്ദി(˵ •̀ ᴗ - ˵ ) ✧ pipeline · decide", body, back="/debug/pipeline"))
 #endregion

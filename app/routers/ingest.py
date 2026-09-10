@@ -9,9 +9,9 @@ checked by default (classify only, nothing written).
 #region: imports
 from robyn import Response
 
-from app.ingest import run_report
 from app.registry import load_sources
 from app.security import debug_csrf_token, debug_guard, form_data, verify_csrf
+from app.services import actions
 from app.web import escape, page, table
 #endregion
 
@@ -82,9 +82,9 @@ def register(app) -> None:
             return _forbidden()
 
         dry_run = form_data(request).get("dry_run") == "1"
-        summaries = run_report(dry_run=dry_run)
+        result = actions.ingest(dry_run=dry_run)
 
         banner = "<p>dry run — nothing written.</p>" if dry_run else "<p>committed.</p>"
-        body = banner + _result_table(summaries)
+        body = banner + _result_table(result["sources"])
         return _html(page("ripcale · ingest", body, back="/debug/ingest"))
 #endregion

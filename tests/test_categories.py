@@ -148,7 +148,7 @@ def test_debug_categories_show_symlink(tmp_path, monkeypatch):
         session.add(_event("intake:art-exhibition"))
         session.commit()
 
-    monkeypatch.setattr(debug_router_mod, "engine", engine)
+    monkeypatch.setattr("app.services.actions.engine", engine)
     _configure(tmp_path, monkeypatch, symlinks={"intake:art-exhibition": "external:art"})
 
     from robyn.testing import TestClient

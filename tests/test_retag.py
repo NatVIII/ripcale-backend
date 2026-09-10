@@ -78,7 +78,7 @@ def test_retag_route_dry_run_vs_commit(tmp_path, monkeypatch):
     SQLModel.metadata.create_all(engine)
     _event(engine, "e1", "A", "intake:art")
 
-    monkeypatch.setattr(retag_router_mod, "engine", engine)
+    monkeypatch.setattr("app.services.actions.engine", engine)
 
     from robyn.testing import TestClient
 
@@ -108,7 +108,7 @@ def test_retag_route_requires_csrf(tmp_path, monkeypatch):
 
     engine = create_engine(f"sqlite:///{tmp_path / 'csrf.db'}")
     SQLModel.metadata.create_all(engine)
-    monkeypatch.setattr(retag_router_mod, "engine", engine)
+    monkeypatch.setattr("app.services.actions.engine", engine)
 
     from robyn.testing import TestClient
 

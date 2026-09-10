@@ -178,7 +178,7 @@ def test_stale_route_renders(tmp_path, monkeypatch):
         )
         session.commit()
 
-    monkeypatch.setattr(debug_router_mod, "engine", engine)
+    monkeypatch.setattr("app.services.actions.engine", engine)
 
     from robyn.testing import TestClient
 

@@ -21,7 +21,7 @@ def test_decide_dry_run_vs_commit(tmp_path, monkeypatch):
     engine = create_engine(f"sqlite:///{tmp_path / 'decide.db'}")
     SQLModel.metadata.create_all(engine)
 
-    monkeypatch.setattr(pipeline_router_mod, "engine", engine)
+    monkeypatch.setattr("app.services.actions.engine", engine)
     monkeypatch.setattr(elfsight_gatherer, "fetch_json", lambda url: FIXTURE)
 
     from robyn.testing import TestClient
@@ -58,7 +58,7 @@ def test_categorize_dry_run_vs_commit(tmp_path, monkeypatch):
     engine = create_engine(f"sqlite:///{tmp_path / 'categorize.db'}")
     SQLModel.metadata.create_all(engine)
 
-    monkeypatch.setattr(pipeline_router_mod, "engine", engine)
+    monkeypatch.setattr("app.services.actions.engine", engine)
     monkeypatch.setattr(elfsight_gatherer, "fetch_json", lambda url: FIXTURE)
 
     from robyn.testing import TestClient

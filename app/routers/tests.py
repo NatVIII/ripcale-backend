@@ -10,7 +10,7 @@ suite or a single test in a subprocess and shows pass/fail + output.
 from robyn import Response
 
 from app.security import debug_csrf_token, debug_guard, form_data, verify_csrf
-from app.services.testrunner import collect_tests, run_tests
+from app.services import actions
 from app.web import escape, page, pre
 #endregion
 
@@ -62,7 +62,7 @@ def register(app) -> None:
         guard = debug_guard(request)
         if guard:
             return guard
-        return _html(page("ripcale · tests", _list_page(collect_tests()), back="/debug"))
+        return _html(page("ripcale · tests", _list_page(actions.tests_list()), back="/debug"))
 
     @app.post("/debug/tests")
     def tests_run(request):
@@ -73,12 +73,12 @@ def register(app) -> None:
             return _forbidden()
 
         test_id = (form_data(request).get("test", None) or "").strip()
-        returncode, output = run_tests(test_id or None)
+        result = actions.tests_run(test_id or None)
 
-        if returncode == 0:
+        if result["exit"] == 0:
             banner = "<p>🟢 passed</p>"
         else:
-            banner = f"<p>🔴 failed (exit {returncode})</p>"
-        body = banner + (pre(output) if output else "")
+            banner = f"<p>🔴 failed (exit {result['exit']})</p>"
+        body = banner + (pre(result["output"]) if result["output"] else "")
         return _html(page("ripcale · tests", body, back="/debug/tests"))
 #endregion

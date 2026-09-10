@@ -1,3 +1,12 @@
+## 2026-09-07 20:20:00 [AI]
+
+F53: HTML debug pages become thin clients of shared actions.
+
+- `app/services/actions.py` (new): request-agnostic read/write/pipeline operations (`overview`, `sources`, `events`, `event`, `stale`, `coherence`, `logs`, `status`, `symlinks`, `ingest`, `retag`, `wipe_begin/confirm`, `tests_list/run`, `gather/sieve/decide/categorize`) + `ActionError` + shared `resolve_source_spec`/`parse_rules`.
+- `app/routers/api.py` → thin `{ok,data|error}` envelope over the actions (added `/api/v1/status`).
+- HTML routers (`debug`, `retag`, `wipe`, `ingest`, `tests`, `pipeline`) now call the same actions; wipe unified to challenge-response (arm/sentence removed).
+- Tests: `tests/test_actions.py` (new) + updated router tests to monkeypatch `actions.engine`; `test_wipe.py` rewritten for challenge-response (192 passing).
+
 ## 2026-09-07 20:00:00 [AI]
 
 F54: JSON admin API hardening.

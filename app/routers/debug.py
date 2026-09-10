@@ -1,23 +1,16 @@
 """Debug dashboard (IP-gated, non-secret).
 
-`register(app)` is called from `app/main.py`. Handlers are dispatched by the
-Robyn router. Every route is guarded by `debug_guard` (loopback always; other
-hosts only within `debug_allowed_cidrs`).
-
-Provides a static HTML overview at `/debug` plus JSON endpoints for programmatic
-inspection.
+`register(app)` is called from `app/admin.py`. Every route is guarded by
+`debug_guard` (loopback always; other hosts only within `debug_allowed_cidrs`).
+All operations are thin clients over `app.services.actions`.
 """
 #region: imports
 from robyn import Response, jsonify
-from sqlmodel import Session
 
-from app.db import engine
-from app.intake import load as load_intake
-from app.logging import LOG_TAIL_LINES, read_log_tail
+from app.logging import LOG_TAIL_LINES
 from app.security import debug_guard
-from app.services import stats
-from app.services.coherence import check as coherence_check
-from app.services.status import gatherer_rollup, read_status, source_status
+from app.services import actions
+from app.services.status import source_status
 from app.web import escape, json_pre, page, pre, table
 #endregion
 
@@ -33,7 +26,7 @@ def _html(body: str) -> Response:
 def _coherence_section() -> str:
     """Render the live coherence checks; never raises (the page must always render)."""
     try:
-        issues = coherence_check()
+        issues = actions.coherence()
     except Exception as exc:  # noqa: BLE001 — a broken check must not break /debug
         issues = [{"severity": "warning", "scope": "debug", "message": f"coherence check failed: {exc}"}]
 
@@ -58,17 +51,12 @@ def register(app) -> None:
         if guard:
             return guard
 
-        with Session(engine) as session:
-            ov = stats.overview(session)
-            srcs = stats.sources(session)
-            last = stats.read_last_ingest()
-
-        statuses = read_status()
-        rollup = gatherer_rollup(srcs, statuses)
-        try:
-            symlinks = load_intake().category_symlinks
-        except Exception:  # noqa: BLE001 — a broken intake must not break /debug
-            symlinks = {}
+        ov = actions.overview()
+        srcs = actions.sources()
+        st = actions.status()
+        statuses = st["statuses"]
+        rollup = st["rollup"]
+        symlinks = actions.symlinks()
 
         by_gatherer: dict[str, list[dict]] = {}
         for s in srcs:
@@ -108,7 +96,7 @@ def register(app) -> None:
             + "".join(gatherer_blocks)
             + "<details><summary>status (raw)</summary>" + json_pre(statuses) + "</details>"
             + "<h2>last ingest</h2>"
-            + (json_pre(last) if last else "<p>no ingest run yet</p>")
+            + (json_pre(ov["last_ingest"]) if ov["last_ingest"] else "<p>no ingest run yet</p>")
             + "<p><a href='/debug/stale'>stale events</a></p>"
             + "<p><a href='/debug/retag'>retag categories</a></p>"
             + "<h2>danger zone</h2>"
@@ -122,7 +110,7 @@ def register(app) -> None:
         guard = debug_guard(request)
         if guard:
             return guard
-        tail = read_log_tail()
+        tail = actions.logs()
         body = (
             f"<p>last {LOG_TAIL_LINES} log lines — reload to refresh.</p>"
             + (pre(tail) if tail else "<p>no log entries yet.</p>")
@@ -135,8 +123,7 @@ def register(app) -> None:
         guard = debug_guard(request)
         if guard:
             return guard
-        with Session(engine) as session:
-            stale = stats.stale_events(session)
+        stale = actions.stale()
         if not stale:
             body = "<p>no stale events.</p>"
         else:
@@ -152,10 +139,7 @@ def register(app) -> None:
         guard = debug_guard(request)
         if guard:
             return guard
-        with Session(engine) as session:
-            ov = stats.overview(session)
-            ov["last_ingest"] = stats.read_last_ingest()
-        return ov
+        return actions.overview()
 
     # -- JSON: sources ------------------------------------------------------
     @app.get("/debug/sources")
@@ -163,8 +147,7 @@ def register(app) -> None:
         guard = debug_guard(request)
         if guard:
             return guard
-        with Session(engine) as session:
-            return stats.sources(session)
+        return actions.sources()
 
     # -- JSON: single event dump -------------------------------------------
     @app.get("/debug/events/:id")
@@ -173,8 +156,7 @@ def register(app) -> None:
         if guard:
             return guard
         event_id = request.path_params.get("id", None)
-        with Session(engine) as session:
-            dump = stats.event_dump(session, event_id)
+        dump = actions.event(event_id)
         if dump is None:
             return Response(
                 status_code=404,

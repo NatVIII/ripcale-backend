@@ -69,6 +69,7 @@ Key files:
 - `app/services/status.py` — per-source run status store (`data/status.json`): `read_status()` / `record_status()` / `record_run()` / `reset_status()` + `source_status()` / `gatherer_rollup()`.
 - `app/services/wipe.py` — `wipe_all()` (DB wipe + reset status/last-ingest).
 - `app/services/retag.py` — `retag()` (mass category rename/remove across all events).
+- `app/services/actions.py` — request-agnostic admin operations (read/write/pipeline + parsing + `ActionError`); the single source of truth shared by `/api/v1/*` and the HTML debug pages.
 - `app/services/testrunner.py` — `collect_tests()` / `run_tests()` (subprocess `python -m pytest`).
 - `app/security.py` — `in_docker()`, `is_debug_allowed()`, CSRF, `form_data()`.
 - `app/web.py` — HTML helpers (dashboard + playground pages).
@@ -80,7 +81,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (186)
+.venv/bin/python -m pytest                       # test suite (192)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -96,8 +97,8 @@ docker compose up --build                        # public + admin services
   is exposed as a versioned JSON endpoint under `/api/v1/*` (`{ok, data|error}`
   envelope, `Authorization: Bearer <api_token>`, IP-gated); HTML debug pages are
   thin clients of those endpoints, never a second implementation. All real logic
-  lives in `app/services/*`. New interactive work defaults to this; existing HTML
-  pages migrate to it over time.
+  lives in `app/services/*` — specifically `app/services/actions.py`, which both
+  the API router and the HTML routers call. New interactive work defaults to this.
 - **Contracts are versioned + test-enforced** — each stage contract doc
   (`docs/*_CONTRACT.md`) carries a `Version: N` stamp; the stage module declares
   `CONTRACT_VERSION = N` (with a `# Contract: <stage> vN` comment);

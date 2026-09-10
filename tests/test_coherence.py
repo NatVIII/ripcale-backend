@@ -127,7 +127,7 @@ def _dashboard_client(tmp_path, monkeypatch):
 
     engine = create_engine(f"sqlite:///{tmp_path / 'coherence.db'}")
     SQLModel.metadata.create_all(engine)
-    monkeypatch.setattr(debug_router_mod, "engine", engine)
+    monkeypatch.setattr("app.services.actions.engine", engine)
 
     from robyn.testing import TestClient
 

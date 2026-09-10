@@ -1,13 +1,11 @@
-"""Tests for the two-layer database wipe (F37.03)."""
+"""Tests for the challenge-response database wipe (F37.03 / F53)."""
 #region: imports
 from datetime import datetime
-from pathlib import Path
 
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from app.db import wipe_db
 from app.models import Event, Source
-from app.routers.wipe import CONFIRM_SENTENCE
 from app.security import debug_csrf_token
 from app.services.status import read_status, record_status
 from app.services.wipe import wipe_all
@@ -77,7 +75,9 @@ def test_wipe_all_resets_status_and_last_ingest(tmp_path, monkeypatch):
 
 
 #region: route
-def test_wipe_route_two_layer_verification(tmp_path, monkeypatch):
+def test_wipe_route_challenge_response(tmp_path, monkeypatch):
+    from app.services import actions
+
     engine = create_engine(f"sqlite:///{tmp_path / 'route.db'}")
     SQLModel.metadata.create_all(engine)
     _seed(engine)
@@ -90,31 +90,26 @@ def test_wipe_route_two_layer_verification(tmp_path, monkeypatch):
 
     client = TestClient(app)
 
-    # layer 0: the arm page renders
+    # begin page renders
     r = client.get("/debug/wipe")
     assert r.status_code == 200
     assert "delete database" in r.text
 
-    # layer 1: arming reveals the sentence + confirm button, DB untouched
-    r = client.post("/debug/wipe", form_data={"csrf_token": debug_csrf_token(), "stage": "arm"})
+    # begin -> reveals the challenge + confirm button, DB untouched
+    r = client.post("/debug/wipe", form_data={"csrf_token": debug_csrf_token(), "stage": "begin"})
     assert r.status_code == 200
     assert "confirm wipe" in r.text
     assert _counts(engine) == (2, 1)
 
-    # layer 2: wrong sentence -> error, nothing deleted
-    r = client.post(
-        "/debug/wipe",
-        form_data={"csrf_token": debug_csrf_token(), "stage": "confirm", "phrase": "nope"},
-    )
+    # wrong challenge -> error, nothing deleted
+    r = client.post("/debug/wipe", form_data={"csrf_token": debug_csrf_token(), "stage": "confirm", "challenge": "nope"})
     assert r.status_code == 200
-    assert "did not match" in r.text
+    assert "nothing was deleted" in r.text
     assert _counts(engine) == (2, 1)
 
-    # layer 2: correct sentence -> wiped
-    r = client.post(
-        "/debug/wipe",
-        form_data={"csrf_token": debug_csrf_token(), "stage": "confirm", "phrase": CONFIRM_SENTENCE},
-    )
+    # correct challenge -> wiped
+    challenge = actions.wipe_begin()
+    r = client.post("/debug/wipe", form_data={"csrf_token": debug_csrf_token(), "stage": "confirm", "challenge": challenge})
     assert r.status_code == 200
     assert "database wiped" in r.text
     assert _counts(engine) == (0, 0)
@@ -131,7 +126,7 @@ def test_wipe_route_requires_csrf(tmp_path, monkeypatch):
     from app.admin import app
 
     client = TestClient(app)
-    r = client.post("/debug/wipe", form_data={"stage": "confirm", "phrase": CONFIRM_SENTENCE})
+    r = client.post("/debug/wipe", form_data={"stage": "begin"})
     assert r.status_code == 403
     assert _counts(engine) == (2, 1)
 #endregion
@@ -139,15 +134,14 @@ def test_wipe_route_requires_csrf(tmp_path, monkeypatch):
 
 #region: resume
 def test_wipe_does_not_stop_server_and_can_resume(tmp_path, monkeypatch):
-    import app.routers.debug as debug_router_mod
     import app.routers.events as events_router_mod
 
     engine = create_engine(f"sqlite:///{tmp_path / 'resume.db'}")
     SQLModel.metadata.create_all(engine)
     _seed(engine, events=2)
 
+    monkeypatch.setattr("app.services.actions.engine", engine)
     monkeypatch.setattr("app.db.engine", engine)
-    monkeypatch.setattr(debug_router_mod, "engine", engine)
     monkeypatch.setattr(events_router_mod, "engine", engine)
 
     from robyn.testing import TestClient
