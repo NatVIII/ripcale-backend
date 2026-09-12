@@ -1,3 +1,18 @@
+## 2026-09-07 22:10:00 [AI]
+
+Command reference + auth CLI fix.
+
+- `README.md`: added a "Command reference" section (grouped code blocks) covering every entrypoint — servers, ingest, `app.debug`, `app.auth`, dev/Docker.
+- `app/auth.py`: user-management subcommands now call `setup_logging()` + `init_db()` first, so `add-user`/`change-password`/`remove-user`/`list-users` work on a fresh install (previously failed on a missing `user` table).
+
+## 2026-09-07 22:00:00 [AI]
+
+F48.04 + F48.01: multi-user management + account lockout.
+
+- `app/services/auth.py`: `create_user`/`change_password`/`remove_user`/`list_users`; account lockout (`LOCKOUT_THRESHOLD`/`LOCKOUT_DURATION`, `_lockouts`/`_failures`) — `login()` returns 423 "account locked" before checking the password, keeps the 429 rate limiter.
+- `app/auth.py` CLI: `add-user`, `change-password`, `remove-user`, `list-users`.
+- Tests: `tests/test_auth.py` (user CRUD, rate-limit isolated from lockout, lock + expiry) — 212 passing.
+
 ## 2026-09-07 21:30:00 [AI]
 
 F48.07: argon2 hardening.

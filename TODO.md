@@ -6,12 +6,10 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
-- [ ] F48.01 - Account lockout: time-based lockout after N failures (beyond the simple login rate limiter).
 - [ ] F48.02 - WebAuthn/passkeys (phishing-resistant login upgrade).
 - [ ] F48.03 - OIDC / third-party sign-in.
-- [ ] F48.04 - Multi-user management CLI (`add-user` / `change-password` / `remove-user`).
-- [ ] F48.05 - DB-backed sessions (multi-process / reload-friendly; replace in-memory).
-- [ ] F48.06 - Unify session auth with the `api_token` bearer under one "authenticated" concept.
+- [ ] F48.05 - DB-backed sessions (multi-process / reload-friendly; replace in-memory; wipe clears sessions).
+- [ ] F48.06 - Unify session auth with the `api_token` bearer under one "authenticated" concept (per-user API tokens).
 - [ ] F17 - Category → color mapping (Elfsight `categoryColor` not yet stored). Configured inside of the config.yaml, assigning colors to different categories. 
 - [ ] F17.01 There should also be a way to specify which categories are the "true" categories, which are meant to be publicly exposed as that kind for sortation (in truth a very small list of "true" categories) from the internal symlinked categories only kept so that data isn't being deleted from the original source.
 - [ ] F29 - Category and symlink mapping on the /debug page
@@ -87,6 +85,8 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F53 - HTML pages as thin clients: `app/services/actions.py` (shared read/write/pipeline actions + `ActionError`), API + all HTML routers (wipe/retag/ingest/tests/pipeline/debug) call it; wipe unified to challenge-response (2026-09-07)
 - [x] F48 - Auth groundwork: `User` table + argon2id, `.env` bootstrap, `app/services/auth.py` (sessions + timing-safe rate-limited login), `session_guard`, `/api/v1/auth/login|logout` + `/debug/login`, `python -m app.auth hash-password`; admin-side only (2026-09-07)
 - [x] F48.07 - Argon2 hardening: pinned `ARGON2_*` params, `check_needs_rehash` transparent re-hash on login, optional HMAC `pepper` (env), `python -m app.auth gen-pepper` (2026-09-07)
+- [x] F48.04 - Multi-user management: `create_user`/`change_password`/`remove_user`/`list_users` in auth.py + CLI subcommands (2026-09-07)
+- [x] F48.01 - Account lockout: 5 failures → 423 locked for 15 min (complements the 429 rate limiter) (2026-09-07)
 
 ## Deleted
 - [ ] F30 - Deleted Event

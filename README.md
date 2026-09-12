@@ -7,7 +7,8 @@ Calendar aggregator backend powering rva.rip.
 ripcale is split into two listeners:
 
 - **public** (read-only API) on `:8081`
-- **admin** (debug + pipeline playground) on `127.0.0.1:8082`
+- **admin** (debug + pipeline playground + JSON admin API) on `127.0.0.1:8082`
+  — the interactive surface requires a session login (see "Admin login" below).
 
 ```sh
 python3 -m venv .venv
@@ -46,7 +47,78 @@ tracked templates. `intake.example.yaml` ships one real *public* source (Studio
 Two Three) as starter data. API keys and secrets go in `.env` (see
 `.env.example`), never in `config.yaml`. Env vars / `.env` override `config.yaml`.
 
+The admin login and `/api/v1/*` API are configured via `.env` too:
+`RIPCALE_ADMIN_USERNAME`, `RIPCALE_ADMIN_PASSWORD_HASH`, `RIPCALE_PEPPER`
+(login), and `RIPCALE_API_TOKEN` (the admin API bearer token).
+
 `./data/` holds only generated data (the SQLite DB, logs, status) and is safe to wipe.
+
+## Admin login
+
+The admin app requires a session login. One-time setup:
+
+```sh
+.venv/bin/python -m app.auth gen-pepper           # → put in .env as RIPCALE_PEPPER
+.venv/bin/python -m app.auth hash-password        # → put in .env as RIPCALE_ADMIN_PASSWORD_HASH
+.venv/bin/python -m app.admin                     # bootstrap creates the admin user
+```
+
+Then open `http://127.0.0.1:8082/debug/login` and sign in.
+
+Two gotchas:
+
+- **Set the pepper before hashing** — the hash bakes the pepper in, so generate
+  `RIPCALE_PEPPER` first, then `RIPCALE_ADMIN_PASSWORD_HASH`.
+- **To change a password later, use `app.auth change-password admin`** — editing
+  `RIPCALE_ADMIN_PASSWORD_HASH` only seeds the admin *if it doesn't exist yet*;
+  it won't update an existing user.
+
+## Command reference
+
+Every entrypoint, with its intended use. (Run from the repo root inside the venv.)
+
+### Servers
+
+```sh
+.venv/bin/python -m app.public   # read-only API on :8081
+.venv/bin/python -m app.admin    # debug/admin on 127.0.0.1:8082 (session login required)
+.venv/bin/python -m app.main     # dev launcher — runs both (not used in Docker)
+```
+
+### Ingest
+
+```sh
+.venv/bin/python -m app.ingest --dry-run   # classify only, no writes (preview)
+.venv/bin/python -m app.ingest             # scrape → sieve → decide → store
+.venv/bin/python -m app.gatherers.elfsight # run one gatherer standalone (dev)
+```
+
+### Inspect data (reads the DB directly; no IP gate applies)
+
+```sh
+.venv/bin/python -m app.debug                     # overview stats (default)
+.venv/bin/python -m app.debug stats               # same as above
+.venv/bin/python -m app.debug sources             # per-source summary
+.venv/bin/python -m app.debug events --id <id>    # dump a single event
+```
+
+### Authentication / users
+
+```sh
+.venv/bin/python -m app.auth hash-password          # prompt → print an argon2id hash (for .env)
+.venv/bin/python -m app.auth gen-pepper             # print a random pepper (for .env)
+.venv/bin/python -m app.auth add-user <username>    # create a user (prompts for a password)
+.venv/bin/python -m app.auth change-password <username>
+.venv/bin/python -m app.auth remove-user <username>
+.venv/bin/python -m app.auth list-users
+```
+
+### Dev / Docker
+
+```sh
+.venv/bin/python -m pytest          # run the test suite
+docker compose up --build           # public + admin services
+```
 
 ## Ingest
 
@@ -76,16 +148,59 @@ categories/images/timezone/source).
 | `GET /events/{id}/ics` | single event ICS (404 if absent) |
 | `GET /healthz` | liveness |
 
+## Admin API (`/api/v1/*`)
+
+A versioned JSON admin API on the **admin** app (`127.0.0.1:8082`), for bots and
+automation. Every response is a `{ok, data|error}` envelope; authenticate with
+`Authorization: Bearer <api_token>` (set `RIPCALE_API_TOKEN`; empty = API
+disabled). Writes default to dry-run where applicable.
+
+**Read**
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/v1/stats` | overview counts + last ingest |
+| `GET /api/v1/sources` | source list |
+| `GET /api/v1/status` | per-source run status + gatherer rollup |
+| `GET /api/v1/events?start=&end=&category=&limit=` | events (FullCalendar) |
+| `GET /api/v1/events/{id}` | single event |
+| `GET /api/v1/stale` | removed-at-source events |
+| `GET /api/v1/coherence` | config/intake coherence issues |
+| `GET /api/v1/logs?n=` | last N log lines |
+| `GET /api/v1/tests` | list collected tests |
+
+**Write**
+
+| Endpoint | Description |
+|---|---|
+| `POST /api/v1/ingest` `{dry_run}` | run the full batch ingest |
+| `POST /api/v1/retag` `{from, to?, dry_run?}` | mass category rename/remove |
+| `POST /api/v1/wipe/begin` → `POST /api/v1/wipe/confirm` `{challenge}` | challenge-response DB wipe |
+| `POST /api/v1/tests` `{test?}` | run the suite (or one test) |
+| `POST /api/v1/pipeline/gather` `{source…}` | run a gatherer |
+| `POST /api/v1/pipeline/sieve` `{source…}` | run + diff vs DB |
+| `POST /api/v1/pipeline/decide` `{source…, dry_run?}` | run + diff + persist |
+| `POST /api/v1/pipeline/categorize` `{source…, rules?, include_configured?, dry_run?}` | apply custom category rules |
+| `POST /api/v1/auth/login` `{username, password}` | issue a session (also sets a cookie) |
+| `POST /api/v1/auth/logout` | destroy the session |
+
 ## Debug & pipeline playground
 
 Served by the **admin** app on `127.0.0.1:8082`. Inspect the stored data and
-drive each pipeline stage from the browser.
+drive each pipeline stage from the browser (log in at `/debug/login` first).
 
 - `GET /debug` — static overview dashboard (counts, categories, sources, last ingest).
-- `GET /debug/pipeline` — home page linking to the three stage pages:
+- `GET /debug/pipeline` — home page linking to the stage pages:
   - **gather** — run a gatherer, see the full `GathererResult`.
+  - **categorize** — apply custom category rules, see the resulting tags.
   - **sieve** — run a gatherer + diff vs the DB (no writes).
   - **decide** — run + diff + persist (writes).
+- `GET /debug/ingest` — run the full batch ingest (dry-run by default).
+- `GET /debug/logs` — tail the log file.
+- `GET /debug/stale` — list removed-at-source events.
+- `GET /debug/retag` — mass category rename/remove.
+- `GET /debug/wipe` — challenge-response database wipe.
+- `GET /debug/tests` — run the pytest suite.
 - CLI equivalent: `python -m app.debug [stats|sources|events --id <id>]`.
 
 ### Access control
@@ -95,9 +210,14 @@ from the network. Inside Docker it instead binds `0.0.0.0` (required for the
 published port) and auto-accepts the Docker bridge subnet (`172.16.0.0/12`) —
 the host publish `127.0.0.1:8082:8082` still keeps it loopback-only from the
 outside. If you ever widen the bind, the IP allowlist applies: loopback is
-always allowed, other hosts must fall within `debug_allowed_cidrs`. The pipeline
-playground additionally requires a CSRF token (embedded in its forms; set a
-fixed one via `RIPCALE_DEBUG_TOKEN`, or it's auto-generated).
+always allowed, other hosts must fall within `debug_allowed_cidrs`.
+
+The `/debug` dashboard and `/api/v1/*` additionally require authentication:
+
+- **Browser** — log in at `/debug/login`; the session cookie gates `/debug`.
+- **API** — send `Authorization: Bearer <api_token>` to `/api/v1/*`.
+- **CSRF** — the pipeline playground embeds a CSRF token in its forms (set a
+  fixed one via `RIPCALE_DEBUG_TOKEN`, or it's auto-generated).
 
 After a real ingest run, the report is written to `data/last_ingest.json` and
 shown on the dashboard.

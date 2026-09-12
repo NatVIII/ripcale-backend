@@ -96,10 +96,15 @@ def destroy_session(token: str | None) -> None:
 #endregion
 
 
-#region: login (rate-limited + timing-safe)
+#region: login (rate-limited + timing-safe + lockout)
 _RATE_LIMIT = 5
 _RATE_WINDOW = 300.0
 _attempts: dict[str, list[float]] = {}
+
+LOCKOUT_THRESHOLD = 5
+LOCKOUT_DURATION = 900.0  # 15 min
+_lockouts: dict[str, float] = {}
+_failures: dict[str, int] = {}
 
 
 def _prune(key: str) -> list[float]:
@@ -118,14 +123,41 @@ def _record_failure(*keys: str) -> None:
         _attempts.setdefault(k, []).append(time.time())
 
 
+def _is_locked(username: str) -> bool:
+    until = _lockouts.get(username)
+    if until is None:
+        return False
+    if until < time.time():
+        _lockouts.pop(username, None)
+        return False
+    return True
+
+
+def _record_login_failure(username: str) -> None:
+    _failures[username] = _failures.get(username, 0) + 1
+    if _failures[username] >= LOCKOUT_THRESHOLD:
+        _lockouts[username] = time.time() + LOCKOUT_DURATION
+        _failures[username] = 0
+
+
+def _clear_login_failures(username: str) -> None:
+    _failures.pop(username, None)
+    _lockouts.pop(username, None)
+
+
 def login(username: str, password: str, ip: str | None = None) -> str:
     """Verify credentials and return a fresh session token.
 
-    Raises `ActionError("invalid credentials", 401)` on failure (identical for
-    unknown-user vs wrong-password, and timing-equalized), or
-    `ActionError("too many attempts", 429)` when rate-limited.
+    Raises `ActionError("account locked", 423)` when locked out,
+    `ActionError("too many attempts", 429)` when rate-limited, and
+    `ActionError("invalid credentials", 401)` on failure (identical for
+    unknown-user vs wrong-password, and timing-equalized).
     """
     username = (username or "").strip()
+
+    if _is_locked(username):
+        raise ActionError("account locked", 423)
+
     keys = [f"ip:{ip}", f"user:{username}"]
     if _rate_limited(*keys):
         raise ActionError("too many attempts", 429)
@@ -134,11 +166,15 @@ def login(username: str, password: str, ip: str | None = None) -> str:
     if user is None:
         _dummy_verify(password)
         _record_failure(*keys)
+        _record_login_failure(username)
         raise ActionError("invalid credentials", 401)
 
     if not verify_password(password or "", user.password_hash):
         _record_failure(*keys)
+        _record_login_failure(username)
         raise ActionError("invalid credentials", 401)
+
+    _clear_login_failures(username)
 
     if needs_rehash(user.password_hash):
         _set_user_hash(username, hash_password(password or ""))
@@ -173,4 +209,51 @@ def ensure_admin_user() -> bool:
         session.add(User(username=settings.admin_username, password_hash=settings.admin_password_hash))
         session.commit()
     return True
+#endregion
+
+
+#region: user management
+def create_user(username: str, password: str) -> bool:
+    """Create a user (hashes the password with the configured pepper). Returns False if taken."""
+    username = (username or "").strip()
+    if not username or not password:
+        raise ActionError("username and password are required")
+    with Session(engine) as session:
+        if session.exec(select(User).where(User.username == username)).first() is not None:
+            return False
+        session.add(User(username=username, password_hash=hash_password(password)))
+        session.commit()
+    return True
+
+
+def change_password(username: str, password: str) -> bool:
+    """Update a user's password. Returns False if the user doesn't exist."""
+    username = (username or "").strip()
+    if not password:
+        raise ActionError("password is required")
+    with Session(engine) as session:
+        user = session.exec(select(User).where(User.username == username)).first()
+        if user is None:
+            return False
+        user.password_hash = hash_password(password)
+        session.add(user)
+        session.commit()
+    return True
+
+
+def remove_user(username: str) -> bool:
+    """Delete a user. Returns False if the user doesn't exist."""
+    username = (username or "").strip()
+    with Session(engine) as session:
+        user = session.exec(select(User).where(User.username == username)).first()
+        if user is None:
+            return False
+        session.delete(user)
+        session.commit()
+    return True
+
+
+def list_users() -> list[str]:
+    with Session(engine) as session:
+        return sorted(u.username for u in session.exec(select(User)).all())
 #endregion

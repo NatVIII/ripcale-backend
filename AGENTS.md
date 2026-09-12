@@ -72,7 +72,7 @@ Key files:
 - `app/services/actions.py` — request-agnostic admin operations (read/write/pipeline + parsing + `ActionError`); the single source of truth shared by `/api/v1/*` and the HTML debug pages.
 - `app/services/testrunner.py` — `collect_tests()` / `run_tests()` (subprocess `python -m pytest`).
 - `app/security.py` — `in_docker()`, `is_debug_allowed()`, CSRF, `form_data()`/`json_body()`, `api_guard()`/`session_guard()`.
-- `app/services/auth.py` — argon2id password hashing, in-memory sessions, `login()` (timing-safe + rate-limited), `ensure_admin_user()`.
+- `app/services/auth.py` — argon2id password hashing, in-memory sessions, `login()` (timing-safe + rate-limited + lockout), `ensure_admin_user()`, user management (`create_user`/`change_password`/`remove_user`/`list_users`).
 - `app/routers/auth.py` — `/api/v1/auth/login|logout` + `/debug/login`; `app/auth.py` — CLI (`hash-password`).
 - `app/web.py` — HTML helpers (dashboard + playground pages).
 - `app/routers/{events,feeds,debug,pipeline,ingest,wipe,tests,retag,api}.py` — HTTP handlers.
@@ -83,7 +83,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (207)
+.venv/bin/python -m pytest                       # test suite (212)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -105,7 +105,8 @@ docker compose up --build                        # public + admin services
   stored in the `users` table; sessions are opaque in-memory tokens (24h TTL, lost
   on restart) issued over `HttpOnly`+`SameSite=Strict` cookies. Login is
   timing-safe (dummy verify for unknown users), returns a generic
-  "invalid credentials" error, and is rate-limited (429 after 5 failures/5 min).
+  "invalid credentials" error, and is rate-limited (429 after 5 failures/5 min)
+  and locked out (423 for 15 min) after 5 consecutive failures.
   Argon2 params are pinned (`ARGON2_TIME_COST`/`MEMORY_COST`/`PARALLELISM`) and
   stale hashes are transparently re-hashed on login (`check_needs_rehash`); an
   optional `pepper` (env, HMAC-keyed before hashing) adds defense-in-depth

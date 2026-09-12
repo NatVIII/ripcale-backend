@@ -20,6 +20,8 @@ def _setup(tmp_path, monkeypatch):
     monkeypatch.setattr("app.services.actions.engine", engine)
     auth._attempts.clear()
     auth._sessions.clear()
+    auth._lockouts.clear()
+    auth._failures.clear()
     return engine
 
 
@@ -68,12 +70,39 @@ def test_login_unknown_user(tmp_path, monkeypatch):
 def test_login_rate_limited(tmp_path, monkeypatch):
     _setup(tmp_path, monkeypatch)
     _create_admin(monkeypatch)
-    for _ in range(auth._RATE_LIMIT):
+    # distinct usernames so only the per-IP counter accumulates (isolates the rate limiter)
+    for i in range(auth._RATE_LIMIT):
         with pytest.raises(ActionError):
+            auth.login(f"nobody{i}", "wrong", ip="1.2.3.4")
+    with pytest.raises(ActionError) as exc:
+        auth.login("admin", "hunter2", ip="1.2.3.4")
+    assert exc.value.status == 429
+
+
+def test_login_locks_account_after_failures(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch)
+    _create_admin(monkeypatch)
+    for _ in range(auth.LOCKOUT_THRESHOLD):
+        with pytest.raises(ActionError) as exc:
             auth.login("admin", "wrong")
+        assert exc.value.status == 401
+    # locked: even the correct password is rejected
     with pytest.raises(ActionError) as exc:
         auth.login("admin", "hunter2")
-    assert exc.value.status == 429
+    assert exc.value.status == 423
+    assert str(exc.value) == "account locked"
+
+
+def test_lock_expires(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch)
+    _create_admin(monkeypatch)
+    for _ in range(auth.LOCKOUT_THRESHOLD):
+        with pytest.raises(ActionError):
+            auth.login("admin", "wrong")
+    # simulate both windows passing
+    auth._lockouts["admin"] = time.time() - 1
+    auth._attempts.clear()
+    assert auth.validate_session(auth.login("admin", "hunter2")) == "admin"
 #endregion
 
 
@@ -191,4 +220,37 @@ def test_login_rehashes_stale_hash(tmp_path, monkeypatch):
         user = session.exec(select(User).where(User.username == "admin")).first()
         assert auth.needs_rehash(user.password_hash) is False
 #endregion
+
+
+#region: user management (F48.04)
+def test_create_user_and_login(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch)
+    assert auth.create_user("alice", "hunter2") is True
+    assert auth.create_user("alice", "again") is False  # taken
+    assert auth.validate_session(auth.login("alice", "hunter2")) == "alice"
+
+
+def test_change_password(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch)
+    auth.create_user("alice", "hunter2")
+    assert auth.change_password("alice", "newpass") is True
+    with pytest.raises(ActionError):
+        auth.login("alice", "hunter2")
+    assert auth.validate_session(auth.login("alice", "newpass")) == "alice"
+    assert auth.change_password("nobody", "x") is False
+
+
+def test_remove_user_and_list(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch)
+    auth.create_user("alice", "hunter2")
+    auth.create_user("bob", "hunter2")
+    assert auth.list_users() == ["alice", "bob"]
+
+    assert auth.remove_user("alice") is True
+    assert auth.remove_user("alice") is False
+    assert auth.list_users() == ["bob"]
+    with pytest.raises(ActionError):
+        auth.login("alice", "hunter2")
+#endregion
+
 
