@@ -227,4 +227,35 @@ def test_debug_categories_show_symlink(tmp_path, monkeypatch, session_headers):
     r = TestClient(app).get("/debug", headers=session_headers)
     assert r.status_code == 200
     assert "→ external:art" in r.text
+
+
+def test_debug_categories_show_exposure_and_mapping(tmp_path, monkeypatch, session_headers):
+    from sqlmodel import Session, SQLModel, create_engine
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'debug2.db'}")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        session.add(_event("external:art,intake:raw"))
+        session.commit()
+
+    monkeypatch.setattr("app.services.actions.engine", engine)
+    _configure(
+        tmp_path,
+        monkeypatch,
+        definitions={"external": ["art"]},
+        symlinks={"intake:raw": "external:art"},
+        exposed=["external"],
+    )
+
+    from robyn.testing import TestClient
+
+    from app.admin import app
+
+    r = TestClient(app).get("/debug", headers=session_headers)
+    assert r.status_code == 200
+    assert "category mapping (config)" in r.text
+    assert "exposed classes: external" in r.text
+    assert "→ external:art" in r.text
+    assert "✓" in r.text  # an exposed category marker
+    assert "internal" in r.text  # an internal category marker
 #endregion

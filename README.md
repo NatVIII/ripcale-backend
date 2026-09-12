@@ -178,6 +178,7 @@ login. Writes default to dry-run where applicable.
 | `GET /api/v1/stats` | overview counts + last ingest |
 | `GET /api/v1/sources` | source list |
 | `GET /api/v1/status` | per-source run status + gatherer rollup |
+| `GET /api/v1/categories` | category mapping (definitions/symlinks/exposed_classes) + counts |
 | `GET /api/v1/events?start=&end=&category=&limit=` | events (FullCalendar) |
 | `GET /api/v1/events/{id}` | single event |
 | `GET /api/v1/stale` | removed-at-source events |

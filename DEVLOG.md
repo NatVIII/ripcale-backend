@@ -1,3 +1,13 @@
+## 2026-09-07 23:45:00 [AI]
+
+F29: category & symlink mapping on /debug (collapsed) + `/api/v1/categories`.
+
+- `app/services/categories.py`: `is_exposed()` promoted to public (used by the mapping view + `expose()`).
+- `app/services/actions.py`: `category_mapping()` returns `{definitions, symlinks, exposed_classes, categories}` where `categories` is the DB count breakdown enriched with `class` + `exposed` (fail-safe intake load). Dropped the now-unused `symlinks()`.
+- `app/routers/debug.py`: the categories table gains `class`/`exposed` columns, plus a collapsed `<details>` "category mapping (config)" section (exposed classes, definitions, symlinks).
+- `app/routers/api.py`: `GET /api/v1/categories` → `category_mapping()`.
+- Tests: `test_actions.py` + `test_api.py` + `test_categories.py` coverage (226 passing).
+
 ## 2026-09-07 23:30:00 [AI]
 
 F17: true-category exposure (class-gated public categories).

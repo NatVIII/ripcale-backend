@@ -102,6 +102,35 @@ def test_api_events_enumeration(tmp_path, monkeypatch):
     assert body["ok"] is True
     titles = sorted(e["title"] for e in body["data"])
     assert titles == ["Alpha", "Beta"]
+
+
+def test_api_categories_mapping(tmp_path, monkeypatch):
+    from app.config import settings
+    from app.intake import IntakeSettings, save as save_intake
+
+    client, engine, auth_header = _make_client(tmp_path, monkeypatch)
+    monkeypatch.setattr(settings, "intake_file", str(tmp_path / "intake.yaml"))
+    save_intake(
+        IntakeSettings(
+            category_definitions={"external": ["art"]},
+            category_symlinks={"intake:raw": "external:art"},
+            exposed_classes=["external"],
+        )
+    )
+    _seed_event(engine, "e1", "A", "external:art,intake:raw")
+
+    r = client.get("/api/v1/categories", headers=auth_header)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    data = body["data"]
+    assert data["definitions"] == {"external": ["art"]}
+    assert data["symlinks"] == {"intake:raw": "external:art"}
+    assert data["exposed_classes"] == ["external"]
+
+    by_name = {c["name"]: c for c in data["categories"]}
+    assert by_name["external:art"]["exposed"] is True
+    assert by_name["intake:raw"]["exposed"] is False
 #endregion
 
 

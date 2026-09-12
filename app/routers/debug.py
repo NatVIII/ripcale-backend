@@ -39,6 +39,22 @@ def _coherence_section() -> str:
         for i in issues
     )
     return "<h2>coherence</h2>" + lines
+
+
+def _category_mapping_section(mapping: dict) -> str:
+    """Render the configured category mapping, collapsed behind a <details>."""
+    exposed = ", ".join(mapping["exposed_classes"]) or "—"
+    def_rows = [[cls, ", ".join(names)] for cls, names in sorted(mapping["definitions"].items())]
+    link_rows = [[internal, f"→ {external}"] for internal, external in sorted(mapping["symlinks"].items())]
+
+    body = (
+        f"<p>exposed classes: {escape(exposed)}</p>"
+        + "<h3>definitions (class → names)</h3>"
+        + (table(["class", "names"], def_rows) if def_rows else "<p>none</p>")
+        + "<h3>symlinks (internal → external)</h3>"
+        + (table(["internal", "external"], link_rows) if link_rows else "<p>none</p>")
+    )
+    return "<details><summary>category mapping (config)</summary>" + body + "</details>"
 #endregion
 
 
@@ -56,7 +72,7 @@ def register(app) -> None:
         st = actions.status()
         statuses = st["statuses"]
         rollup = st["rollup"]
-        symlinks = actions.symlinks()
+        mapping = actions.category_mapping()
 
         by_gatherer: dict[str, list[dict]] = {}
         for s in srcs:
@@ -86,12 +102,19 @@ def register(app) -> None:
             f" · sources: {ov['sources']}</p>"
             + "<h2>categories</h2>"
             + table(
-                ["category", "count", "symlink"],
+                ["category", "class", "exposed", "count", "symlink"],
                 [
-                    [c["name"], c["count"], f"→ {symlinks[c['name']]}" if c["name"] in symlinks else ""]
-                    for c in ov["categories"]
+                    [
+                        c["name"],
+                        c["class"],
+                        "✓" if c["exposed"] else "internal",
+                        c["count"],
+                        f"→ {mapping['symlinks'][c['name']]}" if c["name"] in mapping["symlinks"] else "",
+                    ]
+                    for c in mapping["categories"]
                 ],
             )
+            + _category_mapping_section(mapping)
             + "<h2>gatherers</h2>"
             + "".join(gatherer_blocks)
             + "<details><summary>status (raw)</summary>" + json_pre(statuses) + "</details>"

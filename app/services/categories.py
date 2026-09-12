@@ -66,14 +66,14 @@ def exposed_classes() -> frozenset[str]:
     return _exposed_cache["data"]
 
 
-def _is_exposed(category: str) -> bool:
+def is_exposed(category: str) -> bool:
     """True when `class:name` belongs to an exposed class."""
     return category.split(":", 1)[0] in exposed_classes()
 
 
 def expose(categories: list[str]) -> list[str]:
     """Keep only the exposed ("true") categories; dedupe + sort."""
-    return sorted({c for c in categories if _is_exposed(c)})
+    return sorted({c for c in categories if is_exposed(c)})
 #endregion
 
 

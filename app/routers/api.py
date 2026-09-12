@@ -100,6 +100,11 @@ def register(app) -> None:
     def api_status(request):
         return _ok(actions.status())
 
+    @app.get(f"{prefix}/categories")
+    @_route
+    def api_categories(request):
+        return _ok(actions.category_mapping())
+
     @app.get(f"{prefix}/events")
     @_route
     def api_events(request):

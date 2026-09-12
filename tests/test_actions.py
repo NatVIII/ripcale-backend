@@ -62,3 +62,38 @@ def test_wipe_challenge_flow(tmp_path, monkeypatch):
     with pytest.raises(ActionError):
         actions.wipe_confirm(challenge)
 #endregion
+
+
+#region: category mapping
+def test_category_mapping(tmp_path, monkeypatch):
+    from sqlmodel import Session
+
+    from app.config import settings
+    from app.intake import IntakeSettings, save as save_intake
+    from app.models import Event
+
+    _engine(tmp_path, monkeypatch)
+    monkeypatch.setattr(settings, "intake_file", str(tmp_path / "intake.yaml"))
+    save_intake(
+        IntakeSettings(
+            category_definitions={"external": ["art"]},
+            category_symlinks={"intake:raw": "external:art"},
+            exposed_classes=["external"],
+        )
+    )
+
+    with Session(actions.engine) as session:
+        session.add(Event(id="e1", source_id=1, title="T", categories="external:art,intake:raw"))
+        session.commit()
+
+    mapping = actions.category_mapping()
+    assert mapping["definitions"] == {"external": ["art"]}
+    assert mapping["symlinks"] == {"intake:raw": "external:art"}
+    assert mapping["exposed_classes"] == ["external"]
+
+    by_name = {c["name"]: c for c in mapping["categories"]}
+    assert by_name["external:art"]["class"] == "external"
+    assert by_name["external:art"]["exposed"] is True
+    assert by_name["intake:raw"]["class"] == "intake"
+    assert by_name["intake:raw"]["exposed"] is False
+#endregion

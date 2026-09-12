@@ -90,6 +90,40 @@ def symlinks() -> dict:
         return load_intake().category_symlinks
     except Exception:  # noqa: BLE001 — a broken intake must not break the dashboard
         return {}
+
+
+def category_mapping() -> dict:
+    """The full category configuration plus DB category counts (with exposure).
+
+    Fail-safe: a broken intake must not break the dashboard/API.
+    """
+    try:
+        intake = load_intake()
+        definitions = intake.category_definitions
+        symlinks = intake.category_symlinks
+        exposed_classes = intake.exposed_classes
+    except Exception:  # noqa: BLE001
+        definitions, symlinks, exposed_classes = {}, {}, []
+
+    from app.services.categories import is_exposed
+
+    with Session(engine) as session:
+        rows = stats.overview(session)["categories"]
+
+    return {
+        "definitions": definitions,
+        "symlinks": symlinks,
+        "exposed_classes": exposed_classes,
+        "categories": [
+            {
+                "name": c["name"],
+                "count": c["count"],
+                "class": c["name"].split(":", 1)[0],
+                "exposed": is_exposed(c["name"]),
+            }
+            for c in rows
+        ],
+    }
 #endregion
 
 
