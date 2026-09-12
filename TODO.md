@@ -5,7 +5,7 @@ Kanban board. Move a card by moving its line between sections.
 Each Item has a ticket number (F##). Any child tickets which are necessary for accomplishing larger matters are denoted as children by using the larger feature's ticket as their initial followed by a period and then a number. Numbers are incrementing for tickets in a way that does not overlap, new ticket numbers are simply the new lowest value for what could be in that location. Each section has atleast two digits, so for example, the first ticket would be F01, the second would be F02, the first child of the second ticket would be F02.01, etc. 
 
 ## Backlog
-
+ 
 - [ ] F22 - DB trash handling / garbage collection: archive (soft-delete) events older than X days instead of deleting them - keep them saved for future reference, but exclude them from the normal read path. Shares the same expiry config + logic as F13 (one implementation, no duplicated handlers).
 - [ ] F28 - Event Editor: Edit events on the backend using the /debug API. Keep just regular HTML, no Javascript for this
 - [ ] F44 - Find a preferred way to set up an automatic build pipeline; where development builds can be compiled into releases on github (using the command line preferably because I like it, or without having to create releases and instead just being able to trigger a re-grab and re-build using my terminal with the server) and on release an automatic deployment to a server can occur. Selfishly, this is so that I can build on my PC and then deploy on my testing server.
