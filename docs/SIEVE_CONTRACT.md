@@ -1,6 +1,6 @@
 # Sieve Contract
 
-Version: 3
+Version: 4
 
 The contract between the **Sieve** (`app/sieve/sieve.py`) and the rest of the
 pipeline (Gatherer → Categorize → Sieve → Decisionmaker → storage). This document
@@ -16,7 +16,7 @@ GathererResult → categorize.apply(...) → sieve.classify(session, result) →
 ## Inputs
 
 ```python
-sieve.classify(session: Session, result: GathererResult) -> SieveResult
+sieve.classify(session: Session, result: GathererResult, *, now: datetime | None = None) -> SieveResult
 ```
 
 `GathererResult` = `{source: SourceConfig, events: list[ScrapedEvent]}` (see
@@ -35,6 +35,7 @@ writes.
 | `updated` | `list[ClassifiedEvent]` | Events whose stored row has a different `content_hash`. |
 | `unchanged` | `int` | Count of events identical to their stored row. |
 | `unchanged_ids` | `list[str]` | Ids of unchanged events (so `apply()` can stamp `last_seen_at`). |
+| `dropped` | `int` | Events removed by the relevance/expiry filter (F13). |
 
 ### `ClassifiedEvent`
 
@@ -49,7 +50,12 @@ writes.
 
 For each incoming event the sieve:
 
-1. Runs `_relevance(events)` — pass-through today; future home for drop-past rules.
+1. Runs `_relevance(events, now)` — the F13 relevance/expiry filter. It drops
+   events that fully ended more than `settings.expire_past_days` ago (recurring
+   series only once their **last occurrence** — start + duration — has passed;
+   unbounded/unparseable rules are kept), and events starting more than
+   `settings.expire_future_days` ahead. Either bound `None` disables that side.
+   Dropped events are counted in `SieveResult.dropped` and never classified.
 2. Fills missing/blank `location` with the source's `default_location`, **before**
    computing `content_hash`, so it participates in change detection. (Category
    assignment happens upstream, in the categorize stage.)
@@ -69,8 +75,11 @@ The complete set of fields that, when they differ, mark an event **updated**:
 ## Invariants
 
 - **Read-only** — `classify()` never writes to the DB.
-- **Idempotent** — the same inputs + DB state always yield the same `SieveResult`.
-- **Deterministic** — no randomness, no I/O beyond the given `session`.
+- **Idempotent** — the same inputs + DB state + `now` always yield the same
+  `SieveResult`.
+- **Deterministic given `now`** — no randomness, no I/O beyond the given
+  `session`; the relevance filter is time-gated by the explicit `now` argument
+  (defaults to the current time), so tests can pin it.
 - **Only normalizes `default_location`** — every other field passes through
   untouched; the sieve does not rewrite event content (categories are assigned by
   the categorize stage).

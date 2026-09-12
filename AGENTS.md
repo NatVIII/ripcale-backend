@@ -57,8 +57,8 @@ Key files:
 - `app/registry.py` — `load_sources()`, `load_gatherer()`.
 - `app/gatherers/<name>/gatherer.py` — each gatherer exposes `run(source)`.
 - `app/categorize/` — `apply()` re-exported from `categorize.py` (config-driven category assignment, before the sieve).
-- `app/sieve/` — `classify()` re-exported from `sieve.py` (change detection; fills `default_location`; `_relevance()` is a
-  pass-through placeholder for future drop-past rules).
+- `app/sieve/` — `classify()` re-exported from `sieve.py` (change detection; fills `default_location`; `_relevance()` drops events
+  outside the expiry window — F13).
 - `app/decisionmaker/` — `apply()` re-exported from `decisionmaker.py` (persist; stub for future cross-source heuristics).
 - `app/ingest.py` — `run()` / `run_report()` / `process_source()` orchestrator (CLI + debug ingest page share `_run()`).
 - `app/serializers.py` — `Event` → FullCalendar dict.
@@ -69,6 +69,8 @@ Key files:
 - `app/services/status.py` — per-source run status store (`data/status.json`): `read_status()` / `record_status()` / `record_run()` / `reset_status()` + `source_status()` / `gatherer_rollup()`.
 - `app/services/wipe.py` — `wipe_all()` (DB wipe + reset status/last-ingest).
 - `app/services/retag.py` — `retag()` (mass category rename/remove across all events).
+- `app/services/expiry.py` — shared relevance/expiry window (`past_cutoff`/`future_cutoff`/`is_relevant`; F13 sieve + F22 GC).
+- `app/services/recurrence.py` — `last_occurrence()` (bounded-RRULE last instance; F12 expansion will live here).
 - `app/services/actions.py` — request-agnostic admin operations (read/write/pipeline + parsing + `ActionError`); the single source of truth shared by `/api/v1/*` and the HTML debug pages. `category_mapping()` exposes the full category config + DB counts with exposure (F29).
 - `app/services/testrunner.py` — `collect_tests()` / `run_tests()` (subprocess `python -m pytest`).
 - `app/security.py` — `in_docker()`, `is_debug_allowed()`, CSRF, `form_data()`/`json_body()`, `api_guard()`/`session_guard()`.
@@ -83,7 +85,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (212)
+.venv/bin/python -m pytest                       # test suite (233)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -194,6 +196,13 @@ docker compose up --build                        # public + admin services
   NULL). `apply()` reports a `removed` count; `stats.stale_events()` / `/debug/stale`
   list them. Detection only — stale events are still served by `/events` until
   F22 archives them.
+- **Relevance/expiry filter (F13)** — `sieve._relevance(events, now)` drops
+  incoming events before classification (counted in `SieveResult.dropped`):
+  events that fully ended more than `expire_past_days` ago, and events starting
+  more than `expire_future_days` ahead. Recurring (`rrule`) series expire only
+  when their **last occurrence** (`app/services/recurrence.last_occurrence()`,
+  start + first-occurrence duration) has passed; unbounded/unparseable rules are
+  kept. Shared cutoffs live in `app/services/expiry.py` (F22 reuses them).
 
 ## Configuration
 
@@ -209,6 +218,8 @@ System fields in `config.yaml` (env prefix `RIPCALE_`; `.env` overrides):
 - `data_dir` — SQLite + `last_ingest.json` location (default `data`).
 - `database_url` — optional override (defaults to `sqlite:///{data_dir}/ripcale.db`).
 - `intake_file` — path to the intake settings file (default `intake.yaml`).
+- `expire_past_days` — drop ingested events that fully ended more than N days ago (recurring series only once their last occurrence has passed); `None` disables (default `90`).
+- `expire_future_days` — drop ingested events starting more than N days ahead; `None` = no future bound (default).
 - `log_file` — rotating log path (relative → `data_dir`; empty → `data/ripcale.log`).
 - `log_max_bytes` — rotate once the file reaches this size (default `1000000`).
 - `log_backup_count` — rotated backups to keep (default `3`).

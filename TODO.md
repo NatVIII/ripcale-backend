@@ -6,7 +6,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
-- [ ] F13 - Relevance/expiry filter in `sieve._relevance()`: drop events older than X days and farther than Y days in the future (currently pass-through). Single config + single shared expiry logic (with F22).
 - [ ] F22 - DB trash handling / garbage collection: archive (soft-delete) events older than X days instead of deleting them - keep them saved for future reference, but exclude them from the normal read path. Shares the same expiry config + logic as F13 (one implementation, no duplicated handlers).
 - [ ] F28 - Event Editor: Edit events on the backend using the /debug API. Keep just regular HTML, no Javascript for this
 - [ ] F44 - Find a preferred way to set up an automatic build pipeline; where development builds can be compiled into releases on github (using the command line preferably because I like it, or without having to create releases and instead just being able to trigger a re-grab and re-build using my terminal with the server) and on release an automatic deployment to a server can occur. Selfishly, this is so that I can build on my PC and then deploy on my testing server.
@@ -83,6 +82,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F48.05 + F48.06 - DB-backed sessions + per-user API tokens: `LoginSession`/`ApiToken` tables, `authenticated_user()` unifies session-or-bearer auth, removed the shared `api_token`, wipe clears credentials, `app.auth token create/list/revoke` (2026-09-07)
 - [x] F17 - True-category exposure: `exposed_classes` (default `["external"]`) gates the public read path — `resolve_event_categories()` resolves symlinks then drops non-exposed classes, so `/events`/`/feed.ics`/`/api/v1/events` expose only "true" categories while internal `intake:*` categories stay in the DB; coherence warns on undefined exposed classes / non-exposed symlink targets (2026-09-07)
 - [x] F29 - Category & symlink mapping on /debug: enriched categories table (class/exposed/symlink) + collapsed "category mapping" section (definitions/symlinks/exposed classes); `actions.category_mapping()` + `GET /api/v1/categories` (2026-09-07)
+- [x] F13 - Relevance/expiry filter in the sieve: `expire_past_days` (default 90) + `expire_future_days` (default None); shared `app/services/expiry.py` + `app/services/recurrence.py` (`last_occurrence`), `SieveResult.dropped`, `classify(now=)`; recurring series expire only once their last occurrence has passed; SIEVE_CONTRACT v4 (2026-09-08)
 
 ## Deleted
 - [ ] F30 - Deleted Event

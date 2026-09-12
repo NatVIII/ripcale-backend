@@ -19,7 +19,7 @@ def test_sieve_version_matches_doc():
 
 def test_sieve_result_fields_match_doc():
     assert set(SieveResult.model_fields) == {
-        "source", "new", "updated", "unchanged", "unchanged_ids",
+        "source", "new", "updated", "unchanged", "unchanged_ids", "dropped",
     }
 
 

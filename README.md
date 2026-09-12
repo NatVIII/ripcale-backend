@@ -47,6 +47,11 @@ tracked templates. `intake.example.yaml` ships one real *public* source (Studio
 Two Three) as starter data. API keys and secrets go in `.env` (see
 `.env.example`), never in `config.yaml`. Env vars / `.env` override `config.yaml`.
 
+The ingest relevance window is set in `config.yaml`: `expire_past_days` (default
+90) drops events that fully ended more than N days ago (recurring series only
+once their last occurrence has passed), and `expire_future_days` (default `None`)
+drops events starting more than N days ahead.
+
 The admin login is configured via `.env` too: `RIPCALE_ADMIN_USERNAME`,
 `RIPCALE_ADMIN_PASSWORD_HASH`, and `RIPCALE_PEPPER`. (API tokens are per-user,
 minted in the DB with `app.auth token create`, not an env var.)

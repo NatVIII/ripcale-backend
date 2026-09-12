@@ -135,6 +135,7 @@ def _run(dry_run: bool = False) -> tuple[list[SieveResult], list[dict]]:
                     "new": len(sieved.new),
                     "updated": len(sieved.updated),
                     "unchanged": sieved.unchanged,
+                    "dropped": sieved.dropped,
                     "inserted": report["inserted"] if report else None,
                     "updated_rows": report["updated"] if report else None,
                     "removed": report["removed"] if report else None,

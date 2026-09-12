@@ -18,6 +18,14 @@ data_dir: data
 cors_origins: "*"
 # database_url: sqlite:///data/ripcale.db
 
+# Relevance/expiry window (F13): drop incoming events outside this window at
+# ingest. expire_past_days drops events that fully ended more than N days ago
+# (recurring series only once their last occurrence has passed); null disables.
+# expire_future_days drops events starting more than N days ahead (null = no
+# future bound).
+expire_past_days: 90      # set null to disable the past filter
+expire_future_days: null  # or a number to bound the future (e.g. 365)
+
 # Rotating log file (shared by all entrypoints; viewed at /debug/logs).
 # Relative paths resolve against data_dir; absolute paths are used as-is.
 # log_file: ripcale.log            # default: {data_dir}/ripcale.log

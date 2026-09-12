@@ -2,22 +2,25 @@
 
 `classify()` is called from `app.ingest.process_source()`. It classifies each
 incoming event as new / updated / unchanged relative to what's stored, without
-writing anything. It fills the source's `default_location` before hashing and
-hosts the `_relevance` hook where future drop-past rules will live. (Category
-assignment happens upstream, in the categorize stage.)
+writing anything. It drops irrelevant events via `_relevance` (the F13
+expiry filter: events too old or too far in the future), then fills the source's
+`default_location` before hashing. (Category assignment happens upstream, in the
+categorize stage.)
 """
 #region: imports
 from sqlmodel import Session, select
 
+from app.config import settings
 from app.identity import content_hash, stable_id
-from app.models import Event
+from app.models import Event, utcnow
 from app.schema import ClassifiedEvent, GathererResult, ScrapedEvent, SieveResult, load_exdates, load_images
+from app.services import expiry
 #endregion
 
 
 #region: contract
-# Contract: Sieve v3 (docs/SIEVE_CONTRACT.md)
-CONTRACT_VERSION = 3
+# Contract: Sieve v4 (docs/SIEVE_CONTRACT.md)
+CONTRACT_VERSION = 4
 #endregion
 
 
@@ -40,10 +43,21 @@ _CHANGED_FIELDS = (
 
 
 #region: relevance hook
-def _relevance(events: list[ScrapedEvent]) -> list[ScrapedEvent]:
-    # Future home for relevance rules (e.g. drop events that ended in the past).
-    # For now this is an intentional pass-through.
-    return events
+def _relevance(events: list[ScrapedEvent], now) -> list[ScrapedEvent]:
+    """Drop events outside the configured relevance window (F13).
+
+    `expire_past_days` drops events that fully ended too long ago (recurring
+    series only once their last occurrence has passed); `expire_future_days`
+    drops events starting too far ahead. Both `None` = pass-through.
+    """
+    past_days = settings.expire_past_days
+    future_days = settings.expire_future_days
+    if past_days is None and future_days is None:
+        return events
+    return [
+        e for e in events
+        if expiry.is_relevant(e.start_at, e.end_at, e.rrule, now, past_days, future_days)
+    ]
 #endregion
 
 
@@ -82,9 +96,16 @@ def _changed_fields(event: ScrapedEvent, old: Event) -> list[str]:
 
 
 #region: classification
-def classify(session: Session, result: GathererResult) -> SieveResult:
-    """Bucket incoming events into new / updated / unchanged vs the DB."""
-    events = _relevance(result.events)
+def classify(session: Session, result: GathererResult, *, now=None) -> SieveResult:
+    """Bucket incoming events into new / updated / unchanged vs the DB.
+
+    `now` is the relevance reference time (defaults to the current UTC time;
+    injectable so tests stay deterministic).
+    """
+    if now is None:
+        now = utcnow()
+    events = _relevance(result.events, now)
+    dropped = len(result.events) - len(events)
     _merge_default_location(events, result.source.default_location)
     ids = [stable_id(result.source.name, e) for e in events]
 
@@ -122,5 +143,6 @@ def classify(session: Session, result: GathererResult) -> SieveResult:
         updated=updated,
         unchanged=unchanged,
         unchanged_ids=unchanged_ids,
+        dropped=dropped,
     )
 #endregion

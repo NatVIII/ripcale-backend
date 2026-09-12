@@ -45,6 +45,14 @@ class Settings(BaseSettings):
     # from this system config so the program can edit it (see app/intake.py).
     intake_file: str = "intake.yaml"
 
+    # Relevance window (F13): drop incoming events outside this window at ingest.
+    # `expire_past_days` drops events that fully ended more than N days ago
+    # (recurring series only once their last occurrence has passed); `None`
+    # disables the filter. `expire_future_days` drops events starting more than
+    # N days ahead (None = no future bound).
+    expire_past_days: int = 90
+    expire_future_days: int | None = None
+
     # -- logging ----------------------------------------------------------
     # Path to the rotating log file. Relative paths are resolved against
     # `data_dir`; absolute paths are used as-is. Empty = `{data_dir}/ripcale.log`.

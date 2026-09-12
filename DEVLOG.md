@@ -1,3 +1,15 @@
+## 2026-09-08 00:15:00 [AI]
+
+F13: relevance/expiry filter in the sieve.
+
+- `app/config.py`: `expire_past_days: int = 90` + `expire_future_days: int | None = None` (relevance window).
+- `app/services/expiry.py` (new): shared `past_cutoff`/`future_cutoff` + `is_relevant(...)` (F22 GC reuses the cutoffs).
+- `app/services/recurrence.py` (new): `last_occurrence(rrule, start_at)` — the final instance of a bounded RRULE (None = unbounded/unparseable); F12 expansion will build here.
+- `app/sieve/sieve.py`: `_relevance(events, now)` filters via `expiry`; `classify(..., now=None)` injectable; `SieveResult.dropped` counts filtered events. Recurring series expire only when last occurrence (start + first-occurrence duration) is past the window.
+- `app/schema.py`: `SieveResult.dropped`; `SIEVE_CONTRACT.md` v4 (+ `CONTRACT_VERSION = 4`); `ingest.py` summary surfaces `dropped`.
+- `pyproject.toml`: `python-dateutil` declared directly.
+- Tests: relevance cases (past/future drop, unbounded-rrule kept, bounded-rrule expired/recent, null dates, disabled pass-through); sieve + contract tests updated (233 passing).
+
 ## 2026-09-07 23:45:00 [AI]
 
 F29: category & symlink mapping on /debug (collapsed) + `/api/v1/categories`.
