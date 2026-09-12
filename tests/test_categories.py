@@ -138,7 +138,7 @@ def test_ics_resolves_symlinks(tmp_path, monkeypatch):
     assert "CATEGORIES:external:art,external:music" in ical
 
 
-def test_debug_categories_show_symlink(tmp_path, monkeypatch):
+def test_debug_categories_show_symlink(tmp_path, monkeypatch, session_headers):
     import app.routers.debug as debug_router_mod
     from sqlmodel import Session, SQLModel, create_engine
 
@@ -155,7 +155,7 @@ def test_debug_categories_show_symlink(tmp_path, monkeypatch):
 
     from app.admin import app
 
-    r = TestClient(app).get("/debug")
+    r = TestClient(app).get("/debug", headers=session_headers)
     assert r.status_code == 200
     assert "→ external:art" in r.text
 #endregion

@@ -8,7 +8,7 @@ All operations are thin clients over `app.services.actions`.
 from robyn import Response, jsonify
 
 from app.logging import LOG_TAIL_LINES
-from app.security import debug_guard
+from app.security import debug_guard, session_guard
 from app.services import actions
 from app.services.status import source_status
 from app.web import escape, json_pre, page, pre, table
@@ -47,9 +47,9 @@ def register(app) -> None:
     # -- HTML dashboard -----------------------------------------------------
     @app.get("/debug")
     def dashboard(request):
-        guard = debug_guard(request)
+        guard = session_guard(request)
         if guard:
-            return guard
+            return Response(status_code=302, headers={"Location": "/debug/login"}, description="")
 
         ov = actions.overview()
         srcs = actions.sources()

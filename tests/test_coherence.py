@@ -136,18 +136,18 @@ def _dashboard_client(tmp_path, monkeypatch):
     return TestClient(app)
 
 
-def test_dashboard_shows_coherence_all_good(tmp_path, monkeypatch):
+def test_dashboard_shows_coherence_all_good(tmp_path, monkeypatch, session_headers):
     client = _dashboard_client(tmp_path, monkeypatch)
-    r = client.get("/debug")
+    r = client.get("/debug", headers=session_headers)
     assert r.status_code == 200
     assert "coherence" in r.text
     assert "all good" in r.text
 
 
-def test_dashboard_shows_coherence_issue(tmp_path, monkeypatch):
+def test_dashboard_shows_coherence_issue(tmp_path, monkeypatch, session_headers):
     (tmp_path / "intake.yaml").write_text("sources: [unclosed")
     client = _dashboard_client(tmp_path, monkeypatch)
-    r = client.get("/debug")
+    r = client.get("/debug", headers=session_headers)
     assert r.status_code == 200
     assert "coherence" in r.text
     assert "not valid YAML" in r.text

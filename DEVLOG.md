@@ -1,3 +1,28 @@
+## 2026-09-07 21:30:00 [AI]
+
+F48.07: argon2 hardening.
+
+- `app/config.py`: `pepper: str = ""` (optional; empty = disabled); `config.example.yaml` note.
+- `app/services/auth.py`: pinned `ARGON2_TIME_COST`/`MEMORY_COST`/`PARALLELISM` passed to `PasswordHasher`; `_apply_pepper()` (HMAC-SHA256, no-op when empty) used by `hash_password`/`verify_password`; `needs_rehash()`; `login()` transparently re-hashes stale-parameter hashes.
+- `app/auth.py`: `gen-pepper` command (prints a 256-bit pepper).
+- Tests: `tests/test_auth.py` (pepper keys password, needs_rehash, login rehash) — 207 passing.
+
+## 2026-09-07 21:00:00 [AI]
+
+F48: authentication groundwork (admin-side only).
+
+- `pyproject.toml`: added `argon2-cffi`.
+- `app/models.py`: `User` table (`username` unique, `password_hash` argon2id).
+- `app/config.py`: `admin_username` / `admin_password_hash` (bootstrap); `config.example.yaml` note.
+- `app/services/auth.py` (new): argon2id `hash_password`/`verify_password`, in-memory opaque sessions (`create/validate/destroy`, 24h TTL), `login()` (timing-safe dummy verify + generic "invalid credentials" + rate limit 429 after 5/5min), `ensure_admin_user()`.
+- `app/security.py`: `json_body()`, `cookie_value()`, `session_guard()` (IP + session cookie).
+- `app/routers/auth.py` (new): `POST /api/v1/auth/login|logout` + `/debug/login` (HTML form), `HttpOnly`+`SameSite=Strict` cookies.
+- `app/admin.py`: registers auth router + bootstrap admin creation + warnings; `/debug` dashboard now `session_guard`-gated (redirect to `/debug/login`).
+- `app/auth.py`: `python -m app.auth hash-password` CLI.
+- `app/routers/api.py`: `_json_body` moved to `security.json_body` (deduped).
+- Tests: `tests/test_auth.py` (12 tests — hash/verify, login success/wrong/unknown/rate-limit, session validate/expiry/destroy, bootstrap idempotence, routes) + `session_headers` fixture in conftest; dashboard tests now authenticate (204 passing).
+- Follow-ups filed: F48.01 (lockout), F48.02 (WebAuthn), F48.03 (OIDC), F48.04 (multi-user CLI), F48.05 (DB sessions), F48.06 (unify session+bearer).
+
 ## 2026-09-07 20:20:00 [AI]
 
 F53: HTML debug pages become thin clients of shared actions.

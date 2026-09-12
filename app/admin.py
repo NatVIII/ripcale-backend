@@ -16,6 +16,7 @@ from app.config import settings
 from app.db import init_db
 from app.logging import setup_logging
 from app.routers import api as api_router
+from app.routers import auth as auth_router
 from app.routers import debug as debug_router
 from app.routers import ingest as ingest_router
 from app.routers import pipeline as pipeline_router
@@ -32,6 +33,7 @@ logger = logging.getLogger(__name__)
 app = Robyn(__file__)
 
 api_router.register(app)       # /api/v1/*
+auth_router.register(app)      # /api/v1/auth/*, /debug/login
 debug_router.register(app)     # /debug, /debug/*
 pipeline_router.register(app)  # /debug/pipeline/*
 wipe_router.register(app)      # /debug/wipe
@@ -47,6 +49,12 @@ def main() -> None:
     init_db()
     if not settings.api_token:
         logger.warning("api_token is not set — /api/v1/* is disabled")
+    from app.services.auth import ensure_admin_user
+
+    if not settings.admin_password_hash:
+        logger.warning("admin_password_hash is not set — no admin user; login is unavailable")
+    elif ensure_admin_user():
+        logger.info("created admin user %r", settings.admin_username)
     # Inside Docker the published port DNATs to the container's eth0, so the
     # app must bind 0.0.0.0; the host publish (127.0.0.1:8082) still restricts
     # external reach to loopback.

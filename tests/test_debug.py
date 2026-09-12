@@ -114,7 +114,7 @@ def test_stats_event_dump(tmp_path):
 
 
 #region: routes
-def test_debug_and_pipeline_routes(tmp_path, monkeypatch):
+def test_debug_and_pipeline_routes(tmp_path, monkeypatch, session_headers):
     import app.routers.debug as debug_router_mod
     import app.routers.pipeline as pipeline_router_mod
     import app.gatherers.elfsight.gatherer as elfsight_gatherer
@@ -141,7 +141,7 @@ def test_debug_and_pipeline_routes(tmp_path, monkeypatch):
     client = TestClient(app)
 
     # dashboard renders
-    r = client.get("/debug")
+    r = client.get("/debug", headers=session_headers)
     assert r.status_code == 200
     assert "Upcoming" not in r.text or "events: 1" in r.text
 

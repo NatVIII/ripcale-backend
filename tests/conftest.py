@@ -4,6 +4,14 @@ import pytest
 #endregion
 
 
+@pytest.fixture
+def session_headers():
+    """A valid session cookie header (authenticates the /debug dashboard)."""
+    from app.services import auth
+
+    return {"Cookie": f"ripcale_session={auth.create_session('admin')}"}
+
+
 @pytest.fixture(autouse=True)
 def _isolate_data_dir(tmp_path, monkeypatch):
     """Point `settings.data_dir` and `settings.intake_file` at a temp dir so

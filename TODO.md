@@ -6,7 +6,12 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
-- [ ] F48 - PGP Authentication for the frontend; we need to start verifying the frontend and making sure that the person using it is actually the intended user; and PGP is like the gold standard in security, no? I'd like to make an interface where a user can log in, in order to verify authentication. I really don't know how this can be done in a truly secure fashion, part of why I'd still like this to remain behind the admin only port for now no matter what at this time, but I'd like to start laying the groundwork for my own knowledge of truly secure authentication and it's implementation, by working with you (我亲爱的LLM)
+- [ ] F48.01 - Account lockout: time-based lockout after N failures (beyond the simple login rate limiter).
+- [ ] F48.02 - WebAuthn/passkeys (phishing-resistant login upgrade).
+- [ ] F48.03 - OIDC / third-party sign-in.
+- [ ] F48.04 - Multi-user management CLI (`add-user` / `change-password` / `remove-user`).
+- [ ] F48.05 - DB-backed sessions (multi-process / reload-friendly; replace in-memory).
+- [ ] F48.06 - Unify session auth with the `api_token` bearer under one "authenticated" concept.
 - [ ] F17 - Category → color mapping (Elfsight `categoryColor` not yet stored). Configured inside of the config.yaml, assigning colors to different categories. 
 - [ ] F17.01 There should also be a way to specify which categories are the "true" categories, which are meant to be publicly exposed as that kind for sortation (in truth a very small list of "true" categories) from the internal symlinked categories only kept so that data isn't being deleted from the original source.
 - [ ] F29 - Category and symlink mapping on the /debug page
@@ -80,6 +85,8 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F52 - JSON admin API: `/api/v1/*` (`{ok, data|error}`, `Authorization: Bearer <api_token>`, IP-gated) — read + ingest/retag/wipe/tests + pipeline stages, wrapping services; `api_token` setting + `verify_api_token`/`api_guard`; API-first convention recorded in AGENTS.md (2026-09-07)
 - [x] F54 - API hardening: robust `_json_body` (request.json + body), uniform `_route` decorator (guard + `{ok,error}` on any failure), `dry_run` echoed on ingest, challenge-response wipe (`wipe/begin` + `wipe/confirm`), `GET /api/v1/events` enumeration (2026-09-07)
 - [x] F53 - HTML pages as thin clients: `app/services/actions.py` (shared read/write/pipeline actions + `ActionError`), API + all HTML routers (wipe/retag/ingest/tests/pipeline/debug) call it; wipe unified to challenge-response (2026-09-07)
+- [x] F48 - Auth groundwork: `User` table + argon2id, `.env` bootstrap, `app/services/auth.py` (sessions + timing-safe rate-limited login), `session_guard`, `/api/v1/auth/login|logout` + `/debug/login`, `python -m app.auth hash-password`; admin-side only (2026-09-07)
+- [x] F48.07 - Argon2 hardening: pinned `ARGON2_*` params, `check_needs_rehash` transparent re-hash on login, optional HMAC `pepper` (env), `python -m app.auth gen-pepper` (2026-09-07)
 
 ## Deleted
 - [ ] F30 - Deleted Event

@@ -37,6 +37,17 @@ class Source(SQLModel, table=True):
 #endregion
 
 
+#region: user
+class User(SQLModel, table=True):
+    """An admin user (password hashed with argon2id; never stored plaintext)."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    username: str = Field(index=True, unique=True)
+    password_hash: str
+    created_at: datetime = Field(default_factory=utcnow)
+#endregion
+
+
 #region: event
 class Event(SQLModel, table=True):
     """A normalized event, keyed by a stable string id (see app/identity.py)."""

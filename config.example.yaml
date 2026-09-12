@@ -34,6 +34,13 @@ cors_origins: "*"
 # Bearer token for the /api/v1/* admin API (empty = API disabled).
 # Generate with: openssl rand -hex 32
 # api_token: ""
+# Admin login (bootstrap): username + an argon2id password hash.
+# Generate the hash with: python -m app.auth hash-password
+# admin_username: admin
+# admin_password_hash: ""
+# Optional pepper: a secret keyed into every password before hashing.
+# Generate with: python -m app.auth gen-pepper  (changing it invalidates existing hashes)
+# pepper: ""
 
 # Intake settings (sources, per-gatherer defaults, category symlinks) live in a
 # SEPARATE file — `intake.yaml` — so the program can edit them (via the admin

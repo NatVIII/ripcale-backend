@@ -133,7 +133,7 @@ def test_wipe_route_requires_csrf(tmp_path, monkeypatch):
 
 
 #region: resume
-def test_wipe_does_not_stop_server_and_can_resume(tmp_path, monkeypatch):
+def test_wipe_does_not_stop_server_and_can_resume(tmp_path, monkeypatch, session_headers):
     import app.routers.events as events_router_mod
 
     engine = create_engine(f"sqlite:///{tmp_path / 'resume.db'}")
@@ -156,7 +156,7 @@ def test_wipe_does_not_stop_server_and_can_resume(tmp_path, monkeypatch):
     assert wipe_all() == {"events": 2, "sources": 1}
 
     # server still running: admin dashboard + public read API both respond
-    assert admin_client.get("/debug").status_code == 200
+    assert admin_client.get("/debug", headers=session_headers).status_code == 200
     r = public_client.get("/events")
     assert r.status_code == 200
     assert r.json() == []

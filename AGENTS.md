@@ -14,14 +14,14 @@ It runs as two listeners:
   (default `0.0.0.0:8081`): `/events`, `/events/{id}`, `/feed.ics`,
   `/events/{id}/ics`, `/healthz`.
 - **admin** (`app/admin.py`) — debug dashboard + pipeline playground on
-  `admin_host:admin_port` (default `127.0.0.1:8082`): `/debug`, `/debug/pipeline/*`
-  (write surface via the `decide` and `categorize` stages), `/debug/ingest`
-  (full-batch ingest), `/debug/logs`, `/debug/wipe` (two-layer-verified DB wipe),
-  `/debug/stale` (removed-at-source events), `/debug/retag` (mass category
-  rename/remove), `/debug/tests` (run the pytest suite), and `/api/v1/*` (the
-  JSON admin API, `api_token`-gated). Loopback-only;
-  inside Docker it auto-binds `0.0.0.0` and accepts the Docker bridge subnet
-  (see gotchas).
+  `admin_host:admin_port` (default `127.0.0.1:8082`): session-authenticated
+  `/debug` (login at `/debug/login`), `/debug/pipeline/*` (write surface via the
+  `decide` and `categorize` stages), `/debug/ingest` (full-batch ingest),
+  `/debug/logs`, `/debug/wipe` (challenge-response DB wipe), `/debug/stale`
+  (removed-at-source events), `/debug/retag` (mass category rename/remove),
+  `/debug/tests` (run the pytest suite), and `/api/v1/*` (the JSON admin API,
+  `api_token`-gated). Loopback-only; inside Docker it auto-binds `0.0.0.0` and
+  accepts the Docker bridge subnet (see gotchas).
 
 ## Architecture
 
@@ -71,7 +71,9 @@ Key files:
 - `app/services/retag.py` — `retag()` (mass category rename/remove across all events).
 - `app/services/actions.py` — request-agnostic admin operations (read/write/pipeline + parsing + `ActionError`); the single source of truth shared by `/api/v1/*` and the HTML debug pages.
 - `app/services/testrunner.py` — `collect_tests()` / `run_tests()` (subprocess `python -m pytest`).
-- `app/security.py` — `in_docker()`, `is_debug_allowed()`, CSRF, `form_data()`.
+- `app/security.py` — `in_docker()`, `is_debug_allowed()`, CSRF, `form_data()`/`json_body()`, `api_guard()`/`session_guard()`.
+- `app/services/auth.py` — argon2id password hashing, in-memory sessions, `login()` (timing-safe + rate-limited), `ensure_admin_user()`.
+- `app/routers/auth.py` — `/api/v1/auth/login|logout` + `/debug/login`; `app/auth.py` — CLI (`hash-password`).
 - `app/web.py` — HTML helpers (dashboard + playground pages).
 - `app/routers/{events,feeds,debug,pipeline,ingest,wipe,tests,retag,api}.py` — HTTP handlers.
 - `app/public.py`, `app/admin.py` — the two listeners.
@@ -81,7 +83,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (192)
+.venv/bin/python -m pytest                       # test suite (207)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -99,6 +101,17 @@ docker compose up --build                        # public + admin services
   thin clients of those endpoints, never a second implementation. All real logic
   lives in `app/services/*` — specifically `app/services/actions.py`, which both
   the API router and the HTML routers call. New interactive work defaults to this.
+- **Authentication (F48)** — passwords are argon2id-hashed (never plaintext) and
+  stored in the `users` table; sessions are opaque in-memory tokens (24h TTL, lost
+  on restart) issued over `HttpOnly`+`SameSite=Strict` cookies. Login is
+  timing-safe (dummy verify for unknown users), returns a generic
+  "invalid credentials" error, and is rate-limited (429 after 5 failures/5 min).
+  Argon2 params are pinned (`ARGON2_TIME_COST`/`MEMORY_COST`/`PARALLELISM`) and
+  stale hashes are transparently re-hashed on login (`check_needs_rehash`); an
+  optional `pepper` (env, HMAC-keyed before hashing) adds defense-in-depth
+  (changing it invalidates existing hashes — regenerate them). The `/debug`
+  dashboard is session-gated (redirect to `/debug/login`); `/api/v1/*` still uses
+  the `api_token` bearer for bots. Admin-side only — the public API is unchanged.
 - **Contracts are versioned + test-enforced** — each stage contract doc
   (`docs/*_CONTRACT.md`) carries a `Version: N` stamp; the stage module declares
   `CONTRACT_VERSION = N` (with a `# Contract: <stage> vN` comment);
@@ -192,6 +205,8 @@ System fields in `config.yaml` (env prefix `RIPCALE_`; `.env` overrides):
 - `debug_allowed_cidrs` — extra IPv4 CIDRs for the admin endpoints (loopback always allowed).
 - `debug_token` — optional fixed CSRF token (auto-generated if empty).
 - `api_token` — bearer token for `/api/v1/*` (empty = API disabled).
+- `admin_username` / `admin_password_hash` — bootstrap admin login (argon2id hash; generate with `python -m app.auth hash-password`).
+- `pepper` — optional secret keyed (HMAC-SHA256) into every password before hashing (empty = disabled; generate with `python -m app.auth gen-pepper`).
 
 Intake fields in `intake.yaml` (`app/intake.py`):
 

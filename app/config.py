@@ -69,6 +69,16 @@ class Settings(BaseSettings):
     # Bearer token for the /api/v1/* admin API. If empty, the API is disabled.
     api_token: str = ""
 
+    # Admin login (bootstrap only — seeds the initial `User` row). `admin_password_hash`
+    # is an argon2id hash (generate with `python -m app.auth hash-password`).
+    admin_username: str = "admin"
+    admin_password_hash: str = ""
+
+    # Optional pepper: a secret keyed into every password before hashing
+    # (defense-in-depth if the DB alone leaks). Empty = disabled. Generate with
+    # `python -m app.auth gen-pepper`. Changing it invalidates existing hashes.
+    pepper: str = ""
+
     @classmethod
     def settings_customise_sources(
         cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings

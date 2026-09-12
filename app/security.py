@@ -11,6 +11,7 @@ Two protections:
 """
 #region: imports
 import ipaddress
+import json
 import os
 import secrets
 from urllib.parse import parse_qs
@@ -56,6 +57,43 @@ def form_data(request) -> dict:
     if isinstance(body, bytes):
         body = body.decode("utf-8", errors="replace")
     return {key: value[-1] for key, value in parse_qs(body).items()}
+
+
+def json_body(request) -> dict:
+    """Parse a JSON request body into a dict ({} if empty/invalid)."""
+    json_fn = getattr(request, "json", None)
+    if callable(json_fn):
+        try:
+            data = json_fn()
+        except Exception:
+            data = None
+        if isinstance(data, dict):
+            return data
+
+    body = getattr(request, "body", None)
+    if not body:
+        return {}
+    if isinstance(body, bytes):
+        body = body.decode("utf-8", errors="replace")
+    try:
+        data = json.loads(body)
+    except (json.JSONDecodeError, TypeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def cookie_value(request, name: str) -> str | None:
+    """Return a cookie's value from the request's `Cookie` header, if present."""
+    headers = getattr(request, "headers", None)
+    header = headers.get("cookie") if headers else None
+    if not header:
+        return None
+    for part in header.split(";"):
+        if "=" in part:
+            key, _, value = part.partition("=")
+            if key.strip() == name:
+                return value.strip()
+    return None
 #endregion
 
 
@@ -144,6 +182,25 @@ def api_guard(request) -> Response | None:
     if not settings.api_token:
         return Response(status_code=503, headers={"Content-Type": "application/json"}, description=jsonify({"ok": False, "error": "API not configured"}))
     if not verify_api_token(request):
+        return Response(status_code=401, headers={"Content-Type": "application/json"}, description=jsonify({"ok": False, "error": "unauthorized"}))
+    return None
+#endregion
+
+
+#region: session guard
+SESSION_COOKIE = "ripcale_session"
+
+
+def session_guard(request) -> Response | None:
+    """Return a Response if the request is not session-authenticated, else None.
+
+    404 (disallowed IP) or 401 (no valid session cookie).
+    """
+    if not is_debug_allowed(getattr(request, "ip_addr", None)):
+        return Response(status_code=404, headers={}, description="")
+    from app.services.auth import validate_session
+
+    if validate_session(cookie_value(request, SESSION_COOKIE)) is None:
         return Response(status_code=401, headers={"Content-Type": "application/json"}, description=jsonify({"ok": False, "error": "unauthorized"}))
     return None
 #endregion

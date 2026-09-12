@@ -5,7 +5,6 @@ guarded by `api_guard`, and returns a `{ok, data|error}` envelope. The handlers
 are thin wrappers over `app.services.actions` (the single source of truth).
 """
 #region: imports
-import json
 import logging
 from datetime import datetime
 from functools import wraps
@@ -14,7 +13,7 @@ from urllib.parse import unquote_plus
 from robyn import Response, jsonify
 
 from app.logging import LOG_TAIL_LINES
-from app.security import api_guard
+from app.security import api_guard, json_body
 from app.services import actions
 from app.services.actions import ActionError
 #endregion
@@ -48,29 +47,6 @@ def _route(fn):
             logger.exception("api handler failed")
             return _err(str(exc), 500)
     return wrapper
-
-
-def _json_body(request) -> dict:
-    """Parse a JSON request body into a dict ({} if empty/invalid)."""
-    json_fn = getattr(request, "json", None)
-    if callable(json_fn):
-        try:
-            data = json_fn()
-        except Exception:
-            data = None
-        if isinstance(data, dict):
-            return data
-
-    body = getattr(request, "body", None)
-    if not body:
-        return {}
-    if isinstance(body, bytes):
-        body = body.decode("utf-8", errors="replace")
-    try:
-        data = json.loads(body)
-    except (json.JSONDecodeError, TypeError):
-        return {}
-    return data if isinstance(data, dict) else {}
 
 
 def _q(request, key: str) -> str | None:
@@ -167,12 +143,12 @@ def register(app) -> None:
     @app.post(f"{prefix}/ingest")
     @_route
     def api_ingest(request):
-        return _ok(actions.ingest(dry_run=_json_body(request).get("dry_run", True)))
+        return _ok(actions.ingest(dry_run=json_body(request).get("dry_run", True)))
 
     @app.post(f"{prefix}/retag")
     @_route
     def api_retag(request):
-        data = _json_body(request)
+        data = json_body(request)
         return _ok(actions.retag(data.get("from") or "", data.get("to"), data.get("dry_run", True)))
 
     @app.post(f"{prefix}/wipe/begin")
@@ -183,19 +159,19 @@ def register(app) -> None:
     @app.post(f"{prefix}/wipe/confirm")
     @_route
     def api_wipe_confirm(request):
-        return _ok(actions.wipe_confirm(_json_body(request).get("challenge") or ""))
+        return _ok(actions.wipe_confirm(json_body(request).get("challenge") or ""))
 
     @app.post(f"{prefix}/tests")
     @_route
     def api_tests_run(request):
-        test_id = (_json_body(request).get("test") or "").strip() or None
+        test_id = (json_body(request).get("test") or "").strip() or None
         return _ok(actions.tests_run(test_id))
 
     # -- pipeline stages -----------------------------------------------------
     @app.post(f"{prefix}/pipeline/gather")
     @_route
     def api_pipeline_gather(request):
-        cfg = actions.resolve_source_spec(_json_body(request))
+        cfg = actions.resolve_source_spec(json_body(request))
         if cfg is None:
             return _err("bad source spec")
         return _ok(actions.gather(cfg))
@@ -203,7 +179,7 @@ def register(app) -> None:
     @app.post(f"{prefix}/pipeline/sieve")
     @_route
     def api_pipeline_sieve(request):
-        cfg = actions.resolve_source_spec(_json_body(request))
+        cfg = actions.resolve_source_spec(json_body(request))
         if cfg is None:
             return _err("bad source spec")
         return _ok(actions.sieve(cfg))
@@ -211,7 +187,7 @@ def register(app) -> None:
     @app.post(f"{prefix}/pipeline/decide")
     @_route
     def api_pipeline_decide(request):
-        data = _json_body(request)
+        data = json_body(request)
         cfg = actions.resolve_source_spec(data)
         if cfg is None:
             return _err("bad source spec")
@@ -220,7 +196,7 @@ def register(app) -> None:
     @app.post(f"{prefix}/pipeline/categorize")
     @_route
     def api_pipeline_categorize(request):
-        data = _json_body(request)
+        data = json_body(request)
         cfg = actions.resolve_source_spec(data)
         if cfg is None:
             return _err("bad source spec")
