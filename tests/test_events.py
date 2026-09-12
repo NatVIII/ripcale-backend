@@ -22,7 +22,7 @@ def _make_event(**kw):
 
 
 def test_to_fullcalendar():
-    e = _make_event(categories="art,workshop", description="<p>hi</p>", url="https://x")
+    e = _make_event(categories="external:art,external:workshop", description="<p>hi</p>", url="https://x")
     out = to_fullcalendar(e, "Studio Two Three")
     assert out["id"] == "e1"
     assert out["title"] == "T"
@@ -30,7 +30,7 @@ def test_to_fullcalendar():
     assert out["end"] == "2026-09-10T20:00:00Z"
     assert out["allDay"] is False
     assert out["url"] == "https://x"
-    assert out["extendedProps"]["categories"] == ["art", "workshop"]
+    assert out["extendedProps"]["categories"] == ["external:art", "external:workshop"]
     assert out["extendedProps"]["description"] == "<p>hi</p>"
     assert out["extendedProps"]["source"] == "Studio Two Three"
 
@@ -94,7 +94,7 @@ def test_query_events(tmp_path):
                 id="now",
                 source_id=src.id,
                 title="Now",
-                categories="art",
+                categories="external:art",
             )
         )
         session.commit()
@@ -103,7 +103,7 @@ def test_query_events(tmp_path):
         assert [e.title for e in query_events(session)] == ["Now", "Past"]
         assert [e.title for e in query_events(session, start=datetime(2026, 1, 1))] == ["Now"]
         assert [e.title for e in query_events(session, end=datetime(2025, 1, 1))] == ["Past"]
-        assert [e.title for e in query_events(session, category="art")] == ["Now"]
+        assert [e.title for e in query_events(session, category="external:art")] == ["Now"]
         assert [e.title for e in query_events(session, limit=1)] == ["Now"]
 
 
@@ -121,7 +121,7 @@ def test_endpoints(tmp_path, monkeypatch):
         session.add(src)
         session.commit()
         session.refresh(src)
-        session.add(_make_event(id="e1", source_id=src.id, title="Upcoming", categories="art,workshop"))
+        session.add(_make_event(id="e1", source_id=src.id, title="Upcoming", categories="external:art,external:workshop"))
         session.add(
             _make_event(
                 id="e2",
@@ -129,7 +129,7 @@ def test_endpoints(tmp_path, monkeypatch):
                 title="Past",
                 start_at=datetime(2020, 1, 1, 0, 0),
                 end_at=datetime(2020, 1, 1, 1, 0),
-                categories="Film Screenings",
+                categories="external:film-screenings",
             )
         )
         session.commit()
@@ -146,13 +146,13 @@ def test_endpoints(tmp_path, monkeypatch):
     assert r.status_code == 200
     data = r.json()
     assert [e["title"] for e in data] == ["Upcoming", "Past"]
-    assert data[0]["extendedProps"]["categories"] == ["art", "workshop"]
+    assert data[0]["extendedProps"]["categories"] == ["external:art", "external:workshop"]
     assert data[0]["extendedProps"]["source"] == "Studio Two Three"
 
-    r = client.get("/events", query_params={"category": "art"})
+    r = client.get("/events", query_params={"category": "external:art"})
     assert [e["title"] for e in r.json()] == ["Upcoming"]
 
-    r = client.get("/events", query_params={"category": "Film%20Screenings"})
+    r = client.get("/events", query_params={"category": "external:film-screenings"})
     assert [e["title"] for e in r.json()] == ["Past"]
 
     r = client.get(

@@ -149,6 +149,12 @@ Events are served in FullCalendar's `event-parsing` format (`id`, `title`,
 `start`, `end`, `allDay`, `url`, `extendedProps` for description/location/
 categories/images/timezone/source).
 
+Categories are `class:name` identities. Only the **"true"** categories (classes
+listed in `intake.yaml`'s `exposed_classes`, default `external`) are exposed by
+`/events`, `/feed.ics`, and `/api/v1/events`; internal `intake:*` categories (and
+anything else) stay in the DB for data integrity but are hidden from the public
+read path.
+
 | Endpoint | Description |
 |---|---|
 | `GET /events?start=&end=&category=&limit=` | list events (ISO range + tag filter) |

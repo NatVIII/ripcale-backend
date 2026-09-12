@@ -67,6 +67,23 @@ def test_self_symlink_reports_warning(tmp_path, monkeypatch):
     _setup(tmp_path, monkeypatch, "category_symlinks:\n  art: art\n")
     issues = check()
     assert any(i["severity"] == "warning" and "maps to itself" in i["message"] for i in issues)
+
+
+def test_undefined_exposed_class_reports_warning(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch, "exposed_classes: [featured]\ncategory_definitions:\n  external: [art]\n")
+    issues = check()
+    assert any(i["severity"] == "warning" and "exposed class 'featured'" in i["message"] for i in issues)
+
+
+def test_symlink_to_non_exposed_class_reports_warning(tmp_path, monkeypatch):
+    _setup(
+        tmp_path,
+        monkeypatch,
+        "category_symlinks:\n  \"intake:raw\": \"intake:canonical\"\n"
+        "category_definitions:\n  external: [art]\n  intake: [raw, canonical]\n",
+    )
+    issues = check()
+    assert any(i["severity"] == "warning" and "non-exposed class" in i["message"] for i in issues)
 #endregion
 
 

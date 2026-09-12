@@ -1,3 +1,13 @@
+## 2026-09-07 23:30:00 [AI]
+
+F17: true-category exposure (class-gated public categories).
+
+- `app/intake.py`: `IntakeSettings.exposed_classes: list[str]` (default `["external"]`) — the classes whose categories are the public "true" categories.
+- `app/services/categories.py`: `exposed_classes()` (memoized frozenset), `expose()` (drop non-exposed categories), and `resolve_event_categories()` now resolves symlinks **then** filters to exposed classes. The low-level `resolve_categories()` stays unfiltered.
+- Public read path (`/events`, `/events/{id}`, `/feed.ics`, `/api/v1/events`) now exposes only "true" categories; internal `intake:*` categories stay in the DB but are hidden. Admin raw views (`/debug`, `/debug/stats`, `/debug/events/:id`) unchanged.
+- `app/services/coherence.py`: warnings when an `exposed_classes` entry isn't defined in `category_definitions`, and when a symlink target resolves to a non-exposed class.
+- Tests: exposure filtering (categories/events/ics/intake/coherence); 223 passing.
+
 ## 2026-09-07 23:00:00 [AI]
 
 F48.05 + F48.06: DB-backed credentials + per-user API tokens (unified auth).

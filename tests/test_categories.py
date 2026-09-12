@@ -6,6 +6,8 @@ from app.intake import IntakeSettings, save
 from app.services.categories import (
     DEFAULT_CLASS,
     category_class,
+    expose,
+    exposed_classes,
     qualify,
     resolve_categories,
     resolve_event_categories,
@@ -14,11 +16,14 @@ from app.services.categories import (
 #endregion
 
 
-def _configure(tmp_path, monkeypatch, definitions=None, symlinks=None):
+def _configure(tmp_path, monkeypatch, definitions=None, symlinks=None, exposed=None):
     from app.config import settings
 
     monkeypatch.setattr(settings, "intake_file", str(tmp_path / "intake.yaml"))
-    save(IntakeSettings(category_definitions=definitions or {}, category_symlinks=symlinks or {}))
+    kwargs = {"category_definitions": definitions or {}, "category_symlinks": symlinks or {}}
+    if exposed is not None:
+        kwargs["exposed_classes"] = exposed
+    save(IntakeSettings(**kwargs))
 
 
 #region: slugify
@@ -98,6 +103,37 @@ def test_resolve_event_categories_empty(tmp_path, monkeypatch):
 #endregion
 
 
+#region: exposure
+def test_exposed_classes_defaults_to_external(tmp_path, monkeypatch):
+    _configure(tmp_path, monkeypatch, definitions={"external": ["art"]})
+    assert exposed_classes() == frozenset({"external"})
+
+
+def test_expose_keeps_only_exposed_classes(tmp_path, monkeypatch):
+    _configure(tmp_path, monkeypatch, exposed=["external"])
+    assert expose(["external:art", "intake:raw", "external:music"]) == ["external:art", "external:music"]
+    assert expose(["intake:raw", "intake:other"]) == []
+
+
+def test_resolve_event_categories_filters_internal(tmp_path, monkeypatch):
+    _configure(tmp_path, monkeypatch, symlinks={"intake:visual-arts": "external:art"})
+    assert resolve_event_categories("intake:visual-arts,intake:unsymlinked,external:music") == [
+        "external:art",
+        "external:music",
+    ]
+
+
+def test_resolve_event_categories_internal_only_returns_empty(tmp_path, monkeypatch):
+    _configure(tmp_path, monkeypatch)
+    assert resolve_event_categories("intake:unsymlinked") == []
+
+
+def test_expose_respects_custom_exposed_classes(tmp_path, monkeypatch):
+    _configure(tmp_path, monkeypatch, exposed=["intake"])
+    assert expose(["external:art", "intake:raw"]) == ["intake:raw"]
+#endregion
+
+
 #region: integration
 def _event(categories):
     from app.models import Event
@@ -136,6 +172,39 @@ def test_ics_resolves_symlinks(tmp_path, monkeypatch):
     _configure(tmp_path, monkeypatch, symlinks={"intake:art-exhibition": "external:art"})
     ical = event_to_vevent(_event("intake:art-exhibition,external:music")).to_ical().decode()
     assert "CATEGORIES:external:art,external:music" in ical
+
+
+def test_serializer_filters_internal_categories(tmp_path, monkeypatch):
+    from app.serializers import to_fullcalendar
+
+    _configure(tmp_path, monkeypatch, symlinks={"intake:art-exhibition": "external:art"})
+    payload = to_fullcalendar(_event("intake:art-exhibition,intake:unsymlinked"))
+    assert payload["extendedProps"]["categories"] == ["external:art"]
+
+
+def test_query_events_filter_internal_returns_nothing(tmp_path, monkeypatch):
+    from sqlmodel import Session, SQLModel, create_engine
+
+    from app.services.events import query_events
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'filter2.db'}")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        session.add(_event("intake:unsymlinked"))
+        session.commit()
+
+    _configure(tmp_path, monkeypatch)
+    with Session(engine) as session:
+        assert query_events(session, category="intake:unsymlinked") == []
+
+
+def test_ics_filters_internal_categories(tmp_path, monkeypatch):
+    from app.services.ics import event_to_vevent
+
+    _configure(tmp_path, monkeypatch, symlinks={"intake:art-exhibition": "external:art"})
+    ical = event_to_vevent(_event("intake:art-exhibition,intake:unsymlinked")).to_ical().decode()
+    assert "CATEGORIES:external:art" in ical
+    assert "intake:unsymlinked" not in ical
 
 
 def test_debug_categories_show_symlink(tmp_path, monkeypatch, session_headers):

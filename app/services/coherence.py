@@ -129,9 +129,21 @@ def _check_categories(intake: IntakeSettings) -> list[dict]:
         if slugify(class_name) != class_name:
             issues.append(_issue("warning", "intake", f"class {class_name!r} is not a valid slug (becomes {slugify(class_name)!r})"))
 
+    exposed = {slugify(c) for c in intake.exposed_classes}
+    defined = {slugify(c) for c in intake.category_definitions}
+    if defined:
+        for class_name in sorted(exposed - defined):
+            issues.append(
+                _issue("warning", "intake", f"exposed class {class_name!r} is not defined in category_definitions")
+            )
+
     for internal, external in intake.category_symlinks.items():
         if internal == external:
             issues.append(_issue("warning", "intake", f"category symlink {internal!r} maps to itself"))
+        elif external.split(":", 1)[0] not in exposed:
+            issues.append(
+                _issue("warning", "intake", f"category symlink {internal!r} resolves to a non-exposed class {external!r}")
+            )
 
     return issues
 #endregion

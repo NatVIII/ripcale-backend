@@ -29,6 +29,9 @@ class IntakeSettings(BaseModel):
     category_symlinks: dict[str, str] = Field(default_factory=dict)
     # Class-first: `{class: [category, ...]}`. `intake` = auto-ingested, `external` = exposed.
     category_definitions: dict[str, list[str]] = Field(default_factory=dict)
+    # Classes whose categories are publicly exposed (the "true" categories).
+    # Everything else is internal-only and hidden from the public read path.
+    exposed_classes: list[str] = Field(default_factory=lambda: ["external"])
     # Categorization rules applied to every event (global scope).
     rules: list[CategoryRule] = Field(default_factory=list)
 #endregion

@@ -160,6 +160,13 @@ docker compose up --build                        # public + admin services
   is sugar for an `assign` rule, plus `sources[].rules`), and **`default_location`
   is filled in the sieve** — both before hashing, so they participate in change
   detection.
+- **Category exposure is read-time, class-gated (F17)** — the DB keeps *all*
+  categories (including internal `intake:*` ones) for data integrity; only the
+  public read path (`/events`, `/events/{id}`, `/feed.ics`, `/api/v1/events`)
+  filters them via `resolve_event_categories()`, which resolves symlinks then
+  drops any category whose class isn't in `exposed_classes` (default
+  `["external"]`). Admin raw views (`/debug`, `/debug/stats`,
+  `/debug/events/:id`) still show everything.
 - **Gatherer errors are caught, not fatal** — `ingest.run()` logs each failed
   source (with a rollback) and continues; the pipeline playground returns a
   clear error page. Logging is via `logging.getLogger(__name__)` (configured by
@@ -220,6 +227,7 @@ Intake fields in `intake.yaml` (`app/intake.py`):
 - `sources` — list of `{name, gatherer, url, is_public, priority, default_categories, default_location, rules}`; an optional source `priority` overrides the gatherer default (fallback 0); optional `default_location` fills missing/blank event locations; `rules` are categorization heuristics (see `docs/CATEGORIZE_CONTRACT.md`).
 - `category_symlinks` — `{"class:name": "class:name"}` mapping, resolved at read time by `app/services/categories.resolve_event_categories()` (F26/F51).
 - `category_definitions` — class-first `{class: [names, ...]}`; classes are fully dynamic, unlisted names default to `intake`. Names+classes are slugified to `[a-z0-9-]` at the categorize gate (F46/F51).
+- `exposed_classes` — list of classes (default `["external"]`) whose categories are the "true", publicly-exposed categories. Every other class is internal-only: kept in the DB but hidden from `/events`, `/feed.ics`, and `/api/v1/events` (F17).
 
 ## Maintenance (do this on every change)
 

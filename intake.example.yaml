@@ -52,7 +52,7 @@ sources:
 # ---------------------------------------------------------------------------
 # Categories are `class:name` identities. The class is a fully dynamic label;
 # `intake` is the default class for tags a gatherer introduces, and any other
-# class (e.g. `external`) is just a label you use — nothing special in code.
+# class (e.g. `external`) is just a label you use.
 #
 #   category_definitions — class -> [names] (class-first).
 #       Maps each name to its class. Unlisted names default to `intake`.
@@ -61,8 +61,15 @@ sources:
 #       Resolves a raw internal category onto a canonical external one. Both
 #       sides are full class:name identities.
 #
-# Names and classes are slugified to `[a-z0-9-]` at ingest, so write them
+#   exposed_classes — the classes whose categories are the "true" categories,
+#       publicly exposed by /events, /feed.ics, and /api/v1/events. Every other
+#       class (e.g. the internal `intake` categories a symlink maps *from*) is
+#       kept in the DB but hidden from the public read path.
+#
+# - Names and classes are slugified to `[a-z0-9-]` at ingest, so write them
 # lowercase with dashes.
+# - For categories, in format `XXX:YYY`, XXX is the class, and YYY is the name. 
+# All categories need to be defined explicitly be this combined category:name referer
 category_symlinks:
   "intake:visual-arts": "external:art"
   "intake:art-exhibition": "external:art"
@@ -72,3 +79,6 @@ category_definitions:
   external:
     - art
     - music
+
+exposed_classes:
+  - external

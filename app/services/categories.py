@@ -6,8 +6,11 @@ category identity, not a lookup. Classes are fully dynamic (arbitrary strings);
 classes are slugified (`[a-z0-9-]`) at the categorize gate before they reach the
 DB, so every category is a clean, unambiguous `class:name` slug.
 
-Read-time: `resolve_event_categories()` only applies `category_symlinks`
-(`class:name` → `class:name`); the class is already baked into the stored string.
+Read-time: `resolve_event_categories()` applies `category_symlinks`
+(`class:name` → `class:name`) and then drops any category whose class is not in
+`exposed_classes` (the public "true" categories). The class is already baked
+into the stored string; the low-level `resolve_categories()` stays unfiltered so
+admin views and tests can see everything.
 """
 #region: imports
 import re
@@ -50,6 +53,30 @@ def qualify(name: str) -> str:
 #endregion
 
 
+#region: exposure
+_exposed_cache: dict = {"key": None, "data": None}
+
+
+def exposed_classes() -> frozenset[str]:
+    """The slugified classes whose categories are publicly exposed (the "true" ones)."""
+    intake = load_intake()
+    if _exposed_cache["key"] is not id(intake):
+        _exposed_cache["key"] = id(intake)
+        _exposed_cache["data"] = frozenset(slugify(c) for c in intake.exposed_classes if slugify(c))
+    return _exposed_cache["data"]
+
+
+def _is_exposed(category: str) -> bool:
+    """True when `class:name` belongs to an exposed class."""
+    return category.split(":", 1)[0] in exposed_classes()
+
+
+def expose(categories: list[str]) -> list[str]:
+    """Keep only the exposed ("true") categories; dedupe + sort."""
+    return sorted({c for c in categories if _is_exposed(c)})
+#endregion
+
+
 #region: symlinks
 def resolve_categories(categories: list[str], links: dict[str, str] | None = None) -> list[str]:
     """Map each `class:name` via `category_symlinks` (else pass through); dedupe + sort."""
@@ -59,8 +86,10 @@ def resolve_categories(categories: list[str], links: dict[str, str] | None = Non
 
 
 def resolve_event_categories(comma_joined: str | None) -> list[str]:
-    """Split a stored comma-joined `class:name` string and resolve its symlinks."""
+    """Split a stored comma-joined `class:name` string, resolve symlinks, and
+    expose only the "true" categories (dropping internal ones)."""
     if not comma_joined:
         return []
-    return resolve_categories([c for c in comma_joined.split(",") if c])
+    resolved = resolve_categories([c for c in comma_joined.split(",") if c])
+    return expose(resolved)
 #endregion

@@ -6,10 +6,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
 
-- [ ] F48.02 - WebAuthn/passkeys (phishing-resistant login upgrade).
-- [ ] F48.03 - OIDC / third-party sign-in.
-- [ ] F17 - Category → color mapping (Elfsight `categoryColor` not yet stored). Configured inside of the config.yaml, assigning colors to different categories. 
-- [ ] F17.01 There should also be a way to specify which categories are the "true" categories, which are meant to be publicly exposed as that kind for sortation (in truth a very small list of "true" categories) from the internal symlinked categories only kept so that data isn't being deleted from the original source.
 - [ ] F29 - Category and symlink mapping on the /debug page
 - [ ] F13 - Relevance/expiry filter in `sieve._relevance()`: drop events older than X days and farther than Y days in the future (currently pass-through). Single config + single shared expiry logic (with F22).
 - [ ] F22 - DB trash handling / garbage collection: archive (soft-delete) events older than X days instead of deleting them - keep them saved for future reference, but exclude them from the normal read path. Shares the same expiry config + logic as F13 (one implementation, no duplicated handlers).
@@ -86,6 +82,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F48.04 - Multi-user management: `create_user`/`change_password`/`remove_user`/`list_users` in auth.py + CLI subcommands (2026-09-07)
 - [x] F48.01 - Account lockout: 5 failures → 423 locked for 15 min (complements the 429 rate limiter) (2026-09-07)
 - [x] F48.05 + F48.06 - DB-backed sessions + per-user API tokens: `LoginSession`/`ApiToken` tables, `authenticated_user()` unifies session-or-bearer auth, removed the shared `api_token`, wipe clears credentials, `app.auth token create/list/revoke` (2026-09-07)
+- [x] F17 - True-category exposure: `exposed_classes` (default `["external"]`) gates the public read path — `resolve_event_categories()` resolves symlinks then drops non-exposed classes, so `/events`/`/feed.ics`/`/api/v1/events` expose only "true" categories while internal `intake:*` categories stay in the DB; coherence warns on undefined exposed classes / non-exposed symlink targets (2026-09-07)
 
 ## Deleted
 - [ ] F30 - Deleted Event

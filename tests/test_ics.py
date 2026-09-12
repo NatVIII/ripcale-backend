@@ -14,7 +14,7 @@ def _make_event(**kw):
         title="Test",
         start_at=datetime(2026, 9, 10, 18, 0),
         end_at=datetime(2026, 9, 10, 20, 0),
-        categories="art,workshop",
+        categories="external:art,external:workshop",
         description="<p>hello &amp; welcome</p>",
         location="Studio Two Three",
         url="https://x.com",
@@ -32,7 +32,7 @@ def test_event_to_vevent():
     assert "DTSTART:20260910T180000Z" in ical
     assert "DTEND:20260910T200000Z" in ical
     assert "UID:e1" in ical
-    assert "CATEGORIES:art,workshop" in ical
+    assert "CATEGORIES:external:art,external:workshop" in ical
     assert "LOCATION:Studio Two Three" in ical
     assert "ATTACH:https://x.com/img.jpg" in ical
     assert "X-RVA-SOURCE:Studio Two Three" in ical
@@ -106,8 +106,8 @@ def test_feed_endpoints(tmp_path, monkeypatch):
         session.add(src)
         session.commit()
         session.refresh(src)
-        session.add(_make_event(id="e1", source_id=src.id, title="Upcoming", categories="art"))
-        session.add(_make_event(id="e2", source_id=src.id, title="Music Night", categories="music"))
+        session.add(_make_event(id="e1", source_id=src.id, title="Upcoming", categories="external:art"))
+        session.add(_make_event(id="e2", source_id=src.id, title="Music Night", categories="external:music"))
         session.commit()
 
     monkeypatch.setattr(feeds_mod, "engine", engine)
@@ -123,7 +123,7 @@ def test_feed_endpoints(tmp_path, monkeypatch):
     assert "SUMMARY:Upcoming" in r.text
     assert "SUMMARY:Music Night" in r.text
 
-    r = client.get("/feed.ics", query_params={"tag": "art"})
+    r = client.get("/feed.ics", query_params={"tag": "external:art"})
     assert "SUMMARY:Upcoming" in r.text
     assert "SUMMARY:Music Night" not in r.text
 

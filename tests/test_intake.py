@@ -15,6 +15,7 @@ def test_load_missing_file_returns_defaults(tmp_path, monkeypatch):
     assert intake.category_symlinks == {}
     assert intake.category_definitions == {}
     assert intake.rules == []
+    assert intake.exposed_classes == ["external"]
 
 
 def test_save_and_load_round_trip(tmp_path, monkeypatch):
@@ -29,6 +30,7 @@ def test_save_and_load_round_trip(tmp_path, monkeypatch):
             gatherers={"elfsight": GathererConfig(priority=5)},
             category_symlinks={"art-exhibition": "art"},
             category_definitions={"external": ["art"]},
+            exposed_classes=["external", "featured"],
             rules=[CategoryRule(mode="assign", categories=["community"])],
         )
     )
@@ -38,6 +40,7 @@ def test_save_and_load_round_trip(tmp_path, monkeypatch):
     assert intake.gatherers["elfsight"].priority == 5
     assert intake.category_symlinks == {"art-exhibition": "art"}
     assert intake.category_definitions == {"external": ["art"]}
+    assert intake.exposed_classes == ["external", "featured"]
     assert [r.mode for r in intake.rules] == ["assign"]
 
 
