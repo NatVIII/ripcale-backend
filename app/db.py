@@ -11,7 +11,7 @@ from sqlalchemy import event, func
 from sqlmodel import Session, SQLModel, create_engine, delete, select
 
 from app.config import settings
-from app.models import Event, Source
+from app.models import ApiToken, Event, LoginSession, Source
 #endregion
 
 
@@ -60,6 +60,8 @@ def wipe_db() -> tuple[int, int]:
         sources = session.exec(select(func.count()).select_from(Source)).one()
         session.exec(delete(Event))
         session.exec(delete(Source))
+        session.exec(delete(LoginSession))
+        session.exec(delete(ApiToken))
         session.commit()
     return events, sources
 #endregion

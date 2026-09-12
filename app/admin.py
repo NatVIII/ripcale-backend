@@ -47,8 +47,6 @@ retag_router.register(app)     # /debug/retag
 def main() -> None:
     setup_logging()
     init_db()
-    if not settings.api_token:
-        logger.warning("api_token is not set — /api/v1/* is disabled")
     from app.services.auth import ensure_admin_user
 
     if not settings.admin_password_hash:

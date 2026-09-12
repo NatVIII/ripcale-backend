@@ -143,7 +143,5 @@ def _check_config() -> list[dict]:
     data_dir = Path(settings.data_dir)
     if data_dir.exists() and not os.access(data_dir, os.W_OK):
         issues.append(_issue("error", "config", f"data_dir {str(data_dir)!r} is not writable"))
-    if not settings.api_token:
-        issues.append(_issue("warning", "config", "api_token is not set — /api/v1/* is disabled"))
     return issues
 #endregion

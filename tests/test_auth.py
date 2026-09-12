@@ -19,7 +19,6 @@ def _setup(tmp_path, monkeypatch):
     monkeypatch.setattr("app.db.engine", engine)
     monkeypatch.setattr("app.services.actions.engine", engine)
     auth._attempts.clear()
-    auth._sessions.clear()
     auth._lockouts.clear()
     auth._failures.clear()
     return engine
@@ -46,7 +45,7 @@ def test_login_success(tmp_path, monkeypatch):
     _setup(tmp_path, monkeypatch)
     _create_admin(monkeypatch)
     token = auth.login("admin", "hunter2")
-    assert auth.validate_session(token) == "admin"
+    assert auth.validate_session(token) is not None
 
 
 def test_login_wrong_password(tmp_path, monkeypatch):
@@ -102,20 +101,38 @@ def test_lock_expires(tmp_path, monkeypatch):
     # simulate both windows passing
     auth._lockouts["admin"] = time.time() - 1
     auth._attempts.clear()
-    assert auth.validate_session(auth.login("admin", "hunter2")) == "admin"
+    assert auth.validate_session(auth.login("admin", "hunter2")) is not None
 #endregion
 
 
 #region: sessions
-def test_session_validate_expiry():
-    token = auth.create_session("admin")
-    assert auth.validate_session(token) == "admin"
-    auth._sessions[token]["expires"] = time.time() - 1
+def _admin_id(engine):
+    with Session(engine) as session:
+        return session.exec(select(User).where(User.username == "admin")).first().id
+
+
+def test_session_validate_expiry(tmp_path, monkeypatch):
+    from datetime import timedelta
+
+    from app.models import LoginSession, utcnow
+
+    engine = _setup(tmp_path, monkeypatch)
+    _create_admin(monkeypatch)
+    token = auth.create_session(_admin_id(engine))
+    assert auth.validate_session(token) is not None
+
+    with Session(engine) as session:
+        row = session.get(LoginSession, token)
+        row.expires_at = utcnow() - timedelta(seconds=1)
+        session.add(row)
+        session.commit()
     assert auth.validate_session(token) is None
 
 
-def test_session_destroy():
-    token = auth.create_session("admin")
+def test_session_destroy(tmp_path, monkeypatch):
+    engine = _setup(tmp_path, monkeypatch)
+    _create_admin(monkeypatch)
+    token = auth.create_session(_admin_id(engine))
     auth.destroy_session(token)
     assert auth.validate_session(token) is None
 #endregion
@@ -147,7 +164,7 @@ def test_login_route_issues_session(tmp_path, monkeypatch):
     assert r.status_code == 200
     body = r.json()
     assert body["ok"] is True
-    assert auth.validate_session(body["data"]["token"]) == "admin"
+    assert auth.validate_session(body["data"]["token"]) is not None
 
 
 def test_login_route_bad_credentials(tmp_path, monkeypatch):
@@ -162,7 +179,7 @@ def test_dashboard_requires_session(tmp_path, monkeypatch):
     r = client.get("/debug")
     assert r.status_code == 302
 
-    token = auth.create_session("admin")
+    token = auth.create_session(_admin_id(auth.engine))
     r = client.get("/debug", headers={"Cookie": f"ripcale_session={token}"})
     assert r.status_code == 200
 
@@ -214,7 +231,7 @@ def test_login_rehashes_stale_hash(tmp_path, monkeypatch):
         session.commit()
 
     token = auth.login("admin", "hunter2")
-    assert auth.validate_session(token) == "admin"
+    assert auth.validate_session(token) is not None
 
     with Session(engine) as session:
         user = session.exec(select(User).where(User.username == "admin")).first()
@@ -227,7 +244,7 @@ def test_create_user_and_login(tmp_path, monkeypatch):
     _setup(tmp_path, monkeypatch)
     assert auth.create_user("alice", "hunter2") is True
     assert auth.create_user("alice", "again") is False  # taken
-    assert auth.validate_session(auth.login("alice", "hunter2")) == "alice"
+    assert auth.validate_session(auth.login("alice", "hunter2")) is not None
 
 
 def test_change_password(tmp_path, monkeypatch):
@@ -236,7 +253,7 @@ def test_change_password(tmp_path, monkeypatch):
     assert auth.change_password("alice", "newpass") is True
     with pytest.raises(ActionError):
         auth.login("alice", "hunter2")
-    assert auth.validate_session(auth.login("alice", "newpass")) == "alice"
+    assert auth.validate_session(auth.login("alice", "newpass")) is not None
     assert auth.change_password("nobody", "x") is False
 
 
@@ -251,6 +268,43 @@ def test_remove_user_and_list(tmp_path, monkeypatch):
     assert auth.list_users() == ["bob"]
     with pytest.raises(ActionError):
         auth.login("alice", "hunter2")
+#endregion
+
+
+#region: api tokens (F48.06)
+def test_api_token_create_validate_revoke(tmp_path, monkeypatch):
+    engine = _setup(tmp_path, monkeypatch)
+    _create_admin(monkeypatch)
+    user_id = _admin_id(engine)
+
+    raw = auth.create_api_token(user_id, "bot")
+    assert auth.validate_api_token(raw) == user_id
+    assert auth.validate_api_token("bogus") is None
+
+    assert auth.revoke_api_token(raw) is True
+    assert auth.validate_api_token(raw) is None
+    assert auth.revoke_api_token(raw) is False
+
+
+def test_api_token_stored_hashed(tmp_path, monkeypatch):
+    from app.models import ApiToken
+
+    engine = _setup(tmp_path, monkeypatch)
+    _create_admin(monkeypatch)
+    raw = auth.create_api_token(_admin_id(engine), "bot")
+
+    with Session(engine) as session:
+        assert session.get(ApiToken, raw) is None          # raw never stored
+        assert session.get(ApiToken, auth._token_hash(raw)) is not None  # only the hash
+
+
+def test_list_api_tokens(tmp_path, monkeypatch):
+    engine = _setup(tmp_path, monkeypatch)
+    _create_admin(monkeypatch)
+    auth.create_api_token(_admin_id(engine), "bot")
+    tokens = auth.list_api_tokens(_admin_id(engine))
+    assert len(tokens) == 1
+    assert tokens[0]["label"] == "bot"
 #endregion
 
 

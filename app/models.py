@@ -48,6 +48,27 @@ class User(SQLModel, table=True):
 #endregion
 
 
+#region: session
+class LoginSession(SQLModel, table=True):
+    """An opaque login session (DB-backed, expires)."""
+
+    token: str = Field(primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    expires_at: datetime
+#endregion
+
+
+#region: api token
+class ApiToken(SQLModel, table=True):
+    """A per-user API token (only its SHA-256 is stored; raw token shown once)."""
+
+    token_hash: str = Field(primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    label: str = ""
+    created_at: datetime = Field(default_factory=utcnow)
+#endregion
+
+
 #region: event
 class Event(SQLModel, table=True):
     """A normalized event, keyed by a stable string id (see app/identity.py)."""

@@ -20,8 +20,8 @@ It runs as two listeners:
   `/debug/logs`, `/debug/wipe` (challenge-response DB wipe), `/debug/stale`
   (removed-at-source events), `/debug/retag` (mass category rename/remove),
   `/debug/tests` (run the pytest suite), and `/api/v1/*` (the JSON admin API,
-  `api_token`-gated). Loopback-only; inside Docker it auto-binds `0.0.0.0` and
-  accepts the Docker bridge subnet (see gotchas).
+  authenticated by session cookie or a per-user API token). Loopback-only; inside
+  Docker it auto-binds `0.0.0.0` and accepts the Docker bridge subnet (see gotchas).
 
 ## Architecture
 
@@ -48,7 +48,7 @@ Key files:
 - `app/config.py` — `Settings` (system `config.yaml` + .env; env > dotenv > yaml > defaults).
 - `app/intake.py` — `IntakeSettings` + `load()`/`save()` for the mutable `intake.yaml` (sources, gatherers, category symlinks).
 - `app/logging.py` — `setup_logging()` (console + rotating `data/ripcale.log`, idempotent) + `read_log_tail()` (constant-time backward tail for `/debug/logs`).
-- `app/models.py` — `Source`, `Event` (SQLModel).
+- `app/models.py` — `Source`, `Event`, `User`, `LoginSession`, `ApiToken` (SQLModel).
 - `app/db.py` — `engine`, `init_db()`, `wipe_db()` (delete Event→Source, schema intact), WAL + foreign-key pragmas.
 - `app/schema.py` — pipeline contracts (`SourceConfig`, `ScrapedEvent`,
   `ImageRef`, `GathererResult`, `CategoryRule`, `ClassifiedEvent`, `SieveResult`) + `dump_images()`/`load_images()`.
@@ -72,7 +72,7 @@ Key files:
 - `app/services/actions.py` — request-agnostic admin operations (read/write/pipeline + parsing + `ActionError`); the single source of truth shared by `/api/v1/*` and the HTML debug pages.
 - `app/services/testrunner.py` — `collect_tests()` / `run_tests()` (subprocess `python -m pytest`).
 - `app/security.py` — `in_docker()`, `is_debug_allowed()`, CSRF, `form_data()`/`json_body()`, `api_guard()`/`session_guard()`.
-- `app/services/auth.py` — argon2id password hashing, in-memory sessions, `login()` (timing-safe + rate-limited + lockout), `ensure_admin_user()`, user management (`create_user`/`change_password`/`remove_user`/`list_users`).
+- `app/services/auth.py` — argon2id password hashing, DB-backed sessions + hashed per-user API tokens, `login()` (timing-safe + rate-limited + lockout), `ensure_admin_user()`, user management + token management.
 - `app/routers/auth.py` — `/api/v1/auth/login|logout` + `/debug/login`; `app/auth.py` — CLI (`hash-password`).
 - `app/web.py` — HTML helpers (dashboard + playground pages).
 - `app/routers/{events,feeds,debug,pipeline,ingest,wipe,tests,retag,api}.py` — HTTP handlers.
@@ -97,7 +97,7 @@ docker compose up --build                        # public + admin services
 
 - **Admin/debug interactivity is API-first** — every interactive/admin capability
   is exposed as a versioned JSON endpoint under `/api/v1/*` (`{ok, data|error}`
-  envelope, `Authorization: Bearer <api_token>`, IP-gated); HTML debug pages are
+  envelope, `Authorization: Bearer <per-user API token>`, IP-gated); HTML debug pages are
   thin clients of those endpoints, never a second implementation. All real logic
   lives in `app/services/*` — specifically `app/services/actions.py`, which both
   the API router and the HTML routers call. New interactive work defaults to this.
@@ -112,7 +112,10 @@ docker compose up --build                        # public + admin services
   optional `pepper` (env, HMAC-keyed before hashing) adds defense-in-depth
   (changing it invalidates existing hashes — regenerate them). The `/debug`
   dashboard is session-gated (redirect to `/debug/login`); `/api/v1/*` still uses
-  the `api_token` bearer for bots. Admin-side only — the public API is unchanged.
+  the `/debug` dashboard and `/api/v1/*` are both authenticated by one
+  `authenticated_user()` check (a session cookie *or* a per-user API token);
+  `/api/v1/*` no longer has a shared `api_token`. Admin-side only — the public API
+  is unchanged.
 - **Contracts are versioned + test-enforced** — each stage contract doc
   (`docs/*_CONTRACT.md`) carries a `Version: N` stamp; the stage module declares
   `CONTRACT_VERSION = N` (with a `# Contract: <stage> vN` comment);
@@ -205,9 +208,10 @@ System fields in `config.yaml` (env prefix `RIPCALE_`; `.env` overrides):
 - `cors_origins` — CORS origin list (default `*`).
 - `debug_allowed_cidrs` — extra IPv4 CIDRs for the admin endpoints (loopback always allowed).
 - `debug_token` — optional fixed CSRF token (auto-generated if empty).
-- `api_token` — bearer token for `/api/v1/*` (empty = API disabled).
 - `admin_username` / `admin_password_hash` — bootstrap admin login (argon2id hash; generate with `python -m app.auth hash-password`).
 - `pepper` — optional secret keyed (HMAC-SHA256) into every password before hashing (empty = disabled; generate with `python -m app.auth gen-pepper`).
+
+(API tokens are **per-user**, minted in the DB via `python -m app.auth token create <username>` — not an env var.)
 
 Intake fields in `intake.yaml` (`app/intake.py`):
 

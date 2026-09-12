@@ -47,9 +47,9 @@ tracked templates. `intake.example.yaml` ships one real *public* source (Studio
 Two Three) as starter data. API keys and secrets go in `.env` (see
 `.env.example`), never in `config.yaml`. Env vars / `.env` override `config.yaml`.
 
-The admin login and `/api/v1/*` API are configured via `.env` too:
-`RIPCALE_ADMIN_USERNAME`, `RIPCALE_ADMIN_PASSWORD_HASH`, `RIPCALE_PEPPER`
-(login), and `RIPCALE_API_TOKEN` (the admin API bearer token).
+The admin login is configured via `.env` too: `RIPCALE_ADMIN_USERNAME`,
+`RIPCALE_ADMIN_PASSWORD_HASH`, and `RIPCALE_PEPPER`. (API tokens are per-user,
+minted in the DB with `app.auth token create`, not an env var.)
 
 `./data/` holds only generated data (the SQLite DB, logs, status) and is safe to wipe.
 
@@ -63,7 +63,13 @@ The admin app requires a session login. One-time setup:
 .venv/bin/python -m app.admin                     # bootstrap creates the admin user
 ```
 
-Then open `http://127.0.0.1:8082/debug/login` and sign in.
+Then open `http://127.0.0.1:8082/debug/login` and sign in. For bots/automation,
+mint a per-user API token (shown once — save it) and send it as
+`Authorization: Bearer <token>`:
+
+```sh
+.venv/bin/python -m app.auth token create admin --label my-bot
+```
 
 Two gotchas:
 
@@ -111,6 +117,9 @@ Every entrypoint, with its intended use. (Run from the repo root inside the venv
 .venv/bin/python -m app.auth change-password <username>
 .venv/bin/python -m app.auth remove-user <username>
 .venv/bin/python -m app.auth list-users
+.venv/bin/python -m app.auth token create <username> [--label <label>]   # mint an API token (shown once)
+.venv/bin/python -m app.auth token list <username>                        # list a user's tokens (hashes only)
+.venv/bin/python -m app.auth token revoke <token>                         # revoke a token
 ```
 
 ### Dev / Docker
@@ -151,9 +160,10 @@ categories/images/timezone/source).
 ## Admin API (`/api/v1/*`)
 
 A versioned JSON admin API on the **admin** app (`127.0.0.1:8082`), for bots and
-automation. Every response is a `{ok, data|error}` envelope; authenticate with
-`Authorization: Bearer <api_token>` (set `RIPCALE_API_TOKEN`; empty = API
-disabled). Writes default to dry-run where applicable.
+automation. Every response is a `{ok, data|error}` envelope; authenticate with a
+per-user API token (`Authorization: Bearer <token>` — mint one with
+`python -m app.auth token create <username>`), or with a session cookie from the
+login. Writes default to dry-run where applicable.
 
 **Read**
 
@@ -215,7 +225,8 @@ always allowed, other hosts must fall within `debug_allowed_cidrs`.
 The `/debug` dashboard and `/api/v1/*` additionally require authentication:
 
 - **Browser** — log in at `/debug/login`; the session cookie gates `/debug`.
-- **API** — send `Authorization: Bearer <api_token>` to `/api/v1/*`.
+- **API** — send `Authorization: Bearer <per-user token>` to `/api/v1/*`
+  (a session cookie also works — one unified auth check).
 - **CSRF** — the pipeline playground embeds a CSRF token in its forms (set a
   fixed one via `RIPCALE_DEBUG_TOKEN`, or it's auto-generated).
 

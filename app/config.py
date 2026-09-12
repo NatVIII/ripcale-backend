@@ -66,9 +66,6 @@ class Settings(BaseSettings):
     # ephemeral token is generated at startup.
     debug_token: str = ""
 
-    # Bearer token for the /api/v1/* admin API. If empty, the API is disabled.
-    api_token: str = ""
-
     # Admin login (bootstrap only — seeds the initial `User` row). `admin_password_hash`
     # is an argon2id hash (generate with `python -m app.auth hash-password`).
     admin_username: str = "admin"

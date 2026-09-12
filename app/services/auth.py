@@ -1,7 +1,8 @@
-"""Authentication: argon2id password hashing + in-memory sessions + login.
+"""Authentication: argon2id password hashing + DB-backed sessions/tokens + login.
 
-Passwords are hashed with argon2id and never stored plaintext. Sessions are
-opaque, server-generated tokens held in memory (lost on restart). Login is
+Passwords are hashed with argon2id and never stored plaintext. Login sessions
+and per-user API tokens are DB-backed (survive restart); API tokens are stored
+as SHA-256 hashes (the raw value is shown only once at creation). Login is
 timing-safe (a dummy verify runs for unknown users) and rate-limited.
 """
 #region: imports
@@ -9,14 +10,15 @@ import hashlib
 import hmac
 import secrets
 import time
+from datetime import datetime, timedelta
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
-from sqlmodel import Session, select
+from sqlmodel import Session, delete, select
 
 from app.config import settings
 from app.db import engine
-from app.models import User
+from app.models import ApiToken, LoginSession, User, utcnow
 from app.services.actions import ActionError
 #endregion
 
@@ -69,30 +71,84 @@ def _dummy_verify(password: str) -> None:
 
 #region: sessions
 SESSION_TTL = 24 * 3600.0
-_sessions: dict[str, dict] = {}
 
 
-def create_session(username: str) -> str:
+def _session_expiry() -> datetime:
+    return utcnow() + timedelta(seconds=SESSION_TTL)
+
+
+def create_session(user_id: int) -> str:
     token = secrets.token_urlsafe(32)
-    _sessions[token] = {"username": username, "expires": time.time() + SESSION_TTL}
+    with Session(engine) as session:
+        cutoff = utcnow()
+        session.exec(delete(LoginSession).where(LoginSession.user_id == user_id, LoginSession.expires_at < cutoff))
+        session.add(LoginSession(token=token, user_id=user_id, expires_at=_session_expiry()))
+        session.commit()
     return token
 
 
-def validate_session(token: str | None) -> str | None:
+def validate_session(token: str | None) -> int | None:
     if not token:
         return None
-    sess = _sessions.get(token)
-    if sess is None:
-        return None
-    if sess["expires"] < time.time():
-        _sessions.pop(token, None)
-        return None
-    return sess["username"]
+    with Session(engine) as session:
+        row = session.get(LoginSession, token)
+        if row is None:
+            return None
+        if row.expires_at < utcnow():
+            session.delete(row)
+            session.commit()
+            return None
+        return row.user_id
 
 
 def destroy_session(token: str | None) -> None:
-    if token:
-        _sessions.pop(token, None)
+    if not token:
+        return
+    with Session(engine) as session:
+        row = session.get(LoginSession, token)
+        if row is not None:
+            session.delete(row)
+            session.commit()
+#endregion
+
+
+#region: api tokens
+def _token_hash(raw_token: str) -> str:
+    return hashlib.sha256(raw_token.encode()).hexdigest()
+
+
+def create_api_token(user_id: int, label: str = "") -> str:
+    raw = secrets.token_urlsafe(32)
+    with Session(engine) as session:
+        session.add(ApiToken(token_hash=_token_hash(raw), user_id=user_id, label=(label or "").strip()))
+        session.commit()
+    return raw
+
+
+def validate_api_token(raw_token: str | None) -> int | None:
+    if not raw_token:
+        return None
+    with Session(engine) as session:
+        row = session.get(ApiToken, _token_hash(raw_token))
+        return row.user_id if row is not None else None
+
+
+def revoke_api_token(raw_token: str | None) -> bool:
+    if not raw_token:
+        return False
+    with Session(engine) as session:
+        row = session.get(ApiToken, _token_hash(raw_token))
+        if row is None:
+            return False
+        session.delete(row)
+        session.commit()
+    return True
+
+
+def list_api_tokens(user_id: int) -> list[dict]:
+    with Session(engine) as session:
+        rows = session.exec(select(ApiToken).where(ApiToken.user_id == user_id)).all()
+    return [{"token_hash": r.token_hash[:12], "label": r.label, "created_at": r.created_at} for r in rows]
 #endregion
 
 
@@ -179,7 +235,7 @@ def login(username: str, password: str, ip: str | None = None) -> str:
     if needs_rehash(user.password_hash):
         _set_user_hash(username, hash_password(password or ""))
 
-    return create_session(username)
+    return create_session(user.id)
 
 
 def _get_user(username: str) -> User | None:

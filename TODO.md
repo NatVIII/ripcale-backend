@@ -8,8 +8,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 - [ ] F48.02 - WebAuthn/passkeys (phishing-resistant login upgrade).
 - [ ] F48.03 - OIDC / third-party sign-in.
-- [ ] F48.05 - DB-backed sessions (multi-process / reload-friendly; replace in-memory; wipe clears sessions).
-- [ ] F48.06 - Unify session auth with the `api_token` bearer under one "authenticated" concept (per-user API tokens).
 - [ ] F17 - Category → color mapping (Elfsight `categoryColor` not yet stored). Configured inside of the config.yaml, assigning colors to different categories. 
 - [ ] F17.01 There should also be a way to specify which categories are the "true" categories, which are meant to be publicly exposed as that kind for sortation (in truth a very small list of "true" categories) from the internal symlinked categories only kept so that data isn't being deleted from the original source.
 - [ ] F29 - Category and symlink mapping on the /debug page
@@ -87,6 +85,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F48.07 - Argon2 hardening: pinned `ARGON2_*` params, `check_needs_rehash` transparent re-hash on login, optional HMAC `pepper` (env), `python -m app.auth gen-pepper` (2026-09-07)
 - [x] F48.04 - Multi-user management: `create_user`/`change_password`/`remove_user`/`list_users` in auth.py + CLI subcommands (2026-09-07)
 - [x] F48.01 - Account lockout: 5 failures → 423 locked for 15 min (complements the 429 rate limiter) (2026-09-07)
+- [x] F48.05 + F48.06 - DB-backed sessions + per-user API tokens: `LoginSession`/`ApiToken` tables, `authenticated_user()` unifies session-or-bearer auth, removed the shared `api_token`, wipe clears credentials, `app.auth token create/list/revoke` (2026-09-07)
 
 ## Deleted
 - [ ] F30 - Deleted Event

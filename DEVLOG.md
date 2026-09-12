@@ -1,3 +1,15 @@
+## 2026-09-07 23:00:00 [AI]
+
+F48.05 + F48.06: DB-backed credentials + per-user API tokens (unified auth).
+
+- `app/models.py`: `LoginSession` (token, user_id FK, expires_at) + `ApiToken` (sha256 token_hash, user_id FK, label, created_at).
+- `app/services/auth.py`: sessions moved to DB (`create_session(user_id)`/`validate_session`→user_id/`destroy_session`); per-user tokens (`create_api_token` stores the hash + returns the raw once, `validate_api_token`, `revoke_api_token`, `list_api_tokens`).
+- `app/security.py`: `authenticated_user(request)` (session cookie **or** bearer → user_id); `session_guard`/`api_guard` unified to it. Removed `verify_api_token` and the shared `api_token`.
+- Removed `api_token` from `config.py`, `admin.py`, `coherence.py`, `config.example.yaml`, `.env.example`, `conftest.py`.
+- `app/db.py`: `wipe_db()` now also deletes `LoginSession` + `ApiToken`.
+- `app/auth.py` CLI: `token create/list/revoke` (subparser-based); user commands `init_db()` first.
+- Tests: `test_auth.py` (sessions, tokens, hashed-storage, expiry), `test_api.py` (per-user bearer + session-cookie auth), `test_coherence.py` (api_token cases removed); `session_headers` fixture mints a session in a temp engine (213 passing).
+
 ## 2026-09-07 22:10:00 [AI]
 
 Command reference + auth CLI fix.
