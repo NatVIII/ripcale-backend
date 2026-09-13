@@ -1,3 +1,11 @@
+## 2026-09-08 00:30:00 [AI]
+
+F13.01 + F13.02: expiry-filter fixes.
+
+- `app/config.py`: `expire_past_days: int | None = 90` (was non-nullable `int`, so the documented "set null to disable" would raise at startup).
+- `app/services/recurrence.py`: `last_occurrence()` now normalizes RFC 5545 `UNTIL` (`…Z` suffix stripped, ISO-dashed dates collapsed) and explicitly returns `None` for unbounded rules (no `COUNT`/`UNTIL`) — previously an unbounded rule leaked dateutil's `9999` sentinel instead of `None`.
+- Tests: `tests/test_config.py` + `tests/test_recurrence.py` (243 passing).
+
 ## 2026-09-08 00:15:00 [AI]
 
 F13: relevance/expiry filter in the sieve.

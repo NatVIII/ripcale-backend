@@ -7,6 +7,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 ## Backlog
  
 - [ ] F22 - DB trash handling / garbage collection: archive (soft-delete) events older than X days instead of deleting them - keep them saved for future reference, but exclude them from the normal read path. Shares the same expiry config + logic as F13 (one implementation, no duplicated handlers).
+- [ ] F22.01 - Distinguish "expired by relevance (F13)" from "removed at source (F15)" in stale detection, so F22 archiving can treat them differently.
 - [ ] F28 - Event Editor: Edit events on the backend using the /debug API. Keep just regular HTML, no Javascript for this
 - [ ] F44 - Find a preferred way to set up an automatic build pipeline; where development builds can be compiled into releases on github (using the command line preferably because I like it, or without having to create releases and instead just being able to trigger a re-grab and re-build using my terminal with the server) and on release an automatic deployment to a server can occur. Selfishly, this is so that I can build on my PC and then deploy on my testing server.
 - [ ] F25 - Gatherer: Google Calendar Gatherer
@@ -83,6 +84,8 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F17 - True-category exposure: `exposed_classes` (default `["external"]`) gates the public read path — `resolve_event_categories()` resolves symlinks then drops non-exposed classes, so `/events`/`/feed.ics`/`/api/v1/events` expose only "true" categories while internal `intake:*` categories stay in the DB; coherence warns on undefined exposed classes / non-exposed symlink targets (2026-09-07)
 - [x] F29 - Category & symlink mapping on /debug: enriched categories table (class/exposed/symlink) + collapsed "category mapping" section (definitions/symlinks/exposed classes); `actions.category_mapping()` + `GET /api/v1/categories` (2026-09-07)
 - [x] F13 - Relevance/expiry filter in the sieve: `expire_past_days` (default 90) + `expire_future_days` (default None); shared `app/services/expiry.py` + `app/services/recurrence.py` (`last_occurrence`), `SieveResult.dropped`, `classify(now=)`; recurring series expire only once their last occurrence has passed; SIEVE_CONTRACT v4 (2026-09-08)
+- [x] F13.01 - `expire_past_days` made nullable (`int | None = 90`) so `null` disables the past filter as documented (2026-09-08)
+- [x] F13.02 - `last_occurrence()` normalizes RFC 5545 `UNTIL` (`…Z` / ISO-dashed) and returns `None` for unbounded rules instead of leaking dateutil's `9999` sentinel (2026-09-08)
 
 ## Deleted
 - [ ] F30 - Deleted Event

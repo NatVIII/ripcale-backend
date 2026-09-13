@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     # (recurring series only once their last occurrence has passed); `None`
     # disables the filter. `expire_future_days` drops events starting more than
     # N days ahead (None = no future bound).
-    expire_past_days: int = 90
+    expire_past_days: int | None = 90
     expire_future_days: int | None = None
 
     # -- logging ----------------------------------------------------------
