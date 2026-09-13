@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     expire_past_days: int | None = 90
     expire_future_days: int | None = None
 
+    # Archive grace (F22): an event removed at the source is archived only after
+    # it has been stale (unseen) this many hours, guarding against transient
+    # source outages. `None` = never archive removed-at-source events.
+    archive_grace_hours: int | None = 6
+
     # -- logging ----------------------------------------------------------
     # Path to the rotating log file. Relative paths are resolved against
     # `data_dir`; absolute paths are used as-is. Empty = `{data_dir}/ripcale.log`.

@@ -4,7 +4,7 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from app.models import Event, Source
 from app.serializers import to_fullcalendar
-from app.services.events import DEFAULT_LIMIT, query_events
+from app.services.events import DEFAULT_LIMIT, get_event, query_events
 from app.timeutil import parse_iso_utc
 
 
@@ -167,3 +167,36 @@ def test_endpoints(tmp_path, monkeypatch):
 
     r = client.get("/events/nope")
     assert r.status_code == 404
+
+
+def test_query_events_excludes_archived(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'arch.db'}")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        src = Source(name="S", url="https://x")
+        session.add(src)
+        session.commit()
+        session.refresh(src)
+        session.add(_make_event(id="live", source_id=src.id, title="Live"))
+        session.add(_make_event(id="dead", source_id=src.id, title="Dead", archived_at=datetime(2026, 1, 1)))
+        session.commit()
+
+    with Session(engine) as session:
+        assert [e.title for e in query_events(session)] == ["Live"]
+
+
+def test_get_event_hides_archived(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'get.db'}")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        src = Source(name="S", url="https://x")
+        session.add(src)
+        session.commit()
+        session.refresh(src)
+        session.add(_make_event(id="live", source_id=src.id, title="Live"))
+        session.add(_make_event(id="dead", source_id=src.id, title="Dead", archived_at=datetime(2026, 1, 1)))
+        session.commit()
+
+    with Session(engine) as session:
+        assert get_event(session, "live") is not None
+        assert get_event(session, "dead") is None

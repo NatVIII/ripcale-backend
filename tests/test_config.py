@@ -10,4 +10,12 @@ def test_expire_past_days_accepts_none():
 
 def test_expire_future_days_accepts_none():
     assert Settings(expire_past_days=90, expire_future_days=None).expire_future_days is None
+
+
+def test_archive_grace_hours_default():
+    assert Settings(expire_past_days=90, expire_future_days=None).archive_grace_hours == 6
+
+
+def test_archive_grace_hours_accepts_none():
+    assert Settings(archive_grace_hours=None).archive_grace_hours is None
 #endregion

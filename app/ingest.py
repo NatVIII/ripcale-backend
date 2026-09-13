@@ -26,6 +26,7 @@ from app.models import Source, utcnow
 from app.registry import load_gatherer, load_sources
 from app.schema import CategoryRule, GathererResult, SieveResult, SourceConfig
 from app.services.status import record_run, record_status
+from app.services.archive import archive as archive_service
 from app.sieve import classify
 
 logger = logging.getLogger(__name__)
@@ -93,11 +94,14 @@ def _print_report(name: str, sieved: SieveResult, report: dict | None) -> None:
         print(f"  UPDATE {classified.event.title!r} — changed: {changed}")
 
 
-def _write_last_ingest(summaries: list[dict]) -> None:
+def _write_last_ingest(summaries: list[dict], archived: dict | None = None) -> None:
     """Persist the ingest report to `data/last_ingest.json` (wipe-safe)."""
     path = Path(settings.data_dir) / "last_ingest.json"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"timestamp": utcnow().isoformat() + "Z", "sources": summaries}, indent=2))
+    payload = {"timestamp": utcnow().isoformat() + "Z", "sources": summaries}
+    if archived is not None:
+        payload["archived"] = archived
+    path.write_text(json.dumps(payload, indent=2))
 #endregion
 
 
@@ -143,8 +147,13 @@ def _run(dry_run: bool = False) -> tuple[list[SieveResult], list[dict]]:
             )
             if not dry_run:
                 session.commit()
+
+    archived = None
     if not dry_run:
-        _write_last_ingest(summaries)
+        with Session(engine) as session:
+            archived = archive_service(session, dry_run=False)
+            session.commit()
+        _write_last_ingest(summaries, archived)
     return results, summaries
 
 

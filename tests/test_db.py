@@ -46,3 +46,34 @@ def test_event_defaults(tmp_path):
         assert saved.recurrence_id is None
         assert saved.exdates == "[]"
         assert saved.redirect_to_id is None
+
+
+def test_migrate_adds_archived_columns(tmp_path, monkeypatch):
+    import app.db as db_mod
+    from app.config import settings
+    from sqlmodel import create_engine
+
+    path = tmp_path / "mig.db"
+
+    # an old-style table without the archived columns
+    old = create_engine(f"sqlite:///{path}")
+    with old.begin() as conn:
+        conn.exec_driver_sql("CREATE TABLE event (id VARCHAR PRIMARY KEY, title VARCHAR NOT NULL)")
+    old.dispose()
+
+    engine = create_engine(f"sqlite:///{path}")
+    monkeypatch.setattr(db_mod, "engine", engine)
+    monkeypatch.setattr(settings, "database_url", f"sqlite:///{path}")
+    db_mod._migrate()
+
+    with engine.begin() as conn:
+        columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(event)")}
+    assert "archived_at" in columns
+    assert "archived_reason" in columns
+
+    # idempotent — running again is a no-op
+    db_mod._migrate()
+    with engine.begin() as conn:
+        columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(event)")}
+    assert "archived_at" in columns
+    assert "archived_reason" in columns

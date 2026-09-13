@@ -22,7 +22,7 @@ def test_ingest_continues_after_source_failure(tmp_path, monkeypatch):
     monkeypatch.setattr(ingest_mod, "load_sources", lambda: [bad, good])
 
     captured = {}
-    monkeypatch.setattr(ingest_mod, "_write_last_ingest", lambda summaries: captured.setdefault("summaries", summaries))
+    monkeypatch.setattr(ingest_mod, "_write_last_ingest", lambda summaries, archived=None: captured.setdefault("summaries", summaries))
 
     def good_run(cfg):
         return GathererResult(source=cfg, events=[ScrapedEvent(uid="u1", title="Event")])

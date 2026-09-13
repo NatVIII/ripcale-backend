@@ -156,6 +156,11 @@ def register(app) -> None:
         data = json_body(request)
         return _ok(actions.retag(data.get("from") or "", data.get("to"), data.get("dry_run", True)))
 
+    @app.post(f"{prefix}/archive")
+    @_route
+    def api_archive(request):
+        return _ok(actions.archive(dry_run=json_body(request).get("dry_run", True)))
+
     @app.post(f"{prefix}/wipe/begin")
     @_route
     def api_wipe_begin(request):

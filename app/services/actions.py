@@ -21,6 +21,7 @@ from app.registry import load_gatherer, load_sources
 from app.schema import CategoryRule, SourceConfig
 from app.serializers import to_fullcalendar
 from app.services import stats
+from app.services.archive import archive as archive_service
 from app.services.coherence import check as coherence_check
 from app.services.events import DEFAULT_LIMIT, query_events, source_names
 from app.services.retag import retag as retag_service
@@ -146,6 +147,15 @@ def retag(from_cat: str, to_cat: str | None = None, dry_run: bool = True) -> dic
         "dry_run": dry_run,
         "preview": [{"title": t, "before": b, "after": a} for t, b, a in preview],
     }
+
+
+def archive(dry_run: bool = True) -> dict:
+    """Archive expired + removed events (soft-delete); see app/services/archive.py."""
+    with Session(engine) as session:
+        result = archive_service(session, dry_run=dry_run)
+        if not dry_run:
+            session.commit()
+    return result
 
 
 _WIPE_TTL = 60.0

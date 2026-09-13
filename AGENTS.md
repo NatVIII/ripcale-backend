@@ -69,8 +69,9 @@ Key files:
 - `app/services/status.py` — per-source run status store (`data/status.json`): `read_status()` / `record_status()` / `record_run()` / `reset_status()` + `source_status()` / `gatherer_rollup()`.
 - `app/services/wipe.py` — `wipe_all()` (DB wipe + reset status/last-ingest).
 - `app/services/retag.py` — `retag()` (mass category rename/remove across all events).
-- `app/services/expiry.py` — shared relevance/expiry window (`past_cutoff`/`future_cutoff`/`is_relevant`; F13 sieve + F22 GC).
+- `app/services/expiry.py` — shared relevance/expiry window (`past_cutoff`/`future_cutoff`/`is_expired`/`is_relevant`; F13 sieve + F22 GC).
 - `app/services/recurrence.py` — `last_occurrence()` (bounded-RRULE last instance; F12 expansion will live here).
+- `app/services/archive.py` — `archive()` (soft-delete expired/removed events; F22).
 - `app/services/actions.py` — request-agnostic admin operations (read/write/pipeline + parsing + `ActionError`); the single source of truth shared by `/api/v1/*` and the HTML debug pages. `category_mapping()` exposes the full category config + DB counts with exposure (F29).
 - `app/services/testrunner.py` — `collect_tests()` / `run_tests()` (subprocess `python -m pytest`).
 - `app/security.py` — `in_docker()`, `is_debug_allowed()`, CSRF, `form_data()`/`json_body()`, `api_guard()`/`session_guard()`.
@@ -85,7 +86,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (243)
+.venv/bin/python -m pytest                       # test suite (260)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -203,6 +204,18 @@ docker compose up --build                        # public + admin services
   when their **last occurrence** (`app/services/recurrence.last_occurrence()`,
   start + first-occurrence duration) has passed; unbounded/unparseable rules are
   kept. Shared cutoffs live in `app/services/expiry.py` (F22 reuses them).
+- **Archiving / GC (F22 + F22.01)** — events are soft-deleted (never hard-deleted)
+  by `app/services/archive.archive()`, which stamps `archived_at` +
+  `archived_reason` (`"expired"` | `"removed"`). Expired events (past
+  `expire_past_days`) archive immediately; removed-at-source events archive only
+  after `archive_grace_hours`. Archiving runs automatically at the end of each
+  non-dry ingest (`ingest._run()`) and manually via `python -m app.archive`,
+  `/debug/archive`, or `POST /api/v1/archive`. The public read path
+  (`query_events`/`get_event`) excludes archived rows, as do stats/stale; the
+  decisionmaker **un-archives** an event that reappears in its source (updated/
+  unchanged paths) and ignores archived rows in its stale count. `stats.stale_events()`
+  tags each stale event with `kind` (`"expired"`/`"removed"`). An idempotent
+  migration in `init_db()` adds the two columns to existing SQLite DBs.
 
 ## Configuration
 
@@ -220,6 +233,7 @@ System fields in `config.yaml` (env prefix `RIPCALE_`; `.env` overrides):
 - `intake_file` — path to the intake settings file (default `intake.yaml`).
 - `expire_past_days` — drop ingested events that fully ended more than N days ago (recurring series only once their last occurrence has passed); `None` disables (default `90`).
 - `expire_future_days` — drop ingested events starting more than N days ahead; `None` = no future bound (default).
+- `archive_grace_hours` — an event removed at the source is archived only after it has been stale this many hours; `None` disables removed-archiving (default `6`).
 - `log_file` — rotating log path (relative → `data_dir`; empty → `data/ripcale.log`).
 - `log_max_bytes` — rotate once the file reaches this size (default `1000000`).
 - `log_backup_count` — rotated backups to keep (default `3`).

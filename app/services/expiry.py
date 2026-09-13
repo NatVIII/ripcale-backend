@@ -44,6 +44,34 @@ def is_future_expired(start_at: datetime | None, now: datetime, days: int | None
     return start_at is not None and start_at > cutoff
 
 
+def is_expired(
+    start_at: datetime | None,
+    end_at: datetime | None,
+    rrule: str | None,
+    now: datetime,
+    days: int | None,
+) -> bool:
+    """True when the event has fully passed the past window (rrule-aware).
+
+    Recurring series expire only when their **last occurrence** (start +
+    first-occurrence duration) is beyond the window; unbounded/unparseable rules
+    never expire. Shared by the sieve's relevance filter (F13) and the archive
+    step (F22).
+    """
+    if rrule:
+        last = last_occurrence(rrule, start_at)
+        if last is None:
+            return False
+        cutoff = past_cutoff(now, days)
+        if cutoff is None:
+            return False
+        duration = (end_at - start_at) if (end_at is not None and start_at is not None) else None
+        last_end = last + duration if duration is not None else last
+        return last_end < cutoff
+
+    return is_past_expired(end_at, start_at, now, days)
+
+
 def is_relevant(
     start_at: datetime | None,
     end_at: datetime | None,
@@ -52,26 +80,8 @@ def is_relevant(
     past_days: int | None,
     future_days: int | None,
 ) -> bool:
-    """Whether an event falls within the relevant window (both bounds optional).
-
-    Non-recurring events expire when they've fully ended (`end_at`/`start_at`)
-    beyond the past window. Recurring events expire only when their **last
-    occurrence** (start + duration) is beyond the past window; unbounded or
-    unparseable rules never expire. The future bound applies to every event.
-    """
+    """Whether an event falls within the relevant window (both bounds optional)."""
     if is_future_expired(start_at, now, future_days):
         return False
-
-    if rrule:
-        last = last_occurrence(rrule, start_at)
-        if last is None:
-            return True  # unbounded/unparseable -> never past-expire
-        cutoff = past_cutoff(now, past_days)
-        if cutoff is None:
-            return True
-        duration = (end_at - start_at) if (end_at is not None and start_at is not None) else None
-        last_end = last + duration if duration is not None else last
-        return last_end >= cutoff
-
-    return not is_past_expired(end_at, start_at, now, past_days)
+    return not is_expired(start_at, end_at, rrule, now, past_days)
 #endregion

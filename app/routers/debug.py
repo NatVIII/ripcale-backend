@@ -99,7 +99,7 @@ def register(app) -> None:
         body = (
             _coherence_section()
             + f"<p>events: {ov['events']} (upcoming {ov['upcoming']}, past {ov['past']})"
-            f" · sources: {ov['sources']}</p>"
+            f" · archived: {ov['archived']} · sources: {ov['sources']}</p>"
             + "<h2>categories</h2>"
             + table(
                 ["category", "class", "exposed", "count", "symlink"],
@@ -122,6 +122,7 @@ def register(app) -> None:
             + (json_pre(ov["last_ingest"]) if ov["last_ingest"] else "<p>no ingest run yet</p>")
             + "<p><a href='/debug/stale'>stale events</a></p>"
             + "<p><a href='/debug/retag'>retag categories</a></p>"
+            + "<p><a href='/debug/archive'>archive (gc)</a></p>"
             + "<h2>danger zone</h2>"
             + "<p><a href='/debug/wipe'>wipe database</a></p>"
         )
@@ -150,9 +151,9 @@ def register(app) -> None:
         if not stale:
             body = "<p>no stale events.</p>"
         else:
-            body = f"<p>{len(stale)} stale events (removed at source):</p>" + table(
-                ["source", "title", "id", "last seen"],
-                [[s["source"], s["title"], s["id"], s["last_seen_at"] or "—"] for s in stale],
+            body = f"<p>{len(stale)} stale events:</p>" + table(
+                ["source", "title", "id", "kind", "last seen"],
+                [[s["source"], s["title"], s["id"], s["kind"], s["last_seen_at"] or "—"] for s in stale],
             )
         return _html(page("ripcale · stale events", body))
 

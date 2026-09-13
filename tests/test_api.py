@@ -155,6 +155,42 @@ def test_api_retag_dry_run_vs_commit(tmp_path, monkeypatch):
         assert session.get(Event, "e1").categories == "external:art"
 
 
+def test_api_archive_dry_run_vs_commit(tmp_path, monkeypatch):
+    from app.models import Source
+
+    client, engine, auth_header = _make_client(tmp_path, monkeypatch)
+    with Session(engine) as session:
+        src = Source(name="S", url="https://x", last_fetched_at=datetime(2030, 1, 1))
+        session.add(src)
+        session.commit()
+        session.refresh(src)
+        session.add(
+            Event(
+                id="old", source_id=src.id, title="Old",
+                start_at=datetime(2020, 1, 1), end_at=datetime(2020, 1, 2),
+                last_seen_at=datetime(2030, 1, 1),
+            )
+        )
+        session.commit()
+
+    # dry-run (default) -> nothing written
+    r = client.post("/api/v1/archive", headers=auth_header, json_data={})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    assert body["data"]["dry_run"] is True
+    assert body["data"]["expired"] == 1
+    with Session(engine) as session:
+        assert session.get(Event, "old").archived_at is None
+
+    # commit -> writes
+    r = client.post("/api/v1/archive", headers=auth_header, json_data={"dry_run": False})
+    assert r.status_code == 200
+    assert r.json()["data"]["dry_run"] is False
+    with Session(engine) as session:
+        assert session.get(Event, "old").archived_at is not None
+
+
 def test_api_wipe_challenge_response(tmp_path, monkeypatch):
     client, engine, auth_header = _make_client(tmp_path, monkeypatch)
     _seed_event(engine, "e1", "A", "intake:art")

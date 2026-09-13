@@ -1,3 +1,18 @@
+## 2026-09-08 01:00:00 [AI]
+
+F22 + F22.01: archive (soft-delete) + expired/removed distinction.
+
+- `app/models.py`: `Event.archived_at` (indexed) + `Event.archived_reason` (`"expired"` | `"removed"`).
+- `app/db.py`: idempotent migration (`PRAGMA table_info` → `ALTER TABLE ADD COLUMN` + index) in `init_db()` so existing SQLite DBs gain the columns.
+- `app/services/expiry.py`: extracted shared `is_expired()` (rrule-aware) used by both F13 `is_relevant()` and F22.
+- `app/services/archive.py` (new): `archive()` — expired (past `expire_past_days`) immediately; removed-at-source only after `archive_grace_hours` (default 6h). Soft-deletes via `archived_at`/`archived_reason`.
+- `app/config.py`: `archive_grace_hours: int | None = 6`.
+- Read path excludes archived: `query_events()`/`get_event()` filter `archived_at IS NULL`; `stats.overview()`/`sources()` exclude archived (overview gains `archived` count); `stats.stale_events()` excludes archived and tags each stale event with `kind`.
+- `app/decisionmaker.py`: re-seen events un-archive (updated + unchanged paths); stale query ignores archived rows.
+- `app/ingest.py`: auto-runs archiving at the end of non-dry ingests; report includes `archived`.
+- Surface: `actions.archive()`, `POST /api/v1/archive`, `/debug/archive` page, `python -m app.archive` CLI; `/debug/stale` shows `kind`.
+- Tests: `test_archive.py`, stale `kind`, archived-exclusion (events/get), restore-on-reseen, migration, config, ingest auto-run, API archive (260 passing).
+
 ## 2026-09-08 00:30:00 [AI]
 
 F13.01 + F13.02: expiry-filter fixes.

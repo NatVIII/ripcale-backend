@@ -45,6 +45,27 @@ def init_db() -> None:
         db_path = settings.resolved_database_url.removeprefix("sqlite:///")
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     SQLModel.metadata.create_all(engine)
+    _migrate()
+#endregion
+
+
+#region: migration
+def _migrate() -> None:
+    """Idempotent light migrations for columns added after the initial schema.
+
+    SQLModel's `create_all` does not ALTER existing tables, so new columns are
+    added here defensively (SQLite `ADD COLUMN` for nullable columns, plus the
+    matching index). A fresh DB already has them — this is a no-op.
+    """
+    if not _is_sqlite(settings.resolved_database_url):
+        return
+    with engine.begin() as conn:
+        columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(event)")}
+        if "archived_at" not in columns:
+            conn.exec_driver_sql("ALTER TABLE event ADD COLUMN archived_at DATETIME")
+        if "archived_reason" not in columns:
+            conn.exec_driver_sql("ALTER TABLE event ADD COLUMN archived_reason VARCHAR")
+        conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_event_archived_at ON event (archived_at)")
 #endregion
 
 

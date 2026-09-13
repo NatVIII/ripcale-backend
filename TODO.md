@@ -6,8 +6,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
  
-- [ ] F22 - DB trash handling / garbage collection: archive (soft-delete) events older than X days instead of deleting them - keep them saved for future reference, but exclude them from the normal read path. Shares the same expiry config + logic as F13 (one implementation, no duplicated handlers).
-- [ ] F22.01 - Distinguish "expired by relevance (F13)" from "removed at source (F15)" in stale detection, so F22 archiving can treat them differently.
 - [ ] F28 - Event Editor: Edit events on the backend using the /debug API. Keep just regular HTML, no Javascript for this
 - [ ] F44 - Find a preferred way to set up an automatic build pipeline; where development builds can be compiled into releases on github (using the command line preferably because I like it, or without having to create releases and instead just being able to trigger a re-grab and re-build using my terminal with the server) and on release an automatic deployment to a server can occur. Selfishly, this is so that I can build on my PC and then deploy on my testing server.
 - [ ] F25 - Gatherer: Google Calendar Gatherer
@@ -86,6 +84,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F13 - Relevance/expiry filter in the sieve: `expire_past_days` (default 90) + `expire_future_days` (default None); shared `app/services/expiry.py` + `app/services/recurrence.py` (`last_occurrence`), `SieveResult.dropped`, `classify(now=)`; recurring series expire only once their last occurrence has passed; SIEVE_CONTRACT v4 (2026-09-08)
 - [x] F13.01 - `expire_past_days` made nullable (`int | None = 90`) so `null` disables the past filter as documented (2026-09-08)
 - [x] F13.02 - `last_occurrence()` normalizes RFC 5545 `UNTIL` (`…Z` / ISO-dashed) and returns `None` for unbounded rules instead of leaking dateutil's `9999` sentinel (2026-09-08)
+- [x] F22 + F22.01 - Archive (GC): soft-delete (`archived_at` + `archived_reason`) — expired events archive immediately, removed-at-source events only after `archive_grace_hours` (default 6h); idempotent migration; read path excludes archived; re-seen events un-archive; stale detection tags `kind` (expired/removed); auto-runs at end of ingest + `POST /api/v1/archive` + `/debug/archive` + `python -m app.archive` (2026-09-08)
 
 ## Deleted
 - [ ] F30 - Deleted Event

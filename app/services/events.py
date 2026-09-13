@@ -31,7 +31,7 @@ def query_events(
     Ordered by `start_at` descending (furthest in the future first); events with
     a NULL `start_at` sort last. `limit=None`/`0` means no limit.
     """
-    stmt = select(Event)
+    stmt = select(Event).where(Event.archived_at.is_(None))
     if start is not None:
         stmt = stmt.where(func.coalesce(Event.end_at, Event.start_at) >= start)
     if end is not None:
@@ -47,7 +47,10 @@ def query_events(
 
 
 def get_event(session: Session, event_id: str) -> Event | None:
-    return session.get(Event, event_id)
+    event = session.get(Event, event_id)
+    if event is not None and event.archived_at is not None:
+        return None  # archived events are hidden from the read path
+    return event
 
 
 def source_names(session: Session, events: list[Event]) -> dict[int, str]:

@@ -189,3 +189,76 @@ def test_stale_route_renders(tmp_path, monkeypatch):
     assert r.status_code == 200
     assert "Gone" in r.text
 #endregion
+
+
+#region: F22.01 kind + archived exclusion
+def _stale_source(session, fetched_at=datetime(2026, 9, 15)):
+    src = Source(name="Test", url="https://x", last_fetched_at=fetched_at)
+    session.add(src)
+    session.commit()
+    session.refresh(src)
+    return src.id
+
+
+def test_stale_events_kind_expired(tmp_path, monkeypatch):
+    from app.config import settings
+
+    engine = _setup(tmp_path)
+    monkeypatch.setattr(settings, "expire_past_days", 30)
+    with Session(engine) as session:
+        sid = _stale_source(session)
+        session.add(
+            Event(
+                id="expired", source_id=sid, title="Expired",
+                start_at=datetime(2020, 1, 1), end_at=datetime(2020, 1, 2),
+                last_seen_at=datetime(2020, 1, 1),
+            )
+        )
+        session.commit()
+
+    with Session(engine) as session:
+        stale = stale_events(session, now=datetime(2026, 9, 15))
+    assert len(stale) == 1
+    assert stale[0]["kind"] == "expired"
+
+
+def test_stale_events_kind_removed(tmp_path, monkeypatch):
+    from app.config import settings
+
+    engine = _setup(tmp_path)
+    monkeypatch.setattr(settings, "expire_past_days", 30)
+    with Session(engine) as session:
+        sid = _stale_source(session)
+        session.add(
+            Event(
+                id="removed", source_id=sid, title="Removed",
+                start_at=datetime(2026, 10, 1),
+                last_seen_at=datetime(2026, 9, 1),
+            )
+        )
+        session.commit()
+
+    with Session(engine) as session:
+        stale = stale_events(session, now=datetime(2026, 9, 15))
+    assert len(stale) == 1
+    assert stale[0]["kind"] == "removed"
+
+
+def test_stale_events_excludes_archived(tmp_path, monkeypatch):
+    engine = _setup(tmp_path)
+    with Session(engine) as session:
+        sid = _stale_source(session)
+        session.add(
+            Event(
+                id="archived", source_id=sid, title="Archived",
+                start_at=datetime(2026, 10, 1),
+                last_seen_at=datetime(2026, 9, 1),
+                archived_at=datetime(2026, 9, 14),
+                archived_reason="removed",
+            )
+        )
+        session.commit()
+
+    with Session(engine) as session:
+        assert stale_events(session) == []
+#endregion

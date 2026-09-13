@@ -15,6 +15,7 @@ from sqlmodel import Session, select
 from app.config import settings
 from app.models import Event, Source
 from app.schema import load_images
+from app.services.expiry import is_expired
 #endregion
 
 
@@ -27,18 +28,23 @@ def _now() -> datetime:
 
 #region: overview
 def overview(session: Session) -> dict:
-    """High-level counts and category breakdown."""
+    """High-level counts and category breakdown (live, non-archived events)."""
+    live = Event.archived_at.is_(None)
     source_count = len(session.exec(select(Source)).all())
-    event_count = session.exec(select(func.count(Event.id))).one()
+    event_count = session.exec(select(func.count(Event.id)).where(live)).one()
+    archived_count = session.exec(
+        select(func.count(Event.id)).where(Event.archived_at.is_not(None))
+    ).one()
     upcoming = session.exec(
         select(func.count(Event.id)).where(
+            live,
             func.coalesce(Event.start_at, Event.end_at) >= _now()
         )
     ).one()
-    span = session.exec(select(func.min(Event.start_at), func.max(Event.start_at))).one()
+    span = session.exec(select(func.min(Event.start_at), func.max(Event.start_at)).where(live)).one()
 
     categories: dict[str, int] = {}
-    for cats in session.exec(select(Event.categories)).all():
+    for cats in session.exec(select(Event.categories).where(live)).all():
         for name in (cats or "").split(","):
             name = name.strip()
             if name:
@@ -47,6 +53,7 @@ def overview(session: Session) -> dict:
     return {
         "sources": source_count,
         "events": event_count,
+        "archived": archived_count,
         "upcoming": upcoming,
         "past": event_count - upcoming,
         "date_span": {
@@ -67,7 +74,7 @@ def sources(session: Session) -> list[dict]:
     out = []
     for source in session.exec(select(Source)).all():
         count = session.exec(
-            select(func.count(Event.id)).where(Event.source_id == source.id)
+            select(func.count(Event.id)).where(Event.source_id == source.id, Event.archived_at.is_(None))
         ).one()
         out.append(
             {
@@ -117,15 +124,21 @@ def event_dump(session: Session, event_id: str) -> dict | None:
 
 
 #region: stale events
-def stale_events(session: Session) -> list[dict]:
-    """Return events that were removed at the source (not seen on the latest run).
+def stale_events(session: Session, now: datetime | None = None) -> list[dict]:
+    """Return non-archived events that were removed at the source (not seen on
+    the latest run), each tagged with its `kind`:
+
+    - `"expired"` — past the `expire_past_days` window (dropped by F13 relevance).
+    - `"removed"` — genuinely absent from the source feed.
 
     An event is stale when its `last_seen_at` differs from its source's
     `last_fetched_at` (or is NULL — never seen since the column was added).
     """
+    now = now or _now()
     stale = session.exec(
         select(Event).join(Source, Event.source_id == Source.id).where(
-            or_(Event.last_seen_at.is_(None), Event.last_seen_at != Source.last_fetched_at)
+            Event.archived_at.is_(None),
+            or_(Event.last_seen_at.is_(None), Event.last_seen_at != Source.last_fetched_at),
         )
     ).all()
     names = {s.id: s.name for s in session.exec(select(Source)).all()}
@@ -138,6 +151,9 @@ def stale_events(session: Session) -> list[dict]:
                 "source": src,
                 "title": event.title,
                 "last_seen_at": event.last_seen_at.isoformat() if event.last_seen_at else None,
+                "kind": "expired"
+                if is_expired(event.start_at, event.end_at, event.rrule, now, settings.expire_past_days)
+                else "removed",
             }
         )
     return out

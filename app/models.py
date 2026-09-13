@@ -94,6 +94,8 @@ class Event(SQLModel, table=True):
     categories: str = ""          # comma-separated tags
     content_hash: str = Field(default="", index=True)  # used by the sieve for diffing
     last_seen_at: datetime | None = None  # last ingest run that saw this event (F15 stale detection)
+    archived_at: datetime | None = Field(default=None, index=True)  # soft-deleted (F22)
+    archived_reason: str | None = None  # "expired" | "removed" (F22.01)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 #endregion

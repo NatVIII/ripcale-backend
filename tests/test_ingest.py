@@ -66,3 +66,33 @@ def test_source_priority(tmp_path, monkeypatch):
     # fallback 0 (gatherer not configured)
     save(IntakeSettings(gatherers={}))
     assert source_priority(cfg2) == 0
+
+
+def test_ingest_auto_runs_archive(tmp_path, monkeypatch):
+    import app.ingest as ingest_mod
+    from app.config import settings
+    from app.schema import GathererResult, ScrapedEvent
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'ingest_auto.db'}")
+    SQLModel.metadata.create_all(engine)
+    monkeypatch.setattr(ingest_mod, "engine", engine)
+    monkeypatch.setattr(ingest_mod, "init_db", lambda: None)
+    monkeypatch.setattr(settings, "data_dir", str(tmp_path))
+
+    cfg = SourceConfig(name="Good", gatherer="elfsight", url="https://x")
+    monkeypatch.setattr(ingest_mod, "load_sources", lambda: [cfg])
+
+    calls = []
+    def fake_archive(session, dry_run):
+        calls.append(dry_run)
+        return {"expired": 0, "removed": 0, "dry_run": dry_run, "preview": []}
+
+    monkeypatch.setattr(ingest_mod, "archive_service", fake_archive)
+    monkeypatch.setattr(ingest_mod, "load_gatherer", lambda name: (lambda c: GathererResult(source=c, events=[ScrapedEvent(uid="u1", title="Event")])))
+
+    ingest_mod.run(dry_run=False)
+    assert calls == [False]
+
+    calls.clear()
+    ingest_mod.run(dry_run=True)
+    assert calls == []

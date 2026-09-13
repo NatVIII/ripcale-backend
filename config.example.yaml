@@ -26,6 +26,11 @@ cors_origins: "*"
 expire_past_days: 90      # set null to disable the past filter
 expire_future_days: null  # or a number to bound the future (e.g. 365)
 
+# Archive grace (F22): an event removed at the source is archived only after
+# it has been stale (unseen) this many hours, guarding against transient source
+# outages. null = never archive removed-at-source events.
+archive_grace_hours: 6
+
 # Rotating log file (shared by all entrypoints; viewed at /debug/logs).
 # Relative paths resolve against data_dir; absolute paths are used as-is.
 # log_file: ripcale.log            # default: {data_dir}/ripcale.log

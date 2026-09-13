@@ -50,7 +50,8 @@ Two Three) as starter data. API keys and secrets go in `.env` (see
 The ingest relevance window is set in `config.yaml`: `expire_past_days` (default
 90) drops events that fully ended more than N days ago (recurring series only
 once their last occurrence has passed), and `expire_future_days` (default `None`)
-drops events starting more than N days ahead.
+drops events starting more than N days ahead. `archive_grace_hours` (default 6)
+controls how long a removed-at-source event stays before it's archived.
 
 The admin login is configured via `.env` too: `RIPCALE_ADMIN_USERNAME`,
 `RIPCALE_ADMIN_PASSWORD_HASH`, and `RIPCALE_PEPPER`. (API tokens are per-user,
@@ -197,6 +198,7 @@ login. Writes default to dry-run where applicable.
 |---|---|
 | `POST /api/v1/ingest` `{dry_run}` | run the full batch ingest |
 | `POST /api/v1/retag` `{from, to?, dry_run?}` | mass category rename/remove |
+| `POST /api/v1/archive` `{dry_run?}` | archive (soft-delete) expired + removed events |
 | `POST /api/v1/wipe/begin` → `POST /api/v1/wipe/confirm` `{challenge}` | challenge-response DB wipe |
 | `POST /api/v1/tests` `{test?}` | run the suite (or one test) |
 | `POST /api/v1/pipeline/gather` `{source…}` | run a gatherer |

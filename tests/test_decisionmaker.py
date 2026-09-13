@@ -67,3 +67,44 @@ def test_apply_inserts_and_updates(tmp_path):
         two = session.get(Event, stable_id("Test", make_scraped("u2", "Two Updated")))
         assert two.title == "Two Updated"
         assert two.content_hash == content_hash(make_scraped("u2", "Two Updated"))
+
+
+def test_apply_unarchives_reseen_event(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'unarchive.db'}")
+    SQLModel.metadata.create_all(engine)
+
+    event = make_scraped("u1", "One")
+    eid = stable_id("Test", event)
+
+    with Session(engine) as session:
+        source = Source(name="Test", url="https://x")
+        session.add(source)
+        session.commit()
+        session.refresh(source)
+        session.add(
+            Event(
+                id=eid,
+                source_id=source.id,
+                uid=event.uid,
+                title=event.title,
+                start_at=event.start_at,
+                content_hash=content_hash(event),
+                archived_at=datetime(2026, 9, 1),
+                archived_reason="removed",
+            )
+        )
+        session.commit()
+        source_id = source.id
+
+    cfg = SourceConfig(name="Test", gatherer="elfsight", url="https://x")
+    sieved = SieveResult(source=cfg, unchanged=1, unchanged_ids=[eid])
+
+    with Session(engine) as session:
+        source = session.get(Source, source_id)
+        apply(session, source, sieved)
+        session.commit()
+
+    with Session(engine) as session:
+        row = session.get(Event, eid)
+        assert row.archived_at is None
+        assert row.archived_reason is None
