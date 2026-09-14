@@ -165,4 +165,34 @@ def test_debug_and_pipeline_routes(tmp_path, monkeypatch, session_headers):
         form_data={"csrf_token": debug_csrf_token(), "source": "manual", "gatherer": "elfsight", "name": "x", "url": "https://x"},
     )
     assert r.status_code == 200
+
+
+def test_debug_event_page_and_pin(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'event.db'}")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        src = Source(name="S", url="https://x")
+        session.add(src)
+        session.commit()
+        session.refresh(src)
+        session.add(Event(id="e1", source_id=src.id, title="Upcoming", start_at=datetime(2030, 1, 1, 0, 0)))
+        session.commit()
+
+    monkeypatch.setattr("app.services.actions.engine", engine)
+
+    from robyn.testing import TestClient
+
+    from app.admin import app
+
+    client = TestClient(app)
+
+    r = client.get("/debug/event/e1")
+    assert r.status_code == 200
+    assert "Upcoming" in r.text
+    assert "pin" in r.text
+
+    r = client.post("/debug/event/e1/pin", form_data={"csrf_token": debug_csrf_token(), "pinned": "1"})
+    assert r.status_code == 200
+    with Session(engine) as session:
+        assert session.get(Event, "e1").pinned is True
 #endregion

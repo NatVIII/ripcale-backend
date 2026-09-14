@@ -117,6 +117,10 @@ def event_dump(session: Session, event_id: str) -> dict | None:
         "redirect_to_id": event.redirect_to_id,
         "categories": event.categories,
         "content_hash": event.content_hash,
+        "last_seen_at": event.last_seen_at.isoformat() if event.last_seen_at else None,
+        "archived_at": event.archived_at.isoformat() if event.archived_at else None,
+        "archived_reason": event.archived_reason,
+        "pinned": event.pinned,
         "created_at": event.created_at.isoformat() if event.created_at else None,
         "updated_at": event.updated_at.isoformat() if event.updated_at else None,
     }

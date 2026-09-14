@@ -18,7 +18,13 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.models import Event, Source, utcnow
+from app.services.events import DEFAULT_LIMIT
 from app.services.expiry import is_expired
+#endregion
+
+
+#region: constants
+DEFAULT_ARCHIVE_LIMIT = DEFAULT_LIMIT  # same default cap as the event listing
 #endregion
 
 
@@ -37,11 +43,13 @@ def _removed_candidate(event: Event, fetched_at, now, grace_hours: int | None) -
 
 
 #region: archive
-def archive(session: Session, now=None, dry_run: bool = True) -> dict:
+def archive(session: Session, now=None, dry_run: bool = True, limit: int | None = DEFAULT_ARCHIVE_LIMIT) -> dict:
     """Archive expired + removed events (soft-delete); return a summary report.
 
     `dry_run=True` only previews (no writes). `now` is the reference time
-    (defaults to the current time; injectable for tests).
+    (defaults to the current time; injectable for tests). The `preview` list is
+    capped at `limit` (most-recent reference time first) while the counts stay
+    complete; `limit=None`/`0` = uncapped.
     """
     now = now or utcnow()
     fetched = {s.id: s.last_fetched_at for s in session.exec(select(Source)).all()}
@@ -58,10 +66,51 @@ def archive(session: Session, now=None, dry_run: bool = True) -> dict:
             event.archived_at = now
             event.archived_reason = reason
 
+    ordered = sorted(
+        candidates,
+        key=lambda e_r: e_r[0].end_at or e_r[0].start_at or now,
+        reverse=True,
+    )
+    if limit:
+        ordered = ordered[:limit]
+
     return {
         "expired": sum(1 for _, r in candidates if r == "expired"),
         "removed": sum(1 for _, r in candidates if r == "removed"),
         "dry_run": dry_run,
-        "preview": [{"id": e.id, "title": e.title, "reason": r} for e, r in candidates],
+        "preview": [{"id": e.id, "title": e.title, "reason": r} for e, r in ordered],
     }
+#endregion
+
+
+#region: listing + restore
+def list_archived(session: Session, limit: int | None = DEFAULT_ARCHIVE_LIMIT) -> list[dict]:
+    """List archived events, most-recently-archived first (capped at `limit`)."""
+    rows = session.exec(
+        select(Event).where(Event.archived_at.is_not(None)).order_by(Event.archived_at.desc())
+    ).all()
+    if limit:
+        rows = rows[:limit]
+    names = {s.id: s.name for s in session.exec(select(Source)).all()}
+    return [
+        {
+            "id": e.id,
+            "title": e.title,
+            "source": names.get(e.source_id),
+            "archived_at": e.archived_at.isoformat() if e.archived_at else None,
+            "archived_reason": e.archived_reason,
+            "pinned": e.pinned,
+        }
+        for e in rows
+    ]
+
+
+def restore(session: Session, event_id: str) -> bool:
+    """Un-archive one event (no-op when missing or not archived); returns success."""
+    event = session.get(Event, event_id)
+    if event is None or event.archived_at is None:
+        return False
+    event.archived_at = None
+    event.archived_reason = None
+    return True
 #endregion

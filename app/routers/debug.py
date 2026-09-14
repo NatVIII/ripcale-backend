@@ -122,7 +122,7 @@ def register(app) -> None:
             + (json_pre(ov["last_ingest"]) if ov["last_ingest"] else "<p>no ingest run yet</p>")
             + "<p><a href='/debug/stale'>stale events</a></p>"
             + "<p><a href='/debug/retag'>retag categories</a></p>"
-            + "<p><a href='/debug/archive'>archive (gc)</a></p>"
+            + "<p><a href='/debug/archive'>archive (gc)</a> · <a href='/debug/archived'>archived events</a></p>"
             + "<h2>danger zone</h2>"
             + "<p><a href='/debug/wipe'>wipe database</a></p>"
         )
@@ -151,9 +151,20 @@ def register(app) -> None:
         if not stale:
             body = "<p>no stale events.</p>"
         else:
-            body = f"<p>{len(stale)} stale events:</p>" + table(
-                ["source", "title", "id", "kind", "last seen"],
-                [[s["source"], s["title"], s["id"], s["kind"], s["last_seen_at"] or "—"] for s in stale],
+            trs = "".join(
+                "<tr>"
+                f"<td>{escape(s['source'] or '')}</td>"
+                f"<td><a href='/debug/event/{escape(s['id'])}'>{escape(s['title'])}</a></td>"
+                f"<td>{escape(s['id'])}</td>"
+                f"<td>{escape(s['kind'])}</td>"
+                f"<td>{escape(s['last_seen_at'] or '')}</td>"
+                "</tr>"
+                for s in stale
+            )
+            body = (
+                f"<p>{len(stale)} stale events:</p>"
+                "<table><tr><th>source</th><th>title</th><th>id</th><th>kind</th><th>last seen</th></tr>"
+                + trs + "</table>"
             )
         return _html(page("ripcale · stale events", body))
 

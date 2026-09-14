@@ -96,6 +96,7 @@ class Event(SQLModel, table=True):
     last_seen_at: datetime | None = None  # last ingest run that saw this event (F15 stale detection)
     archived_at: datetime | None = Field(default=None, index=True)  # soft-deleted (F22)
     archived_reason: str | None = None  # "expired" | "removed" (F22.01)
+    pinned: bool = False  # content freeze: source updates are ignored (F22.03)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 #endregion

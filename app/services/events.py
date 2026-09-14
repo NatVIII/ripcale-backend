@@ -53,6 +53,15 @@ def get_event(session: Session, event_id: str) -> Event | None:
     return event
 
 
+def set_pinned(session: Session, event_id: str, pinned: bool) -> bool:
+    """Set (or clear) the `pinned` flag on an event; returns whether it was found."""
+    event = session.get(Event, event_id)
+    if event is None:
+        return False
+    event.pinned = bool(pinned)
+    return True
+
+
 def source_names(session: Session, events: list[Event]) -> dict[int, str]:
     """Map source_id -> source name for a batch of events (one query)."""
     ids = {e.source_id for e in events}

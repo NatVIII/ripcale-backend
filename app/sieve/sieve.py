@@ -120,22 +120,27 @@ def classify(session: Session, result: GathererResult, *, now=None) -> SieveResu
     unchanged_ids: list[str] = []
 
     for event, event_id in zip(events, ids):
-        digest = content_hash(event)
         old = existing.get(event_id)
         if old is None:
-            new.append(ClassifiedEvent(id=event_id, content_hash=digest, event=event))
-        elif old.content_hash != digest:
-            updated.append(
-                ClassifiedEvent(
-                    id=event_id,
-                    content_hash=digest,
-                    event=event,
-                    changed_fields=_changed_fields(event, old),
-                )
-            )
-        else:
+            new.append(ClassifiedEvent(id=event_id, content_hash=content_hash(event), event=event))
+        elif old.pinned:
+            # Pinned = content frozen: never report a source change (F22.03).
             unchanged += 1
             unchanged_ids.append(event_id)
+        else:
+            digest = content_hash(event)
+            if old.content_hash != digest:
+                updated.append(
+                    ClassifiedEvent(
+                        id=event_id,
+                        content_hash=digest,
+                        event=event,
+                        changed_fields=_changed_fields(event, old),
+                    )
+                )
+            else:
+                unchanged += 1
+                unchanged_ids.append(event_id)
 
     return SieveResult(
         source=result.source,

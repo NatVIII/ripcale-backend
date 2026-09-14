@@ -62,7 +62,7 @@ Key files:
 - `app/decisionmaker/` — `apply()` re-exported from `decisionmaker.py` (persist; stub for future cross-source heuristics).
 - `app/ingest.py` — `run()` / `run_report()` / `process_source()` orchestrator (CLI + debug ingest page share `_run()`).
 - `app/serializers.py` — `Event` → FullCalendar dict.
-- `app/services/events.py` — `query_events()`, `get_event()`, `source_names()`.
+- `app/services/events.py` — `query_events()`, `get_event()`, `set_pinned()`, `source_names()`.
 - `app/services/ics.py` — `event_to_vevent()`, `events_to_ics()`.
 - `app/services/stats.py` — `overview()`, `sources()`, `event_dump()`, `stale_events()`, `read_last_ingest()`.
 - `app/services/coherence.py` — `check()` (live config/intake coherence checks, fail-safe).
@@ -71,7 +71,7 @@ Key files:
 - `app/services/retag.py` — `retag()` (mass category rename/remove across all events).
 - `app/services/expiry.py` — shared relevance/expiry window (`past_cutoff`/`future_cutoff`/`is_expired`/`is_relevant`; F13 sieve + F22 GC).
 - `app/services/recurrence.py` — `last_occurrence()` (bounded-RRULE last instance; F12 expansion will live here).
-- `app/services/archive.py` — `archive()` (soft-delete expired/removed events; F22).
+- `app/services/archive.py` — `archive()` (soft-delete expired/removed events), `list_archived()`, `restore()` (F22).
 - `app/services/actions.py` — request-agnostic admin operations (read/write/pipeline + parsing + `ActionError`); the single source of truth shared by `/api/v1/*` and the HTML debug pages. `category_mapping()` exposes the full category config + DB counts with exposure (F29).
 - `app/services/testrunner.py` — `collect_tests()` / `run_tests()` (subprocess `python -m pytest`).
 - `app/security.py` — `in_docker()`, `is_debug_allowed()`, CSRF, `form_data()`/`json_body()`, `api_guard()`/`session_guard()`.
@@ -86,7 +86,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (260)
+.venv/bin/python -m pytest                       # test suite (273)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -215,7 +215,20 @@ docker compose up --build                        # public + admin services
   decisionmaker **un-archives** an event that reappears in its source (updated/
   unchanged paths) and ignores archived rows in its stale count. `stats.stale_events()`
   tags each stale event with `kind` (`"expired"`/`"removed"`). An idempotent
-  migration in `init_db()` adds the two columns to existing SQLite DBs.
+  migration in `init_db()` adds the two columns to existing SQLite DBs. Admin
+  visibility/restore (F22.02): `stats.event_dump()` exposes
+  `last_seen_at`/`archived_at`/`archived_reason`; `GET /api/v1/archived?limit=`
+  lists archived events (most-recent first, capped at `DEFAULT_LIMIT` like
+  `/events`) and `POST /api/v1/archived/{id}/restore` un-archives, mirrored by
+  `/debug/archived`.
+- **Pin / content freeze (F22.03)** — `Event.pinned` freezes an event's content:
+  the sieve buckets a pinned existing event as `unchanged` (skips the
+  `content_hash` comparison), so source updates are ignored, while
+  `last_seen_at` is still stamped and archiving still applies normally
+  (pinned events archive when expired/removed). Toggle via
+  `POST /api/v1/events/{id}/pin` or `/debug/event/{id}`; `pinned` is exposed in
+  `stats.event_dump()` and `list_archived()`. Pin blocks source-driven changes
+  only — admin `retag`/`restore`/`unpin` still apply.
 
 ## Configuration
 

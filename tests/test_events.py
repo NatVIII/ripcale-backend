@@ -200,3 +200,31 @@ def test_get_event_hides_archived(tmp_path):
     with Session(engine) as session:
         assert get_event(session, "live") is not None
         assert get_event(session, "dead") is None
+
+
+def test_set_pinned_toggles_flag(tmp_path):
+    from app.services.events import set_pinned
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'pin.db'}")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        src = Source(name="S", url="https://x")
+        session.add(src)
+        session.commit()
+        session.refresh(src)
+        session.add(_make_event(id="e", source_id=src.id, title="E"))
+        session.commit()
+
+    with Session(engine) as session:
+        assert set_pinned(session, "e", True) is True
+        assert set_pinned(session, "nope", True) is False
+        session.commit()
+
+    with Session(engine) as session:
+        assert session.get(Event, "e").pinned is True
+
+    with Session(engine) as session:
+        set_pinned(session, "e", False)
+        session.commit()
+    with Session(engine) as session:
+        assert session.get(Event, "e").pinned is False

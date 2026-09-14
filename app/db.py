@@ -65,6 +65,8 @@ def _migrate() -> None:
             conn.exec_driver_sql("ALTER TABLE event ADD COLUMN archived_at DATETIME")
         if "archived_reason" not in columns:
             conn.exec_driver_sql("ALTER TABLE event ADD COLUMN archived_reason VARCHAR")
+        if "pinned" not in columns:
+            conn.exec_driver_sql("ALTER TABLE event ADD COLUMN pinned BOOLEAN NOT NULL DEFAULT 0")
         conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_event_archived_at ON event (archived_at)")
 #endregion
 

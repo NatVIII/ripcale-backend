@@ -19,6 +19,7 @@ from app.routers import api as api_router
 from app.routers import archive as archive_router
 from app.routers import auth as auth_router
 from app.routers import debug as debug_router
+from app.routers import event as event_router
 from app.routers import ingest as ingest_router
 from app.routers import pipeline as pipeline_router
 from app.routers import retag as retag_router
@@ -41,7 +42,8 @@ wipe_router.register(app)      # /debug/wipe
 ingest_router.register(app)    # /debug/ingest
 tests_router.register(app)     # /debug/tests
 retag_router.register(app)     # /debug/retag
-archive_router.register(app)   # /debug/archive
+archive_router.register(app)   # /debug/archive, /debug/archived
+event_router.register(app)     # /debug/event/{id}
 #endregion
 
 

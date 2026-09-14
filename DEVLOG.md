@@ -1,3 +1,25 @@
+## 2026-09-08 01:40:00 [AI]
+
+F22.03: pin events (content freeze, archive unaffected).
+
+- `app/models.py`: `Event.pinned: bool = False`; `app/db.py` migration adds the `pinned` column.
+- `app/sieve/sieve.py`: a pinned existing event is bucketed `unchanged` (content_hash comparison skipped), so source updates are ignored while `last_seen_at` still stamps.
+- `app/services/events.py`: `set_pinned()`; `app/services/actions.py`: `pin(event_id, pinned)` (returns the new state).
+- `app/routers/api.py`: `POST /api/v1/events/{id}/pin`; `stats.event_dump()` + `list_archived()` expose `pinned`.
+- `app/routers/event.py` (new): `/debug/event/{id}` (view + pin/unpin + restore), registered in `app/admin.py`; `/debug/archived` + `/debug/stale` rows link to it.
+- Tests: sieve pinned-unchanged, archive still archives pinned-expired, set_pinned, API pin, migration, event page + pin (273 passing).
+
+## 2026-09-08 01:20:00 [AI]
+
+F22.02: admin archive management + capped listings.
+
+- `app/services/stats.py`: `event_dump()` now exposes `last_seen_at` / `archived_at` / `archived_reason`.
+- `app/services/archive.py`: `DEFAULT_ARCHIVE_LIMIT = DEFAULT_LIMIT` (500); `list_archived()` (desc by `archived_at`, capped); `restore()` (un-archive); `archive()` preview capped + ordered by reference time desc.
+- `app/services/actions.py`: `archived(limit)` + `restore(event_id)`.
+- `app/routers/api.py`: `GET /api/v1/archived?limit=` + `POST /api/v1/archived/{id}/restore`.
+- `app/routers/archive.py`: `/debug/archived` (list + per-row restore) + `POST /debug/archived/{id}/restore`; dashboard link added.
+- Tests: archive listing/restore, event_dump fields, API list+restore, default-limit parity (267 passing).
+
 ## 2026-09-08 01:00:00 [AI]
 
 F22 + F22.01: archive (soft-delete) + expired/removed distinction.

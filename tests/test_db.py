@@ -70,6 +70,7 @@ def test_migrate_adds_archived_columns(tmp_path, monkeypatch):
         columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(event)")}
     assert "archived_at" in columns
     assert "archived_reason" in columns
+    assert "pinned" in columns
 
     # idempotent — running again is a no-op
     db_mod._migrate()
@@ -77,3 +78,4 @@ def test_migrate_adds_archived_columns(tmp_path, monkeypatch):
         columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(event)")}
     assert "archived_at" in columns
     assert "archived_reason" in columns
+    assert "pinned" in columns

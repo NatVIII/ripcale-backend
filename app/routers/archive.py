@@ -1,13 +1,15 @@
 """Archive (GC) page (IP-gated + CSRF) — F22.
 
-Thin client over `app.services.actions.archive`. GET previews the candidates
-(dry-run); POST runs archiving with a dry-run checkbox (checked by default).
+Thin client over `app.services.actions.archive` (and `archived`/`restore` for
+F22.02). `/debug/archive` previews candidates (dry-run); `/debug/archived` lists
+archived events with per-row restore.
 """
 #region: imports
 from robyn import Response
 
 from app.security import debug_csrf_token, debug_guard, form_data, verify_csrf
 from app.services import actions
+from app.services.archive import DEFAULT_ARCHIVE_LIMIT
 from app.web import escape, page, table
 #endregion
 
@@ -48,6 +50,34 @@ def _preview(result: dict) -> str:
         ["title", "id", "reason"],
         [[p["title"], p["id"], p["reason"]] for p in result["preview"]],
     )
+
+
+def _archived_table(rows: list[dict], token: str) -> str:
+    if not rows:
+        return "<p>no archived events.</p>"
+    trs = "".join(
+        "<tr>"
+        f"<td><a href='/debug/event/{escape(r['id'])}'>{escape(r['title'])}</a></td>"
+        f"<td>{escape(r['source'] or '')}</td>"
+        f"<td>{escape(r['archived_reason'] or '')}</td>"
+        f"<td>{escape(r['archived_at'] or '')}</td>"
+        f"<td><form method='post' action='/debug/archived/{escape(r['id'])}/restore' style='display:inline'>"
+        f"<input type='hidden' name='csrf_token' value='{escape(token)}'>"
+        f"<button type='submit'>restore</button></form></td>"
+        "</tr>"
+        for r in rows
+    )
+    return "<table><tr><th>title</th><th>source</th><th>reason</th><th>archived</th><th></th></tr>" + trs + "</table>"
+
+
+def _parse_limit(request) -> int | None:
+    raw = (request.query_params or {}).get("limit")
+    if not raw:
+        return DEFAULT_ARCHIVE_LIMIT
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return DEFAULT_ARCHIVE_LIMIT
 #endregion
 
 
@@ -79,4 +109,29 @@ def register(app) -> None:
             + _preview(result)
         )
         return _html(page("ripcale · archive", body, back="/debug/archive"))
+
+    @app.get("/debug/archived")
+    def archived_page(request):
+        guard = debug_guard(request)
+        if guard:
+            return guard
+        rows = actions.archived(_parse_limit(request))
+        body = (
+            f"<p>{len(rows)} archived events (most recent first; add <code>?limit=N</code> to change, 0 = all):</p>"
+            + _archived_table(rows, debug_csrf_token())
+        )
+        return _html(page("ripcale · archived", body, back="/debug"))
+
+    @app.post("/debug/archived/:id/restore")
+    def archived_restore(request):
+        guard = debug_guard(request)
+        if guard:
+            return guard
+        if not verify_csrf(request):
+            return _forbidden()
+
+        event_id = request.path_params.get("id", None)
+        restored = actions.restore(event_id)
+        body = f"<p>{'restored' if restored else 'not restored (missing or already live)'} — {escape(event_id)}</p>"
+        return _html(page("ripcale · archived", body, back="/debug/archived"))
 #endregion

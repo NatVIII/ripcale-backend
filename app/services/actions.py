@@ -21,9 +21,10 @@ from app.registry import load_gatherer, load_sources
 from app.schema import CategoryRule, SourceConfig
 from app.serializers import to_fullcalendar
 from app.services import stats
-from app.services.archive import archive as archive_service
+from app.services import archive as archive_mod
+from app.services.archive import DEFAULT_ARCHIVE_LIMIT
 from app.services.coherence import check as coherence_check
-from app.services.events import DEFAULT_LIMIT, query_events, source_names
+from app.services.events import DEFAULT_LIMIT, query_events, set_pinned, source_names
 from app.services.retag import retag as retag_service
 from app.services.status import gatherer_rollup, read_status, record_run, record_status
 from app.services.testrunner import collect_tests, run_tests
@@ -152,10 +153,33 @@ def retag(from_cat: str, to_cat: str | None = None, dry_run: bool = True) -> dic
 def archive(dry_run: bool = True) -> dict:
     """Archive expired + removed events (soft-delete); see app/services/archive.py."""
     with Session(engine) as session:
-        result = archive_service(session, dry_run=dry_run)
+        result = archive_mod.archive(session, dry_run=dry_run)
         if not dry_run:
             session.commit()
     return result
+
+
+def archived(limit: int | None = DEFAULT_ARCHIVE_LIMIT) -> list:
+    """List archived events (most-recently-archived first, capped)."""
+    with Session(engine) as session:
+        return archive_mod.list_archived(session, limit)
+
+
+def restore(event_id: str) -> bool:
+    """Un-archive one event; returns whether it was actually restored."""
+    with Session(engine) as session:
+        restored = archive_mod.restore(session, event_id)
+        session.commit()
+    return restored
+
+
+def pin(event_id: str, pinned: bool) -> bool | None:
+    """Set (or clear) an event's `pinned` flag; returns the new state (None if not found)."""
+    with Session(engine) as session:
+        if not set_pinned(session, event_id, pinned):
+            return None
+        session.commit()
+    return bool(pinned)
 
 
 _WIPE_TTL = 60.0

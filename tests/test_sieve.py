@@ -246,3 +246,27 @@ def test_relevance_disabled_is_pass_through(tmp_path, monkeypatch):
     assert sieved.dropped == 0
     assert [c.event.uid for c in sieved.new] == ["old"]
 #endregion
+
+
+#region: pin (F22.03)
+def test_pinned_event_stays_unchanged(tmp_path):
+    engine, source_id = _setup(tmp_path)
+    cfg = SourceConfig(name="Test", gatherer="elfsight", url="https://x")
+
+    with Session(engine) as session:
+        _seed_event(session, source_id, make_scraped("u1", "One"))
+        session.commit()
+
+    with Session(engine) as session:
+        eid = stable_id("Test", make_scraped("u1", "One"))
+        session.get(Event, eid).pinned = True
+        session.commit()
+
+    incoming = GathererResult(source=cfg, events=[make_scraped("u1", "One Changed")])
+    with Session(engine) as session:
+        sieved = classify(session, incoming, now=NOW)
+
+    assert sieved.unchanged == 1
+    assert len(sieved.updated) == 0
+    assert sieved.unchanged_ids == [stable_id("Test", make_scraped("u1", "One"))]
+#endregion

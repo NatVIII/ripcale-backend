@@ -185,6 +185,7 @@ login. Writes default to dry-run where applicable.
 | `GET /api/v1/sources` | source list |
 | `GET /api/v1/status` | per-source run status + gatherer rollup |
 | `GET /api/v1/categories` | category mapping (definitions/symlinks/exposed_classes) + counts |
+| `GET /api/v1/archived?limit=` | archived events (most recent first; `limit=0` = all) |
 | `GET /api/v1/events?start=&end=&category=&limit=` | events (FullCalendar) |
 | `GET /api/v1/events/{id}` | single event |
 | `GET /api/v1/stale` | removed-at-source events |
@@ -199,6 +200,8 @@ login. Writes default to dry-run where applicable.
 | `POST /api/v1/ingest` `{dry_run}` | run the full batch ingest |
 | `POST /api/v1/retag` `{from, to?, dry_run?}` | mass category rename/remove |
 | `POST /api/v1/archive` `{dry_run?}` | archive (soft-delete) expired + removed events |
+| `POST /api/v1/archived/{id}/restore` | un-archive a specific event |
+| `POST /api/v1/events/{id}/pin` `{pinned}` | freeze/unfreeze an event's content |
 | `POST /api/v1/wipe/begin` → `POST /api/v1/wipe/confirm` `{challenge}` | challenge-response DB wipe |
 | `POST /api/v1/tests` `{test?}` | run the suite (or one test) |
 | `POST /api/v1/pipeline/gather` `{source…}` | run a gatherer |

@@ -16,6 +16,7 @@ from app.logging import LOG_TAIL_LINES
 from app.security import api_guard, json_body
 from app.services import actions
 from app.services.actions import ActionError
+from app.services.archive import DEFAULT_ARCHIVE_LIMIT
 #endregion
 
 
@@ -105,6 +106,12 @@ def register(app) -> None:
     def api_categories(request):
         return _ok(actions.category_mapping())
 
+    @app.get(f"{prefix}/archived")
+    @_route
+    def api_archived(request):
+        limit = _q_int(request, "limit", DEFAULT_ARCHIVE_LIMIT)
+        return _ok(actions.archived(limit))
+
     @app.get(f"{prefix}/events")
     @_route
     def api_events(request):
@@ -160,6 +167,19 @@ def register(app) -> None:
     @_route
     def api_archive(request):
         return _ok(actions.archive(dry_run=json_body(request).get("dry_run", True)))
+
+    @app.post(f"{prefix}/archived/:id/restore")
+    @_route
+    def api_archived_restore(request):
+        event_id = request.path_params.get("id", None)
+        return _ok({"restored": actions.restore(event_id)})
+
+    @app.post(f"{prefix}/events/:id/pin")
+    @_route
+    def api_event_pin(request):
+        event_id = request.path_params.get("id", None)
+        pinned = bool(json_body(request).get("pinned", True))
+        return _ok({"pinned": actions.pin(event_id, pinned)})
 
     @app.post(f"{prefix}/wipe/begin")
     @_route

@@ -191,6 +191,56 @@ def test_api_archive_dry_run_vs_commit(tmp_path, monkeypatch):
         assert session.get(Event, "old").archived_at is not None
 
 
+def test_api_archived_list_and_restore(tmp_path, monkeypatch):
+    from app.models import Source
+
+    client, engine, auth_header = _make_client(tmp_path, monkeypatch)
+    with Session(engine) as session:
+        src = Source(name="S", url="https://x")
+        session.add(src)
+        session.commit()
+        session.refresh(src)
+        session.add(
+            Event(
+                id="a", source_id=src.id, title="Archived",
+                start_at=datetime(2020, 1, 1), archived_at=datetime(2026, 9, 10), archived_reason="expired",
+            )
+        )
+        session.commit()
+
+    r = client.get("/api/v1/archived", headers=auth_header)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    assert [e["id"] for e in body["data"]] == ["a"]
+    assert body["data"][0]["archived_reason"] == "expired"
+
+    r = client.post("/api/v1/archived/a/restore", headers=auth_header, json_data={})
+    assert r.status_code == 200
+    assert r.json()["data"]["restored"] is True
+    with Session(engine) as session:
+        assert session.get(Event, "a").archived_at is None
+
+    r = client.get("/api/v1/archived", headers=auth_header)
+    assert r.json()["data"] == []
+
+
+def test_api_event_pin(tmp_path, monkeypatch):
+    client, engine, auth_header = _make_client(tmp_path, monkeypatch)
+    _seed_event(engine, "e1", "A", "external:art")
+
+    r = client.post("/api/v1/events/e1/pin", headers=auth_header, json_data={"pinned": True})
+    assert r.status_code == 200
+    assert r.json()["data"]["pinned"] is True
+    with Session(engine) as session:
+        assert session.get(Event, "e1").pinned is True
+
+    r = client.post("/api/v1/events/e1/pin", headers=auth_header, json_data={"pinned": False})
+    assert r.json()["data"]["pinned"] is False
+    with Session(engine) as session:
+        assert session.get(Event, "e1").pinned is False
+
+
 def test_api_wipe_challenge_response(tmp_path, monkeypatch):
     client, engine, auth_header = _make_client(tmp_path, monkeypatch)
     _seed_event(engine, "e1", "A", "intake:art")
