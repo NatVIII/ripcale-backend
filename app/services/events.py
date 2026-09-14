@@ -8,7 +8,9 @@ from datetime import datetime
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from app.models import Event, Source
+from app.identity import content_hash
+from app.models import Event, Source, utcnow
+from app.schema import ScrapedEvent, load_exdates, load_images
 from app.services.categories import resolve_event_categories
 #endregion
 
@@ -60,6 +62,54 @@ def set_pinned(session: Session, event_id: str, pinned: bool) -> bool:
         return False
     event.pinned = bool(pinned)
     return True
+
+
+#region: editing (F28)
+_EDITABLE_FIELDS = {
+    "title", "description", "location", "url", "images", "start_at", "end_at",
+    "timezone", "all_day", "rrule", "recurrence_id", "exdates", "redirect_to_id",
+    "priority", "categories",
+}
+
+
+def _recompute_hash(event: Event) -> str:
+    """Recompute `content_hash` from the event's current (edited) content."""
+    scraped = ScrapedEvent(
+        title=event.title,
+        description=event.description,
+        location=event.location,
+        url=event.url,
+        images=load_images(event.images),
+        start_at=event.start_at,
+        end_at=event.end_at,
+        timezone=event.timezone,
+        all_day=event.all_day,
+        rrule=event.rrule,
+        recurrence_id=event.recurrence_id,
+        exdates=load_exdates(event.exdates),
+        categories=[c for c in (event.categories or "").split(",") if c],
+    )
+    return content_hash(scraped)
+
+
+def update_event(session: Session, event_id: str, fields: dict, *, pinned: bool = True) -> Event | None:
+    """Apply normalized field values to an event, pin it, and refresh its hash.
+
+    `fields` maps `Event` attribute names to already-coerced values (datetimes,
+    dumped JSON strings, a comma-joined categories string, bools, etc.). Only
+    editable fields are applied. Returns the event, or None if missing.
+    """
+    event = session.get(Event, event_id)
+    if event is None:
+        return None
+    for key, value in fields.items():
+        if key in _EDITABLE_FIELDS:
+            setattr(event, key, value)
+    event.pinned = pinned
+    event.updated_at = utcnow()
+    event.content_hash = _recompute_hash(event)
+    return event
+#endregion
 
 
 def source_names(session: Session, events: list[Event]) -> dict[int, str]:

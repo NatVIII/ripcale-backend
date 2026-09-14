@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     # source outages. `None` = never archive removed-at-source events.
     archive_grace_hours: int | None = 6
 
+    # Display timezone (F28.02): the IANA zone used to render event times in the
+    # admin UI. Storage stays naive-UTC; this is display-only. `UTC`/empty = UTC.
+    display_timezone: str = "America/New_York"
+
     # -- logging ----------------------------------------------------------
     # Path to the rotating log file. Relative paths are resolved against
     # `data_dir`; absolute paths are used as-is. Empty = `{data_dir}/ripcale.log`.

@@ -217,4 +217,61 @@ def test_debug_event_page_and_pin(tmp_path, monkeypatch):
     assert r.status_code == 200
     with Session(engine) as session:
         assert session.get(Event, "e1").pinned is True
+
+
+def test_debug_event_edit_page_and_post(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'edit.db'}")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        src = Source(name="S", url="https://x")
+        session.add(src)
+        session.commit()
+        session.refresh(src)
+        session.add(Event(id="e1", source_id=src.id, title="Upcoming", start_at=datetime(2030, 1, 1, 0, 0)))
+        session.commit()
+
+    monkeypatch.setattr("app.services.actions.engine", engine)
+
+    from robyn.testing import TestClient
+
+    from app.admin import app
+
+    client = TestClient(app)
+
+    r = client.get("/debug/event/e1/edit")
+    assert r.status_code == 200
+    assert "Upcoming" in r.text
+
+    r = client.post(
+        "/debug/event/e1/edit",
+        form_data={"csrf_token": debug_csrf_token(), "title": "Changed", "start_at": "2030-01-01T00:00:00", "pinned": "1"},
+    )
+    assert r.status_code == 200
+    with Session(engine) as session:
+        assert session.get(Event, "e1").title == "Changed"
+
+
+def test_debug_events_page_renders(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'events.db'}")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        src = Source(name="S", url="https://x")
+        session.add(src)
+        session.commit()
+        session.refresh(src)
+        session.add(Event(id="e1", source_id=src.id, title="Upcoming", start_at=datetime(2030, 1, 1, 0, 0)))
+        session.commit()
+
+    monkeypatch.setattr("app.services.actions.engine", engine)
+
+    from robyn.testing import TestClient
+
+    from app.admin import app
+
+    client = TestClient(app)
+    r = client.get("/debug/events")
+    assert r.status_code == 200
+    assert "Upcoming" in r.text
+    assert "/debug/event/e1" in r.text
+    assert "America/New_York" in r.text
 #endregion

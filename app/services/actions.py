@@ -6,8 +6,10 @@ logic never diverges. Functions take plain arguments and return plain data;
 client errors raise `ActionError`.
 """
 #region: imports
+import json
 import secrets
 import time
+from datetime import datetime
 
 from sqlmodel import Session
 
@@ -18,13 +20,13 @@ from app.ingest import process_source, run_report
 from app.intake import load as load_intake
 from app.logging import LOG_TAIL_LINES, read_log_tail
 from app.registry import load_gatherer, load_sources
-from app.schema import CategoryRule, SourceConfig
+from app.schema import CategoryRule, ImageRef, SourceConfig, dump_exdates, dump_images
 from app.serializers import to_fullcalendar
 from app.services import stats
 from app.services import archive as archive_mod
 from app.services.archive import DEFAULT_ARCHIVE_LIMIT
 from app.services.coherence import check as coherence_check
-from app.services.events import DEFAULT_LIMIT, query_events, set_pinned, source_names
+from app.services.events import DEFAULT_LIMIT, query_events, set_pinned, source_names, update_event
 from app.services.retag import retag as retag_service
 from app.services.status import gatherer_rollup, read_status, record_run, record_status
 from app.services.testrunner import collect_tests, run_tests
@@ -60,6 +62,28 @@ def events(start=None, end=None, category=None, limit: int | None = DEFAULT_LIMI
         evs = query_events(session, start=start, end=end, category=category, limit=limit)
         names = source_names(session, evs)
     return [to_fullcalendar(e, names.get(e.source_id)) for e in evs]
+
+
+def event_list(limit: int | None = DEFAULT_LIMIT, category: str | None = None) -> list:
+    """Admin listing of live events (raw categories + pinned; no symlink/exposure resolution)."""
+    from app.timeutil import display_time
+
+    with Session(engine) as session:
+        evs = query_events(session, category=category, limit=limit)
+        names = source_names(session, evs)
+    return [
+        {
+            "id": e.id,
+            "title": e.title,
+            "source": names.get(e.source_id),
+            "start_at": e.start_at.isoformat() if e.start_at else None,
+            "start_at_display": display_time(e.start_at),
+            "end_at_display": display_time(e.end_at),
+            "categories": e.categories,
+            "pinned": e.pinned,
+        }
+        for e in evs
+    ]
 
 
 def event(event_id: str) -> dict | None:
@@ -180,6 +204,97 @@ def pin(event_id: str, pinned: bool) -> bool | None:
             return None
         session.commit()
     return bool(pinned)
+
+
+#region: editing (F28)
+_NULLABLE_SCALARS = ("description", "location", "url", "timezone", "rrule", "redirect_to_id")
+
+
+def _parse_dt(value) -> datetime | None:
+    if value in (None, ""):
+        return None
+    try:
+        return datetime.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        raise ActionError(f"invalid datetime: {value!r}")
+
+
+def _coerce_edit_fields(data: dict) -> dict:
+    """Normalize raw edit input into Event-typed values (only editable fields)."""
+    fields: dict = {}
+
+    if "title" in data:
+        fields["title"] = str(data["title"] or "")
+
+    for key in _NULLABLE_SCALARS:
+        if key in data:
+            v = data[key]
+            fields[key] = None if v in (None, "") else str(v)
+
+    for key in ("start_at", "end_at", "recurrence_id"):
+        if key in data:
+            fields[key] = _parse_dt(data[key])
+
+    if "all_day" in data:
+        fields["all_day"] = bool(data["all_day"])
+
+    if "priority" in data:
+        p = data["priority"]
+        if p in (None, ""):
+            fields["priority"] = None
+        else:
+            try:
+                fields["priority"] = int(p)
+            except (TypeError, ValueError):
+                raise ActionError(f"invalid priority: {p!r}")
+
+    if "categories" in data:
+        cats = data["categories"]
+        if isinstance(cats, str):
+            cats = [c.strip() for c in cats.split(",") if c.strip()]
+        try:
+            fields["categories"] = ",".join(sorted(set(cats)))
+        except TypeError:
+            raise ActionError("categories must be a list or comma-separated string")
+
+    if "images" in data:
+        imgs = data["images"]
+        if isinstance(imgs, str):
+            try:
+                imgs = json.loads(imgs)
+            except json.JSONDecodeError:
+                raise ActionError("images must be a JSON array")
+        try:
+            fields["images"] = dump_images([ImageRef(**i) for i in imgs])
+        except (TypeError, ValueError):
+            raise ActionError("images must be a list of {url, alt?, source_url?}")
+
+    if "exdates" in data:
+        exd = data["exdates"]
+        if isinstance(exd, str):
+            try:
+                exd = json.loads(exd)
+            except json.JSONDecodeError:
+                raise ActionError("exdates must be a JSON array")
+        try:
+            fields["exdates"] = dump_exdates([datetime.fromisoformat(str(s)) for s in exd])
+        except (TypeError, ValueError):
+            raise ActionError("exdates must be ISO datetimes")
+
+    return fields
+
+
+def edit_event(event_id: str, data: dict) -> dict:
+    """Edit an event's content; returns the updated event dump (404 if missing)."""
+    fields = _coerce_edit_fields(data)
+    pinned = bool(data.get("pinned", True))
+    with Session(engine) as session:
+        event = update_event(session, event_id, fields, pinned=pinned)
+        if event is None:
+            raise ActionError("event not found", 404)
+        session.commit()
+        return stats.event_dump(session, event_id)
+#endregion
 
 
 _WIPE_TTL = 60.0

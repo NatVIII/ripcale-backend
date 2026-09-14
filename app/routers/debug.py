@@ -5,11 +5,14 @@
 All operations are thin clients over `app.services.actions`.
 """
 #region: imports
+from urllib.parse import unquote_plus
+
 from robyn import Response, jsonify
 
 from app.logging import LOG_TAIL_LINES
 from app.security import debug_guard, session_guard
 from app.services import actions
+from app.services.events import DEFAULT_LIMIT
 from app.services.status import source_status
 from app.web import escape, json_pre, page, pre, table
 #endregion
@@ -121,6 +124,7 @@ def register(app) -> None:
             + "<h2>last ingest</h2>"
             + (json_pre(ov["last_ingest"]) if ov["last_ingest"] else "<p>no ingest run yet</p>")
             + "<p><a href='/debug/stale'>stale events</a></p>"
+            + "<p><a href='/debug/events'>events</a></p>"
             + "<p><a href='/debug/retag'>retag categories</a></p>"
             + "<p><a href='/debug/archive'>archive (gc)</a> · <a href='/debug/archived'>archived events</a></p>"
             + "<h2>danger zone</h2>"
@@ -167,6 +171,45 @@ def register(app) -> None:
                 + trs + "</table>"
             )
         return _html(page("ripcale · stale events", body))
+
+    # -- HTML: all events ----------------------------------------------------
+    @app.get("/debug/events")
+    def events_page(request):
+        guard = debug_guard(request)
+        if guard:
+            return guard
+        q = request.query_params or {}
+
+        raw_limit = q.get("limit", None)
+        try:
+            limit = int(raw_limit) if raw_limit else DEFAULT_LIMIT
+        except (TypeError, ValueError):
+            limit = DEFAULT_LIMIT
+
+        raw_cat = q.get("category", None)
+        category = unquote_plus(raw_cat) if raw_cat else None
+
+        rows = actions.event_list(limit=limit, category=category)
+        if not rows:
+            body = "<p>no events.</p>"
+        else:
+            trs = "".join(
+                "<tr>"
+                f"<td><a href='/debug/event/{escape(r['id'])}'>{escape(r['title'])}</a></td>"
+                f"<td>{escape(r['source'] or '')}</td>"
+                f"<td>{escape(r['start_at_display'] or '')}</td>"
+                f"<td>{escape(r['end_at_display'] or '')}</td>"
+                f"<td>{escape(r['categories'])}</td>"
+                f"<td>{'pinned' if r['pinned'] else ''}</td>"
+                "</tr>"
+                for r in rows
+            )
+            body = (
+                f"<p>{len(rows)} events (add <code>?limit=N</code>, <code>?category=class:name</code>):</p>"
+                "<table><tr><th>title</th><th>source</th><th>start</th><th>end</th><th>categories</th><th>pinned</th></tr>"
+                + trs + "</table>"
+            )
+        return _html(page("ripcale · events", body, back="/debug"))
 
     # -- JSON: stats --------------------------------------------------------
     @app.get("/debug/stats")

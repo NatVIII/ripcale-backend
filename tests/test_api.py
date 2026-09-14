@@ -241,6 +241,24 @@ def test_api_event_pin(tmp_path, monkeypatch):
         assert session.get(Event, "e1").pinned is False
 
 
+def test_api_event_edit(tmp_path, monkeypatch):
+    client, engine, auth_header = _make_client(tmp_path, monkeypatch)
+    _seed_event(engine, "e1", "A", "external:art")
+
+    r = client.post("/api/v1/events/e1/edit", headers=auth_header, json_data={"title": "Edited", "pinned": True})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    assert body["data"]["title"] == "Edited"
+    assert body["data"]["pinned"] is True
+    with Session(engine) as session:
+        assert session.get(Event, "e1").title == "Edited"
+
+    r = client.post("/api/v1/events/nope/edit", headers=auth_header, json_data={"title": "X"})
+    assert r.status_code == 404
+    assert r.json()["ok"] is False
+
+
 def test_api_wipe_challenge_response(tmp_path, monkeypatch):
     client, engine, auth_header = _make_client(tmp_path, monkeypatch)
     _seed_event(engine, "e1", "A", "intake:art")

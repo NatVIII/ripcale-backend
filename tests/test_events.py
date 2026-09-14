@@ -228,3 +228,47 @@ def test_set_pinned_toggles_flag(tmp_path):
         session.commit()
     with Session(engine) as session:
         assert session.get(Event, "e").pinned is False
+
+
+def test_update_event_applies_pins_and_rehashes(tmp_path):
+    from app.identity import content_hash
+    from app.schema import ScrapedEvent
+    from app.services.events import update_event
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'edit.db'}")
+    SQLModel.metadata.create_all(engine)
+    original = ScrapedEvent(uid="u1", title="Original", start_at=datetime(2030, 1, 1, 18, 0))
+    with Session(engine) as session:
+        src = Source(name="S", url="https://x")
+        session.add(src)
+        session.commit()
+        session.refresh(src)
+        session.add(
+            Event(
+                id="e", source_id=src.id, uid="u1", title="Original",
+                start_at=original.start_at, content_hash=content_hash(original),
+            )
+        )
+        session.commit()
+
+    with Session(engine) as session:
+        updated = update_event(session, "e", {"title": "New Title"}, pinned=True)
+        session.commit()
+    assert updated is not None
+
+    expected = ScrapedEvent(uid="u1", title="New Title", start_at=datetime(2030, 1, 1, 18, 0))
+    with Session(engine) as session:
+        e = session.get(Event, "e")
+        assert e.title == "New Title"
+        assert e.pinned is True
+        assert e.content_hash == content_hash(expected)
+        assert e.updated_at is not None
+
+
+def test_update_event_missing_returns_none(tmp_path):
+    from app.services.events import update_event
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'edit_missing.db'}")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        assert update_event(session, "nope", {"title": "x"}) is None

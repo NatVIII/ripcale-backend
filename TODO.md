@@ -6,8 +6,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
  
-- [ ] F28 - Event Editor: Edit events on the backend using the /debug screen.. Keep just regular HTML, no Javascript for this
-- [ ] F44 - Find a preferred way to set up an automatic build pipeline; where development builds can be compiled into releases on github (using the command line preferably because I like it, or without having to create releases and instead just being able to trigger a re-grab and re-build using my terminal with the server) and on release an automatic deployment to a server can occur. Selfishly, this is so that I can build on my PC and then deploy on my testing server immediately on a push to the upcoming dev branch; which I'll likely split to after 
+- [ ] F44 - Find a preferred way to set up an automatic build pipeline; where development builds can be compiled into releases on github (using the command line preferably because I like it, or without having to create releases and instead just being able to trigger a re-grab and re-build using my terminal with the server) and on release an automatic deployment to a server can occur. Selfishly, this is so that I can build on my PC and then deploy on my testing server immediately on a push to the upcoming dev branch; which I'll likely split to after.
 - [ ] F25 - Gatherer: Google Calendar Gatherer
 - [ ] F21 - Gatherer: Instagram source (research HikerAPI - see DEVLOG note)
 - [ ] F40 - Post-Sieve Feature, FITB with image OCR. The Instagram 
@@ -88,6 +87,9 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F22.02 - Admin archive management: `event_dump()` exposes `last_seen_at`/`archived_at`/`archived_reason`; `GET /api/v1/archived?limit=` (most-recent first, capped at `DEFAULT_LIMIT`) + `POST /api/v1/archived/{id}/restore`; archive preview capped; `/debug/archived` page (2026-09-08)
 - [x] F22.03 - Pin events: `Event.pinned` freezes content (sieve buckets pinned as unchanged) while archiving still applies; `POST /api/v1/events/{id}/pin` + `/debug/event/{id}` page; `pinned` in `event_dump()`/`list_archived()` (2026-09-08)
 - [x] F22.04–F22.09 - Integration-test hardening: end-to-end archive lifecycle, pin end-to-end, updated-path restore, overview/sources archived accounting, recurrence "last occurrence + duration" boundary, archive idempotency (2026-09-08)
+- [x] F28 - Event Editor: full-fidelity edit via `POST /api/v1/events/{id}/edit` + `/debug/event/{id}/edit` (no-JS form); `update_event()` applies editable fields, pins, recomputes `content_hash`; non-pinned edits are transient (2026-09-08)
+- [x] F28.01 - Events list page: `GET /debug/events` (HTML table of live events, title links to `/debug/event/{id}`, `?limit=`/`?category=` filters) backed by `actions.event_list()` (2026-09-08)
+- [x] F28.02 - Display timezone: `display_timezone` (default `America/New_York`) + `display_time()` helper localizes event start/end in `/debug/events` and `/debug/event/{id}` (Local + UTC); storage stays naive-UTC (2026-09-08)
 
 ## Deleted
 - [ ] F30 - Deleted Event

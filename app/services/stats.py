@@ -16,6 +16,7 @@ from app.config import settings
 from app.models import Event, Source
 from app.schema import load_images
 from app.services.expiry import is_expired
+from app.timeutil import display_time
 #endregion
 
 
@@ -109,6 +110,8 @@ def event_dump(session: Session, event_id: str) -> dict | None:
         "images": [{"url": img.url, "alt": img.alt, "source_url": img.source_url} for img in load_images(event.images)],
         "start_at": event.start_at.isoformat() if event.start_at else None,
         "end_at": event.end_at.isoformat() if event.end_at else None,
+        "start_at_display": display_time(event.start_at),
+        "end_at_display": display_time(event.end_at),
         "timezone": event.timezone,
         "all_day": event.all_day,
         "rrule": event.rrule,
@@ -116,6 +119,7 @@ def event_dump(session: Session, event_id: str) -> dict | None:
         "exdates": json.loads(event.exdates or "[]"),
         "redirect_to_id": event.redirect_to_id,
         "categories": event.categories,
+        "priority": event.priority,
         "content_hash": event.content_hash,
         "last_seen_at": event.last_seen_at.isoformat() if event.last_seen_at else None,
         "archived_at": event.archived_at.isoformat() if event.archived_at else None,

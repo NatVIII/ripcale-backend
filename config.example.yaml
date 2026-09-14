@@ -31,6 +31,10 @@ expire_future_days: null  # or a number to bound the future (e.g. 365)
 # outages. null = never archive removed-at-source events.
 archive_grace_hours: 6
 
+# Display timezone (F28.02): the IANA zone used to render event times in the
+# admin UI (storage stays naive-UTC; this is display-only). "UTC" or empty = UTC.
+display_timezone: America/New_York
+
 # Rotating log file (shared by all entrypoints; viewed at /debug/logs).
 # Relative paths resolve against data_dir; absolute paths are used as-is.
 # log_file: ripcale.log            # default: {data_dir}/ripcale.log

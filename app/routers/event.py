@@ -4,10 +4,13 @@
 restore (if archived) actions. Thin client over `app.services.actions`.
 """
 #region: imports
+import json
+
 from robyn import Response
 
 from app.security import debug_csrf_token, debug_guard, form_data, verify_csrf
 from app.services import actions
+from app.services.actions import ActionError
 from app.web import escape, page, table
 #endregion
 
@@ -34,8 +37,8 @@ def _event_body(dump: dict, token: str) -> str:
         ["id", dump["id"]],
         ["source", dump["source"] or ""],
         ["title", dump["title"]],
-        ["start", dump["start_at"] or ""],
-        ["end", dump["end_at"] or ""],
+        ["start", dump["start_at_display"] or ""],
+        ["end", dump["end_at_display"] or ""],
         ["categories", dump["categories"]],
         ["pinned", "yes" if dump["pinned"] else "no"],
         ["archived", dump["archived_at"] or "no"],
@@ -43,6 +46,7 @@ def _event_body(dump: dict, token: str) -> str:
         ["last seen", dump["last_seen_at"] or ""],
     ]
     body = table(["field", "value"], rows)
+    body += f"<p><a href='/debug/event/{escape(dump['id'])}/edit'>edit</a></p>"
 
     pin_label = "unpin" if dump["pinned"] else "pin"
     pin_value = "0" if dump["pinned"] else "1"
@@ -59,6 +63,34 @@ def _event_body(dump: dict, token: str) -> str:
             f"<button type='submit'>restore</button></form>"
         )
     return body
+
+
+def _edit_form(dump: dict, token: str) -> str:
+    def _checked(flag) -> str:
+        return " checked" if flag else ""
+
+    return (
+        f"<form method='post' action='/debug/event/{escape(dump['id'])}/edit'>"
+        f"<input type='hidden' name='csrf_token' value='{escape(token)}'>"
+        f"<p><label>title <input name='title' size='60' value='{escape(dump['title'])}'></label></p>"
+        f"<p><label>description <textarea name='description' rows='4' cols='60'>{escape(dump['description'] or '')}</textarea></label></p>"
+        f"<p><label>location <input name='location' size='60' value='{escape(dump['location'] or '')}'></label></p>"
+        f"<p><label>url <input name='url' size='60' value='{escape(dump['url'] or '')}'></label></p>"
+        f"<p><label>timezone <input name='timezone' size='40' value='{escape(dump['timezone'] or '')}'></label></p>"
+        f"<p><label>start <input name='start_at' size='40' value='{escape(dump['start_at'] or '')}'></label></p>"
+        f"<p><label>end <input name='end_at' size='40' value='{escape(dump['end_at'] or '')}'></label></p>"
+        f"<p><label>recurrence_id <input name='recurrence_id' size='40' value='{escape(dump['recurrence_id'] or '')}'></label></p>"
+        f"<p><label><input type='checkbox' name='all_day' value='1'{_checked(dump['all_day'])}> all-day</label></p>"
+        f"<p><label>rrule <input name='rrule' size='60' value='{escape(dump['rrule'] or '')}'></label></p>"
+        f"<p><label>redirect_to_id <input name='redirect_to_id' size='60' value='{escape(dump['redirect_to_id'] or '')}'></label></p>"
+        f"<p><label>priority <input name='priority' type='number' value='{escape(dump['priority'] if dump['priority'] is not None else '')}'></label></p>"
+        f"<p><label>categories <input name='categories' size='60' value='{escape(dump['categories'])}'></label></p>"
+        f"<p><label>images (JSON) <textarea name='images' rows='4' cols='60'>{escape(json.dumps(dump['images']))}</textarea></label></p>"
+        f"<p><label>exdates (JSON) <textarea name='exdates' rows='3' cols='60'>{escape(json.dumps(dump['exdates']))}</textarea></label></p>"
+        f"<p><label><input type='checkbox' name='pinned' value='1' checked> pin (freeze this edit)</label></p>"
+        f"<button type='submit'>save</button>"
+        f"</form>"
+    )
 #endregion
 
 
@@ -103,5 +135,52 @@ def register(app) -> None:
         body = f"<p>{'restored' if restored else 'not restored'} — {escape(event_id)}</p>"
         if dump is not None:
             body += _event_body(dump, debug_csrf_token())
+        return _html(page("ripcale · event", body, back=f"/debug/event/{event_id}"))
+
+    @app.get("/debug/event/:id/edit")
+    def event_edit_page(request):
+        guard = debug_guard(request)
+        if guard:
+            return guard
+        dump = actions.event(request.path_params.get("id", None))
+        if dump is None:
+            return _not_found()
+        return _html(page("ripcale · edit event", _edit_form(dump, debug_csrf_token()), back=f"/debug/event/{dump['id']}"))
+
+    @app.post("/debug/event/:id/edit")
+    def event_edit_run(request):
+        guard = debug_guard(request)
+        if guard:
+            return guard
+        if not verify_csrf(request):
+            return _forbidden()
+
+        event_id = request.path_params.get("id", None)
+        form = form_data(request)
+        data = {
+            "title": form.get("title", ""),
+            "description": form.get("description", "") or None,
+            "location": form.get("location", "") or None,
+            "url": form.get("url", "") or None,
+            "timezone": form.get("timezone", "") or None,
+            "start_at": form.get("start_at", "") or None,
+            "end_at": form.get("end_at", "") or None,
+            "recurrence_id": form.get("recurrence_id", "") or None,
+            "all_day": form.get("all_day") == "1",
+            "rrule": form.get("rrule", "") or None,
+            "redirect_to_id": form.get("redirect_to_id", "") or None,
+            "priority": form.get("priority", "") or None,
+            "categories": form.get("categories", ""),
+            "images": form.get("images") or "[]",
+            "exdates": form.get("exdates") or "[]",
+            "pinned": form.get("pinned") == "1",
+        }
+
+        try:
+            dump = actions.edit_event(event_id, data)
+        except ActionError as exc:
+            return _html(page("ripcale · edit event", f"<p>{escape(exc)}</p>", back=f"/debug/event/{event_id}/edit"))
+
+        body = f"<p>saved — {escape(event_id)}</p>" + _event_body(dump, debug_csrf_token())
         return _html(page("ripcale · event", body, back=f"/debug/event/{event_id}"))
 #endregion

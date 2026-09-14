@@ -9,9 +9,7 @@ services:
       - ./data:/app/data
       - ./config.yaml:/app/config.yaml:ro
       - ./intake.yaml:/app/intake.yaml
-    env_file:
-      - path: .env
-        required: false
+      - ./.env:/app/.env:ro
     restart: unless-stopped
 
   admin:
@@ -24,7 +22,5 @@ services:
       - ./data:/app/data
       - ./config.yaml:/app/config.yaml:ro
       - ./intake.yaml:/app/intake.yaml
-    env_file:
-      - path: .env
-        required: false
+      - ./.env:/app/.env:ro
     restart: unless-stopped

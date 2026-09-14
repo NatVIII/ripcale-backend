@@ -181,6 +181,12 @@ def register(app) -> None:
         pinned = bool(json_body(request).get("pinned", True))
         return _ok({"pinned": actions.pin(event_id, pinned)})
 
+    @app.post(f"{prefix}/events/:id/edit")
+    @_route
+    def api_event_edit(request):
+        event_id = request.path_params.get("id", None)
+        return _ok(actions.edit_event(event_id, json_body(request)))
+
     @app.post(f"{prefix}/wipe/begin")
     @_route
     def api_wipe_begin(request):

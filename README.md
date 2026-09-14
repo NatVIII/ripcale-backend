@@ -52,6 +52,8 @@ The ingest relevance window is set in `config.yaml`: `expire_past_days` (default
 once their last occurrence has passed), and `expire_future_days` (default `None`)
 drops events starting more than N days ahead. `archive_grace_hours` (default 6)
 controls how long a removed-at-source event stays before it's archived.
+`display_timezone` (default `America/New_York`) sets the zone the admin UI shows
+event times in (storage stays UTC).
 
 The admin login is configured via `.env` too: `RIPCALE_ADMIN_USERNAME`,
 `RIPCALE_ADMIN_PASSWORD_HASH`, and `RIPCALE_PEPPER`. (API tokens are per-user,
@@ -202,6 +204,7 @@ login. Writes default to dry-run where applicable.
 | `POST /api/v1/archive` `{dry_run?}` | archive (soft-delete) expired + removed events |
 | `POST /api/v1/archived/{id}/restore` | un-archive a specific event |
 | `POST /api/v1/events/{id}/pin` `{pinned}` | freeze/unfreeze an event's content |
+| `POST /api/v1/events/{id}/edit` `{...fields, pinned?}` | edit an event (partial; only provided fields change) |
 | `POST /api/v1/wipe/begin` → `POST /api/v1/wipe/confirm` `{challenge}` | challenge-response DB wipe |
 | `POST /api/v1/tests` `{test?}` | run the suite (or one test) |
 | `POST /api/v1/pipeline/gather` `{source…}` | run a gatherer |

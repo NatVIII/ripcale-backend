@@ -62,7 +62,7 @@ Key files:
 - `app/decisionmaker/` — `apply()` re-exported from `decisionmaker.py` (persist; stub for future cross-source heuristics).
 - `app/ingest.py` — `run()` / `run_report()` / `process_source()` orchestrator (CLI + debug ingest page share `_run()`).
 - `app/serializers.py` — `Event` → FullCalendar dict.
-- `app/services/events.py` — `query_events()`, `get_event()`, `set_pinned()`, `source_names()`.
+- `app/services/events.py` — `query_events()`, `get_event()`, `set_pinned()`, `update_event()` (F28 edit), `source_names()`.
 - `app/services/ics.py` — `event_to_vevent()`, `events_to_ics()`.
 - `app/services/stats.py` — `overview()`, `sources()`, `event_dump()`, `stale_events()`, `read_last_ingest()`.
 - `app/services/coherence.py` — `check()` (live config/intake coherence checks, fail-safe).
@@ -86,7 +86,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (279)
+.venv/bin/python -m pytest                       # test suite (294)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -229,6 +229,16 @@ docker compose up --build                        # public + admin services
   `POST /api/v1/events/{id}/pin` or `/debug/event/{id}`; `pinned` is exposed in
   `stats.event_dump()` and `list_archived()`. Pin blocks source-driven changes
   only — admin `retag`/`restore`/`unpin` still apply.
+- **Event editing (F28)** — full-fidelity edits via
+  `POST /api/v1/events/{id}/edit` (or `/debug/event/{id}/edit`): the
+  `actions.edit_event()` action coerces the editable fields (title, description,
+  location, url, images, start/end, timezone, all_day, rrule, recurrence_id,
+  exdates, redirect_to_id, priority, categories) and
+  `events.update_event()` applies them, bumps `updated_at`, **recomputes
+  `content_hash`**, and pins the event (per-edit `pinned` flag, default true).
+  Non-pinned edits are transient — the recomputed hash means the next ingest
+  reverts them. `id`/`source_id`/`uid`/derived/operational columns are not
+  editable.
 
 ## Configuration
 
@@ -247,6 +257,7 @@ System fields in `config.yaml` (env prefix `RIPCALE_`; `.env` overrides):
 - `expire_past_days` — drop ingested events that fully ended more than N days ago (recurring series only once their last occurrence has passed); `None` disables (default `90`).
 - `expire_future_days` — drop ingested events starting more than N days ahead; `None` = no future bound (default).
 - `archive_grace_hours` — an event removed at the source is archived only after it has been stale this many hours; `None` disables removed-archiving (default `6`).
+- `display_timezone` — IANA zone used to render event times in the admin UI (display-only; storage stays naive-UTC; default `America/New_York`).
 - `log_file` — rotating log path (relative → `data_dir`; empty → `data/ripcale.log`).
 - `log_max_bytes` — rotate once the file reaches this size (default `1000000`).
 - `log_backup_count` — rotated backups to keep (default `3`).

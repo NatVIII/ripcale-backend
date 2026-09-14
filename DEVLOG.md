@@ -1,3 +1,33 @@
+## 2026-09-08 03:10:00 [AI]
+
+F28.02: display timezone (admin UI shows local + UTC).
+
+- `app/config.py`: `display_timezone: str = "America/New_York"` (display-only; storage stays naive-UTC).
+- `app/timeutil.py`: `display_time(dt)` — formats a naive-UTC time as `local TZ · … UTC` via `ZoneInfo` (DST-correct; falls back to UTC on empty/invalid zone; collapses to a single `… UTC` when the zone is UTC).
+- `app/services/stats.py`: `event_dump()` gains `start_at_display`/`end_at_display`; `app/services/actions.py`: `event_list()` gains the same.
+- `app/routers/debug.py` (`/debug/events`) + `app/routers/event.py` (`/debug/event/{id}`) show the localized times.
+- Tests: `tests/test_timeutil.py` (EDT/EST/rollover/None/invalid-zone/UTC) + display fields in `event_list`/`event_dump`/debug render (294 passing).
+
+## 2026-09-08 02:50:00 [AI]
+
+F28.01: admin events list page.
+
+- `app/services/actions.py`: `event_list(limit, category)` — admin listing of live events (raw stored categories + `pinned`; no symlink/exposure resolution), via `query_events` + `source_names`.
+- `app/routers/debug.py`: `GET /debug/events` (HTML table, title → `/debug/event/{id}`), `?limit=`/`?category=` filters, linked from the dashboard.
+- Tests: `event_list` shape/order/limit/category + `/debug/events` render (288 passing).
+
+## 2026-09-08 02:30:00 [AI]
+
+F28: full-fidelity event editor (API-first + no-JS HTML).
+
+- `app/services/events.py`: `update_event(session, id, fields, *, pinned)` — applies an editable-field whitelist, bumps `updated_at`, pins, and recomputes `content_hash` via `_recompute_hash()` (rebuilds a `ScrapedEvent` from the row).
+- `app/services/actions.py`: `edit_event()` — coerces input (ISO datetimes, categories, images/exdates JSON, all_day/pinned/priority) with `ActionError` on bad input / 404 on missing; commits + returns the updated dump.
+- `app/services/stats.py`: `event_dump()` now includes `priority`.
+- `app/routers/api.py`: `POST /api/v1/events/{id}/edit` (partial update).
+- `app/routers/event.py`: `GET/POST /debug/event/{id}/edit` (no-JS form, `images`/`exdates` as JSON textareas, per-edit `pin` checkbox default checked) + an "edit" link on the event page.
+- Non-pinned edits are transient by design (recomputed hash → next ingest reverts).
+- Tests: service (apply/pin/rehash/missing), action (parsing + 404 + bad date/JSON), API edit, debug edit form, `event_dump` priority (285 passing).
+
 ## 2026-09-08 02:00:00 [AI]
 
 F22.04–F22.09: archive/expiry/pin integration-test hardening.
