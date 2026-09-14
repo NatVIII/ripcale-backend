@@ -6,12 +6,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
  
-- [ ] F22.04 - Integration test: end-to-end archive lifecycle — seed an expired event, run a full ingest, assert it gets archived + is absent from `query_events`, then restore and assert it's served again.
-- [ ] F22.05 - Integration test: pin end-to-end — pinned row + changed source event through `process_source` → stored content unchanged while `last_seen_at` is stamped.
-- [ ] F22.06 - Test: restore-on-reseen via the "updated" path (archived event reappears with changed content → un-archived + updated).
-- [ ] F22.07 - Test: `stats.overview()["archived"]` count and `stats.sources()` exclude archived events.
-- [ ] F22.08 - Test: recurrence "last occurrence + duration" boundary — `last_start` inside the window but `last_start + duration` crossing it (and the inverse).
-- [ ] F22.09 - Test: `archive()` idempotency — a second run archives nothing.
 - [ ] F28 - Event Editor: Edit events on the backend using the /debug screen.. Keep just regular HTML, no Javascript for this
 - [ ] F44 - Find a preferred way to set up an automatic build pipeline; where development builds can be compiled into releases on github (using the command line preferably because I like it, or without having to create releases and instead just being able to trigger a re-grab and re-build using my terminal with the server) and on release an automatic deployment to a server can occur. Selfishly, this is so that I can build on my PC and then deploy on my testing server immediately on a push to the upcoming dev branch; which I'll likely split to after 
 - [ ] F25 - Gatherer: Google Calendar Gatherer
@@ -93,6 +87,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F22 + F22.01 - Archive (GC): soft-delete (`archived_at` + `archived_reason`) — expired events archive immediately, removed-at-source events only after `archive_grace_hours` (default 6h); idempotent migration; read path excludes archived; re-seen events un-archive; stale detection tags `kind` (expired/removed); auto-runs at end of ingest + `POST /api/v1/archive` + `/debug/archive` + `python -m app.archive` (2026-09-08)
 - [x] F22.02 - Admin archive management: `event_dump()` exposes `last_seen_at`/`archived_at`/`archived_reason`; `GET /api/v1/archived?limit=` (most-recent first, capped at `DEFAULT_LIMIT`) + `POST /api/v1/archived/{id}/restore`; archive preview capped; `/debug/archived` page (2026-09-08)
 - [x] F22.03 - Pin events: `Event.pinned` freezes content (sieve buckets pinned as unchanged) while archiving still applies; `POST /api/v1/events/{id}/pin` + `/debug/event/{id}` page; `pinned` in `event_dump()`/`list_archived()` (2026-09-08)
+- [x] F22.04–F22.09 - Integration-test hardening: end-to-end archive lifecycle, pin end-to-end, updated-path restore, overview/sources archived accounting, recurrence "last occurrence + duration" boundary, archive idempotency (2026-09-08)
 
 ## Deleted
 - [ ] F30 - Deleted Event

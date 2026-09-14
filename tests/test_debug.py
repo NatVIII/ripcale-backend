@@ -110,6 +110,28 @@ def test_stats_event_dump(tmp_path):
         assert dump["title"] == "Upcoming"
         assert dump["source"] == "S"
         assert stats.event_dump(session, "nope") is None
+
+
+def test_overview_archived_and_sources_exclude_archived(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'arch.db'}")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        src = Source(name="S", url="https://x")
+        session.add(src)
+        session.commit()
+        session.refresh(src)
+        session.add(Event(id="live", source_id=src.id, title="Live", start_at=datetime(2030, 1, 1)))
+        session.add(
+            Event(id="dead", source_id=src.id, title="Dead", start_at=datetime(2030, 1, 2), archived_at=datetime(2026, 1, 1))
+        )
+        session.commit()
+
+    with Session(engine) as session:
+        ov = stats.overview(session)
+        assert ov["archived"] == 1
+        assert ov["events"] == 1
+        srcs = stats.sources(session)
+        assert srcs[0]["event_count"] == 1
 #endregion
 
 

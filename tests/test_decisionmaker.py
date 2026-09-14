@@ -108,3 +108,46 @@ def test_apply_unarchives_reseen_event(tmp_path):
         row = session.get(Event, eid)
         assert row.archived_at is None
         assert row.archived_reason is None
+
+
+def test_apply_unarchives_updated_event(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'unarchive_upd.db'}")
+    SQLModel.metadata.create_all(engine)
+
+    original = make_scraped("u1", "Old Title")
+    eid = stable_id("Test", original)
+
+    with Session(engine) as session:
+        source = Source(name="Test", url="https://x")
+        session.add(source)
+        session.commit()
+        session.refresh(source)
+        session.add(
+            Event(
+                id=eid,
+                source_id=source.id,
+                uid=original.uid,
+                title=original.title,
+                start_at=original.start_at,
+                content_hash=content_hash(original),
+                archived_at=datetime(2026, 9, 1),
+                archived_reason="removed",
+            )
+        )
+        session.commit()
+        source_id = source.id
+
+    changed = make_scraped("u1", "New Title")
+    cfg = SourceConfig(name="Test", gatherer="elfsight", url="https://x")
+    sieved = SieveResult(source=cfg, updated=[_classified("Test", changed, changed=["title"])])
+
+    with Session(engine) as session:
+        source = session.get(Source, source_id)
+        apply(session, source, sieved)
+        session.commit()
+
+    with Session(engine) as session:
+        row = session.get(Event, eid)
+        assert row.title == "New Title"
+        assert row.archived_at is None
+        assert row.archived_reason is None

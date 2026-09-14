@@ -254,4 +254,22 @@ def test_archive_still_archives_pinned_expired(tmp_path, monkeypatch):
         assert e.archived_at is not None
         assert e.archived_reason == "expired"
         assert e.pinned is True
+
+
+def test_archive_is_idempotent(tmp_path, monkeypatch):
+    engine = _setup(tmp_path, monkeypatch, past_days=30)
+    with Session(engine) as session:
+        sid = _source(session, NOW)
+        _add(session, sid, "old", start=NOW - timedelta(days=41), end=NOW - timedelta(days=40), last_seen_at=NOW)
+
+    with Session(engine) as session:
+        first = archive(session, now=NOW, dry_run=False)
+        session.commit()
+    with Session(engine) as session:
+        second = archive(session, now=NOW, dry_run=False)
+        session.commit()
+
+    assert first["expired"] == 1
+    assert second["expired"] == 0
+    assert second["removed"] == 0
 #endregion

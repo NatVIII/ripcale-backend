@@ -43,3 +43,18 @@ def test_last_occurrence_missing_inputs():
     assert last_occurrence(None, START) is None
     assert last_occurrence("FREQ=WEEKLY;COUNT=5", None) is None
 #endregion
+
+
+#region: expiry boundary (F22.08)
+def test_is_expired_last_occurrence_duration_boundary():
+    from app.services.expiry import is_expired
+
+    now = datetime(2026, 9, 15, 12, 0)  # cutoff = 2026-09-05 12:00 (10 days)
+    start = datetime(2026, 8, 1, 8, 0)
+    rrule = "FREQ=WEEKLY;COUNT=6"  # last occurrence = 2026-09-05 08:00
+
+    # last start (09-05 08:00) is before the cutoff, but start + 6h ends after it -> still relevant
+    assert is_expired(start, datetime(2026, 8, 1, 14, 0), rrule, now, 10) is False
+    # start + 2h ends before the cutoff -> expired
+    assert is_expired(start, datetime(2026, 8, 1, 10, 0), rrule, now, 10) is True
+#endregion

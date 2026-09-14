@@ -1,3 +1,14 @@
+## 2026-09-08 02:00:00 [AI]
+
+F22.04–F22.09: archive/expiry/pin integration-test hardening.
+
+- `tests/test_ingest.py`: end-to-end archive lifecycle (expired → `ingest.run()` archives → `query_events` excludes → `archive.restore` brings it back); pin end-to-end (`process_source` with a changed source leaves a pinned row's content + hash unchanged while `last_seen_at` stamps).
+- `tests/test_decisionmaker.py`: restore-on-reseen via the `updated` path (archived + changed content → un-archived + updated).
+- `tests/test_debug.py`: `overview()["archived"]` count + `sources()` excludes archived.
+- `tests/test_recurrence.py`: `is_expired` "last occurrence + duration" boundary (duration tips the verdict).
+- `tests/test_archive.py`: `archive()` idempotency (second run archives nothing).
+- 279 passing.
+
 ## 2026-09-08 01:40:00 [AI]
 
 F22.03: pin events (content freeze, archive unaffected).
