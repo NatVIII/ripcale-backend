@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the ripcale poll-based deploy every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Unit=ripcale-deploy.service
+
+[Install]
+WantedBy=timers.target

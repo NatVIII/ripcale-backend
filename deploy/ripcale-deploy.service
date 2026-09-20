@@ -1,0 +1,13 @@
+[Unit]
+Description=ripcale poll-based deploy (git pull + rebuild if changed)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/opt/ripcale-backend
+ExecStart=/opt/ripcale-backend/deploy/deploy.sh
+
+[Install]
+WantedBy=multi-user.target

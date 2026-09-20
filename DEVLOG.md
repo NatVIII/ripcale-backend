@@ -1,3 +1,12 @@
+## 2026-09-08 03:40:00 [AI]
+
+F44: poll-based auto-deploy guide + files.
+
+- `deploy/deploy.sh`: `git pull --ff-only` and `docker compose up -d --build` only when HEAD moved.
+- `deploy/ripcale-deploy.service` + `deploy/ripcale-deploy.timer`: systemd oneshot + 5-minute timer (reference units).
+- `docs/DEPLOYMENT.md`: full guide (server setup, gitignored config, public/private git auth, timer install, manual deploy, branch switching, troubleshooting).
+- README links the deployment doc; AGENTS notes the deploy script + timer. No CI/SSH into the server — the server pulls outbound.
+
 ## 2026-09-08 03:10:00 [AI]
 
 F28.02: display timezone (admin UI shows local + UTC).

@@ -96,6 +96,10 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 docker compose up --build                        # public + admin services
 ```
 
+Deployment is **poll-based pull** (no CI/SSH into the server): `deploy/deploy.sh`
+pulls and rebuilds only when HEAD moves, driven by `deploy/ripcale-deploy.{service,timer}`;
+see `docs/DEPLOYMENT.md` for the full server setup.
+
 ## Invariants & gotchas
 
 - **Admin/debug interactivity is API-first** — every interactive/admin capability

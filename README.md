@@ -34,6 +34,9 @@ docker compose up --build
 Starts two services: `public` (`0.0.0.0:8081`) and `admin` (`127.0.0.1:8082`,
 loopback-only so the interactive surface isn't reachable over the network).
 
+For automated deploys to a server, see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
+(poll-based pull: the server pulls + rebuilds on a schedule).
+
 ## Configuration
 
 Configuration is split in two:

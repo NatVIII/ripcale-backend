@@ -6,7 +6,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
  
-- [ ] F44 - Find a preferred way to set up an automatic build pipeline; where development builds can be compiled into releases on github (using the command line preferably because I like it, or without having to create releases and instead just being able to trigger a re-grab and re-build using my terminal with the server) and on release an automatic deployment to a server can occur. Selfishly, this is so that I can build on my PC and then deploy on my testing server immediately on a push to the upcoming dev branch; which I'll likely split to after.
 - [ ] F25 - Gatherer: Google Calendar Gatherer
 - [ ] F21 - Gatherer: Instagram source (research HikerAPI - see DEVLOG note)
 - [ ] F40 - Post-Sieve Feature, FITB with image OCR. The Instagram 
@@ -90,6 +89,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F28 - Event Editor: full-fidelity edit via `POST /api/v1/events/{id}/edit` + `/debug/event/{id}/edit` (no-JS form); `update_event()` applies editable fields, pins, recomputes `content_hash`; non-pinned edits are transient (2026-09-08)
 - [x] F28.01 - Events list page: `GET /debug/events` (HTML table of live events, title links to `/debug/event/{id}`, `?limit=`/`?category=` filters) backed by `actions.event_list()` (2026-09-08)
 - [x] F28.02 - Display timezone: `display_timezone` (default `America/New_York`) + `display_time()` helper localizes event start/end in `/debug/events` and `/debug/event/{id}` (Local + UTC); storage stays naive-UTC (2026-09-08)
+- [x] F44 - Poll-based auto-deploy: `deploy/deploy.sh` (git pull + rebuild only on new commit) + `deploy/ripcale-deploy.{service,timer}` + `docs/DEPLOYMENT.md` guide; no CI/SSH into the server (2026-09-08)
 
 ## Deleted
 - [ ] F30 - Deleted Event
