@@ -62,6 +62,13 @@ class Settings(BaseSettings):
     # admin UI. Storage stays naive-UTC; this is display-only. `UTC`/empty = UTC.
     display_timezone: str = "America/New_York"
 
+    # Ingest scheduler (F11): how often to run the full pipeline, in minutes.
+    # `None`/`0` disables the scheduler. Also used as the stale-lock timeout
+    # (a held `ingest.lock` older than one interval is considered dead).
+    ingest_interval_minutes: int | None = 60
+    # Cooldown after startup before the scheduler's first ingest.
+    ingest_startup_delay_minutes: int = 3
+
     # -- logging ----------------------------------------------------------
     # Path to the rotating log file. Relative paths are resolved against
     # `data_dir`; absolute paths are used as-is. Empty = `{data_dir}/ripcale.log`.

@@ -25,6 +25,7 @@ from app.logging import setup_logging
 from app.models import Source, utcnow
 from app.registry import load_gatherer, load_sources
 from app.schema import CategoryRule, GathererResult, SieveResult, SourceConfig
+from app.services import lock
 from app.services.status import record_run, record_status
 from app.services.archive import archive as archive_service
 from app.sieve import classify
@@ -107,11 +108,23 @@ def _write_last_ingest(summaries: list[dict], archived: dict | None = None) -> N
 
 #region: entrypoint
 def _run(dry_run: bool = False) -> tuple[list[SieveResult], list[dict]]:
-    """Run the full pipeline across every configured source.
+    """Run the full pipeline, guarded by the ingest lock (F11).
 
-    Single shared implementation used by the CLI (`run`) and the debug ingest
-    page (`run_report`); returns `(results, summaries)`.
+    Returns a `skipped` summary instead of running if another ingest holds the
+    lock (a scheduled run overlapping a manual one, or vice versa).
     """
+    if not lock.acquire():
+        logger.warning("ingest already running (lock held); skipping")
+        skipped = [{"name": "ingest", "status": "skipped", "message": "ingest already running (lock held)"}]
+        return [], skipped
+    try:
+        return _run_locked(dry_run)
+    finally:
+        lock.release()
+
+
+def _run_locked(dry_run: bool = False) -> tuple[list[SieveResult], list[dict]]:
+    """Run the full pipeline across every configured source (lock already held)."""
     init_db()
     results: list[SieveResult] = []
     summaries: list[dict] = []

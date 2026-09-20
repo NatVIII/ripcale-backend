@@ -5,6 +5,7 @@
 All operations are thin clients over `app.services.actions`.
 """
 #region: imports
+from datetime import datetime
 from urllib.parse import unquote_plus
 
 from robyn import Response, jsonify
@@ -14,6 +15,7 @@ from app.security import debug_guard, session_guard
 from app.services import actions
 from app.services.events import DEFAULT_LIMIT
 from app.services.status import source_status
+from app.timeutil import display_time
 from app.web import escape, json_pre, page, pre, table
 #endregion
 
@@ -58,6 +60,26 @@ def _category_mapping_section(mapping: dict) -> str:
         + (table(["internal", "external"], link_rows) if link_rows else "<p>none</p>")
     )
     return "<details><summary>category mapping (config)</summary>" + body + "</details>"
+
+
+def _scheduler_line(sched: dict) -> str:
+    if not sched["enabled"]:
+        return "<p>ingest scheduler: disabled</p>"
+
+    def fmt(iso):
+        if not iso:
+            return "—"
+        try:
+            return display_time(datetime.fromisoformat(iso)) or "—"
+        except ValueError:
+            return iso
+
+    running = " · running…" if sched["running"] else ""
+    return (
+        f"<p>ingest scheduler: every {sched['interval_minutes']}m"
+        f" · last {fmt(sched['last_run_at'])}"
+        f" · next {fmt(sched['next_run_at'])}{running}</p>"
+    )
 #endregion
 
 
@@ -76,6 +98,7 @@ def register(app) -> None:
         statuses = st["statuses"]
         rollup = st["rollup"]
         mapping = actions.category_mapping()
+        sched = actions.scheduler()
 
         by_gatherer: dict[str, list[dict]] = {}
         for s in srcs:
@@ -103,6 +126,7 @@ def register(app) -> None:
             _coherence_section()
             + f"<p>events: {ov['events']} (upcoming {ov['upcoming']}, past {ov['past']})"
             f" · archived: {ov['archived']} · sources: {ov['sources']}</p>"
+            + _scheduler_line(sched)
             + "<h2>categories</h2>"
             + table(
                 ["category", "class", "exposed", "count", "symlink"],

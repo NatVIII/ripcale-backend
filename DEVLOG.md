@@ -1,3 +1,15 @@
+## 2026-09-08 04:00:00 [AI]
+
+F11: automatic ingest scheduler + ingest lock.
+
+- `app/config.py`: `ingest_interval_minutes: int | None = 60` (scheduler cadence + stale-lock timeout) and `ingest_startup_delay_minutes: int = 3`.
+- `app/services/scheduler.py` (new): daemon thread — waits the startup cooldown, then runs `run_report(dry_run=False)` every interval; `status()` exposes `enabled`/`interval_minutes`/`last_run_at`/`next_run_at`/`running`.
+- `app/services/lock.py` (new): cross-process `{data_dir}/ingest.lock` (atomic `O_CREAT|O_EXCL`, stale after one interval) guarding `ingest._run()`.
+- `app/ingest.py`: `_run()` now wraps the pipeline body in the lock; on contention returns a `skipped` summary.
+- `app/admin.py`: `start_scheduler()` on boot.
+- Expose: `actions.scheduler()`, `GET /api/v1/scheduler`, and a `/debug` "ingest scheduler" line (local+UTC via `display_time`).
+- Tests: `test_scheduler.py`, `test_lock.py`, config defaults, API + debug (306 passing).
+
 ## 2026-09-08 03:40:00 [AI]
 
 F44: poll-based auto-deploy guide + files.

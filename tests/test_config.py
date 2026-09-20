@@ -18,4 +18,16 @@ def test_archive_grace_hours_default():
 
 def test_archive_grace_hours_accepts_none():
     assert Settings(archive_grace_hours=None).archive_grace_hours is None
+
+
+def test_ingest_interval_default():
+    assert Settings(display_timezone="America/New_York").ingest_interval_minutes == 60
+
+
+def test_ingest_interval_accepts_none():
+    assert Settings(ingest_interval_minutes=None).ingest_interval_minutes is None
+
+
+def test_ingest_startup_delay_default():
+    assert Settings(display_timezone="America/New_York").ingest_startup_delay_minutes == 3
 #endregion

@@ -56,7 +56,12 @@ once their last occurrence has passed), and `expire_future_days` (default `None`
 drops events starting more than N days ahead. `archive_grace_hours` (default 6)
 controls how long a removed-at-source event stays before it's archived.
 `display_timezone` (default `America/New_York`) sets the zone the admin UI shows
-event times in (storage stays UTC).
+event times in (storage stays UTC). `ingest_interval_minutes` (default 60) runs
+the automatic ingest scheduler every N minutes (`0`/`null` disables it), with an
+`ingest_startup_delay_minutes` (default 3) cooldown after boot. A single ingest
+run is guarded by a lockfile at `data/ingest.lock`; if a run is already in
+progress (or a previous one crashed less than one interval ago), the new run
+skips — the lock is considered stale after one interval.
 
 The admin login is configured via `.env` too: `RIPCALE_ADMIN_USERNAME`,
 `RIPCALE_ADMIN_PASSWORD_HASH`, and `RIPCALE_PEPPER`. (API tokens are per-user,
@@ -189,6 +194,7 @@ login. Writes default to dry-run where applicable.
 | `GET /api/v1/stats` | overview counts + last ingest |
 | `GET /api/v1/sources` | source list |
 | `GET /api/v1/status` | per-source run status + gatherer rollup |
+| `GET /api/v1/scheduler` | ingest scheduler state (enabled / interval / last+next run) |
 | `GET /api/v1/categories` | category mapping (definitions/symlinks/exposed_classes) + counts |
 | `GET /api/v1/archived?limit=` | archived events (most recent first; `limit=0` = all) |
 | `GET /api/v1/events?start=&end=&category=&limit=` | events (FullCalendar) |

@@ -131,6 +131,17 @@ def test_api_categories_mapping(tmp_path, monkeypatch):
     by_name = {c["name"]: c for c in data["categories"]}
     assert by_name["external:art"]["exposed"] is True
     assert by_name["intake:raw"]["exposed"] is False
+
+
+def test_api_scheduler(tmp_path, monkeypatch):
+    client, _, auth_header = _make_client(tmp_path, monkeypatch)
+    r = client.get("/api/v1/scheduler", headers=auth_header)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    data = body["data"]
+    for key in ("enabled", "interval_minutes", "last_run_at", "next_run_at", "running"):
+        assert key in data
 #endregion
 
 

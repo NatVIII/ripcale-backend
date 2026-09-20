@@ -72,6 +72,8 @@ Key files:
 - `app/services/expiry.py` — shared relevance/expiry window (`past_cutoff`/`future_cutoff`/`is_expired`/`is_relevant`; F13 sieve + F22 GC).
 - `app/services/recurrence.py` — `last_occurrence()` (bounded-RRULE last instance; F12 expansion will live here).
 - `app/services/archive.py` — `archive()` (soft-delete expired/removed events), `list_archived()`, `restore()` (F22).
+- `app/services/scheduler.py` — background ingest scheduler (F11): `start()` (daemon thread) + `status()`.
+- `app/services/lock.py` — cross-process `ingest.lock` (atomic, stale-aware) guarding `ingest._run()` (F11).
 - `app/services/actions.py` — request-agnostic admin operations (read/write/pipeline + parsing + `ActionError`); the single source of truth shared by `/api/v1/*` and the HTML debug pages. `category_mapping()` exposes the full category config + DB counts with exposure (F29).
 - `app/services/testrunner.py` — `collect_tests()` / `run_tests()` (subprocess `python -m pytest`).
 - `app/security.py` — `in_docker()`, `is_debug_allowed()`, CSRF, `form_data()`/`json_body()`, `api_guard()`/`session_guard()`.
@@ -86,7 +88,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (294)
+.venv/bin/python -m pytest                       # test suite (306)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -182,6 +184,14 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   playground) records its outcome to `data/status.json` (`ok`/`warning`/`error`);
   `/debug` derives 🟢/🟡/🔴/⚪ lights from it, rolled up per gatherer by highest
   severity.
+- **Scheduler + ingest lock (F11)** — the admin app runs a daemon thread that
+  triggers a full ingest every `ingest_interval_minutes` (after an
+  `ingest_startup_delay_minutes` cooldown). `ingest._run()` is guarded by a
+  cross-process `{data_dir}/ingest.lock` (atomic `O_EXCL`, stale after one
+  interval) so a scheduled run and a manual one can't overlap; on contention the
+  run returns a `skipped` summary. Scheduler state (`enabled`/`interval`/
+  `last_run_at`/`next_run_at`/`running`) is exposed via `GET /api/v1/scheduler`
+  and a `/debug` line.
 - **Logs are a shared rotating file** — `setup_logging()` attaches a
   `RotatingFileHandler` to the root logger in every entrypoint, so `public`,
   `admin`, and `ingest` all write the same `{data_dir}/ripcale.log`. Rotation is
@@ -262,6 +272,8 @@ System fields in `config.yaml` (env prefix `RIPCALE_`; `.env` overrides):
 - `expire_future_days` — drop ingested events starting more than N days ahead; `None` = no future bound (default).
 - `archive_grace_hours` — an event removed at the source is archived only after it has been stale this many hours; `None` disables removed-archiving (default `6`).
 - `display_timezone` — IANA zone used to render event times in the admin UI (display-only; storage stays naive-UTC; default `America/New_York`).
+- `ingest_interval_minutes` — how often the scheduler runs the full ingest (`None`/`0` disables; default `60`); also the stale-lock timeout.
+- `ingest_startup_delay_minutes` — cooldown after admin startup before the scheduler's first ingest (default `3`).
 - `log_file` — rotating log path (relative → `data_dir`; empty → `data/ripcale.log`).
 - `log_max_bytes` — rotate once the file reaches this size (default `1000000`).
 - `log_backup_count` — rotated backups to keep (default `3`).

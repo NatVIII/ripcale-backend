@@ -35,6 +35,13 @@ archive_grace_hours: 6
 # admin UI (storage stays naive-UTC; this is display-only). "UTC" or empty = UTC.
 display_timezone: America/New_York
 
+# Ingest scheduler (F11): run the full pipeline every N minutes. null/0 disables.
+# Also used as the stale-lock timeout: a held `data/ingest.lock` older than one
+# interval is considered dead (a crashed run) and stolen.
+ingest_interval_minutes: 60
+# Cooldown after admin startup before the scheduler's first ingest.
+ingest_startup_delay_minutes: 3
+
 # Rotating log file (shared by all entrypoints; viewed at /debug/logs).
 # Relative paths resolve against data_dir; absolute paths are used as-is.
 # log_file: ripcale.log            # default: {data_dir}/ripcale.log

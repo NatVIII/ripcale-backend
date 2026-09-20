@@ -274,4 +274,19 @@ def test_debug_events_page_renders(tmp_path, monkeypatch):
     assert "Upcoming" in r.text
     assert "/debug/event/e1" in r.text
     assert "America/New_York" in r.text
+
+
+def test_debug_shows_scheduler_line(tmp_path, monkeypatch, session_headers):
+    engine = create_engine(f"sqlite:///{tmp_path / 'sched.db'}")
+    SQLModel.metadata.create_all(engine)
+    monkeypatch.setattr("app.services.actions.engine", engine)
+
+    from robyn.testing import TestClient
+
+    from app.admin import app
+
+    client = TestClient(app)
+    r = client.get("/debug", headers=session_headers)
+    assert r.status_code == 200
+    assert "ingest scheduler" in r.text
 #endregion

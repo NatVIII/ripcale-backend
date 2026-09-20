@@ -52,11 +52,13 @@ def main() -> None:
     setup_logging()
     init_db()
     from app.services.auth import ensure_admin_user
+    from app.services.scheduler import start as start_scheduler
 
     if not settings.admin_password_hash:
         logger.warning("admin_password_hash is not set — no admin user; login is unavailable")
     elif ensure_admin_user():
         logger.info("created admin user %r", settings.admin_username)
+    start_scheduler()
     # Inside Docker the published port DNATs to the container's eth0, so the
     # app must bind 0.0.0.0; the host publish (127.0.0.1:8082) still restricts
     # external reach to loopback.

@@ -28,6 +28,7 @@ from app.services.archive import DEFAULT_ARCHIVE_LIMIT
 from app.services.coherence import check as coherence_check
 from app.services.events import DEFAULT_LIMIT, query_events, set_pinned, source_names, update_event
 from app.services.retag import retag as retag_service
+from app.services.scheduler import status as scheduler_status
 from app.services.status import gatherer_rollup, read_status, record_run, record_status
 from app.services.testrunner import collect_tests, run_tests
 from app.services.wipe import wipe_all
@@ -98,6 +99,11 @@ def stale() -> list:
 
 def coherence() -> list:
     return coherence_check()
+
+
+def scheduler() -> dict:
+    """Scheduler state (enabled / interval / last+next run)."""
+    return scheduler_status()
 
 
 def logs(n: int = LOG_TAIL_LINES) -> str:

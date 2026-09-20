@@ -10,7 +10,6 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [ ] F21 - Gatherer: Instagram source (research HikerAPI - see DEVLOG note)
 - [ ] F40 - Post-Sieve Feature, FITB with image OCR. The Instagram 
 - [ ] F18 - Image hosting (v1 links out; self-hosting deferred by design)
-- [ ] F11 - Scheduler: automatic ingest (APScheduler / cron) - nothing polls yet
 - [ ] F12 - Recurrence expansion (recurring Elfsight events; fields kept in `raw`)
 - [ ] F14 - Decisionmaker heuristics (cross-source dedup, manual-over-scraped priority)
 - [ ] F19 - Frontend (rva.rip - FullCalendar consuming `/events` + `/feed.ics`)
@@ -90,6 +89,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F28.01 - Events list page: `GET /debug/events` (HTML table of live events, title links to `/debug/event/{id}`, `?limit=`/`?category=` filters) backed by `actions.event_list()` (2026-09-08)
 - [x] F28.02 - Display timezone: `display_timezone` (default `America/New_York`) + `display_time()` helper localizes event start/end in `/debug/events` and `/debug/event/{id}` (Local + UTC); storage stays naive-UTC (2026-09-08)
 - [x] F44 - Poll-based auto-deploy: `deploy/deploy.sh` (git pull + rebuild only on new commit) + `deploy/ripcale-deploy.{service,timer}` + `docs/DEPLOYMENT.md` guide; no CI/SSH into the server (2026-09-08)
+- [x] F11 - Scheduler: automatic ingest every `ingest_interval_minutes` (default 60) after an `ingest_startup_delay_minutes` cooldown; cross-process `ingest.lock` guard; state via `GET /api/v1/scheduler` + `/debug` (2026-09-08)
 
 ## Deleted
 - [ ] F30 - Deleted Event
