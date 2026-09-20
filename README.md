@@ -157,7 +157,12 @@ diff against the DB) -> decisionmaker (persist). A gatherer can be run standalon
 
 ```sh
 .venv/bin/python -m app.gatherers.elfsight
+.venv/bin/python -m app.gatherers.ics      # any RFC 5545 feed (e.g. a public Google Calendar)
 ```
+
+Public Google Calendars are just `.ics` feeds — no API key needed. Use the
+calendar's "Public address in iCal format" URL as an `ics` source's `url` (see
+`intake.example.yaml` for the Gold Lion + Coalition Theater examples).
 
 ## API
 

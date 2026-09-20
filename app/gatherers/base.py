@@ -19,4 +19,11 @@ def fetch_json(url: str) -> dict:
     resp = httpx.get(url, follow_redirects=True, timeout=FETCH_TIMEOUT)
     resp.raise_for_status()
     return resp.json()
+
+
+def fetch_text(url: str) -> str:
+    """GET `url` and return its text body (raises on HTTP errors)."""
+    resp = httpx.get(url, follow_redirects=True, timeout=FETCH_TIMEOUT)
+    resp.raise_for_status()
+    return resp.text
 #endregion

@@ -55,7 +55,7 @@ Key files:
 - `app/identity.py` — `stable_id()`, `content_hash()`.
 - `app/timeutil.py` — `to_utc_naive()`, `parse_iso_utc()`.
 - `app/registry.py` — `load_sources()`, `load_gatherer()`.
-- `app/gatherers/<name>/gatherer.py` — each gatherer exposes `run(source)`.
+- `app/gatherers/<name>/gatherer.py` — each gatherer exposes `run(source)`. (`elfsight` = JSON widget; `ics` = generic RFC 5545 feed, e.g. a public Google Calendar.)
 - `app/categorize/` — `apply()` re-exported from `categorize.py` (config-driven category assignment, before the sieve).
 - `app/sieve/` — `classify()` re-exported from `sieve.py` (change detection; fills `default_location`; `_relevance()` drops events
   outside the expiry window — F13).
@@ -88,7 +88,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (306)
+.venv/bin/python -m pytest                       # test suite (310)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082

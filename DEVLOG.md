@@ -1,3 +1,16 @@
+## 2026-09-08 04:30:00 [AI]
+
+F25: generic `ics` gatherer (Google Calendar + any RFC 5545 feed).
+
+- `app/gatherers/base.py`: added `fetch_text(url)` (next to `fetch_json`).
+- `app/gatherers/ics/{__init__,__main__,gatherer}.py` (new, `CONTRACT_VERSION = 4`): fetches an `.ics` feed and maps every `VEVENT` → `ScrapedEvent`.
+  - Handles `DTSTART`/`DTEND` as `…Z` (UTC), `;TZID=…` (aware, via VTIMEZONE/ZoneInfo), and `VALUE=DATE` (all-day).
+  - Maps `UID`/`SUMMARY`/`DESCRIPTION`/`LOCATION`/`URL`/`CATEGORIES`/`RRULE`/`RECURRENCE-ID`/`EXDATE`/image `ATTACH`.
+  - **STATUS** is lowercased into a category (`confirmed`/`tentative`/`cancelled`/…), generic over any value.
+  - `raw` keeps unmodeled metadata (sequence/dtstamp/created/last-modified/transp) for debugging.
+- `intake.example.yaml`: Gold Lion + Coalition Theater `ics` source examples.
+- Tests: `tests/test_gatherer_ics.py` (UTC/TZID/all-day/recurrence+EXDATE/status tags/override); contract test auto-discovers the new gatherer (310 passing).
+
 ## 2026-09-08 04:00:00 [AI]
 
 F11: automatic ingest scheduler + ingest lock.

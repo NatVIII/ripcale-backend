@@ -47,6 +47,18 @@ sources:
                                         # missing/blank location; omit to leave
                                         # such events' location null.
 
+  # Public Google Calendars are plain `.ics` feeds — no API key. Use the
+  # calendar's "Public address in iCal format" (Settings → Integrate calendar),
+  # with the `@` URL-encoded as `%40`.
+  - name: "Gold Lion"
+    gatherer: "ics"
+    url: "https://calendar.google.com/calendar/ical/c_0e01d5366281ee1230a34c41e4f988fac5cb94324aec20d86f035457d14722df%40group.calendar.google.com/public/basic.ics"
+    is_public: true
+  - name: "Coalition Theater"
+    gatherer: "ics"
+    url: "https://calendar.google.com/calendar/ical/r1funfuomjmgs47jph9faksu32iu7ktb%40import.calendar.google.com/public/basic.ics"
+    is_public: true
+
 # ---------------------------------------------------------------------------
 # Category system
 # ---------------------------------------------------------------------------
