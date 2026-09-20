@@ -25,6 +25,10 @@ feeds_router.register(app)    # /feed.ics, /events/{id}/ics
 
 if settings.cors_origins:
     ALLOW_CORS(app, settings.cors_origins)
+
+# Expose the server-time header to browser JS (F56.01). Robyn's ALLOW_CORS sets
+# allow-origin/methods/headers but not expose-headers.
+app.set_response_header("Access-Control-Expose-Headers", "X-Server-Time")
 #endregion
 
 

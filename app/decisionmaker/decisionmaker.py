@@ -14,6 +14,7 @@ from sqlmodel import Session, select
 
 from app.models import Event, Source, utcnow
 from app.schema import ClassifiedEvent, SieveResult, dump_exdates, dump_images
+from app.services.clock import now as clock_now
 #endregion
 
 
@@ -80,7 +81,7 @@ def apply(session: Session, source: Source, sieved: SieveResult) -> dict:
     previously stored for this source but absent from this run (removed at the
     source). Returns `removed` as the count of those stale events.
     """
-    run_ts = utcnow()
+    run_ts = clock_now()
     inserted = 0
     updated = 0
 

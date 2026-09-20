@@ -11,6 +11,7 @@ from sqlmodel import Session
 
 from app.db import engine
 from app.serializers import to_fullcalendar
+from app.services.clock import now as clock_now
 from app.services.events import DEFAULT_LIMIT, get_event, query_events, source_names
 from app.timeutil import parse_iso_utc
 #endregion
@@ -22,6 +23,15 @@ def _error(message: str, status_code: int = 404) -> Response:
         status_code=status_code,
         headers={"Content-Type": "application/json"},
         description=jsonify({"error": message}),
+    )
+
+
+def _json(data, status_code: int = 200) -> Response:
+    """JSON response carrying the server's current time (F56.01)."""
+    return Response(
+        status_code=status_code,
+        headers={"Content-Type": "application/json", "X-Server-Time": clock_now().isoformat() + "Z"},
+        description=jsonify(data),
     )
 
 
@@ -52,7 +62,7 @@ def register(app) -> None:
             events = query_events(session, start, end, category, limit)
             names = source_names(session, events)
             payload = [to_fullcalendar(e, names.get(e.source_id)) for e in events]
-        return payload
+        return _json(payload)
 
     @app.get("/events/:id")
     def get_event_handler(request):
@@ -63,5 +73,5 @@ def register(app) -> None:
                 return _error("not found")
             names = source_names(session, [event])
             payload = to_fullcalendar(event, names.get(event.source_id))
-        return payload
+        return _json(payload)
 #endregion

@@ -42,6 +42,12 @@ ingest_interval_minutes: 60
 # Cooldown after admin startup before the scheduler's first ingest.
 ingest_startup_delay_minutes: 3
 
+# Debug clock (F56.01): a fixed naive-UTC ISO timestamp (e.g. "2026-12-25T12:00:00").
+# When set, the backend's "now" is frozen at that instant (expiry/relevance/archive
+# all run "as of" it) and it's served to the frontend via the X-Server-Time header.
+# Debug only — empty = real clock.
+# debug_now: "2026-12-25T12:00:00"
+
 # Rotating log file (shared by all entrypoints; viewed at /debug/logs).
 # Relative paths resolve against data_dir; absolute paths are used as-is.
 # log_file: ripcale.log            # default: {data_dir}/ripcale.log

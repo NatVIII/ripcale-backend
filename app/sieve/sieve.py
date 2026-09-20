@@ -15,6 +15,7 @@ from app.identity import content_hash, stable_id
 from app.models import Event, utcnow
 from app.schema import ClassifiedEvent, GathererResult, ScrapedEvent, SieveResult, load_exdates, load_images
 from app.services import expiry
+from app.services.clock import now as clock_now
 #endregion
 
 
@@ -103,7 +104,7 @@ def classify(session: Session, result: GathererResult, *, now=None) -> SieveResu
     injectable so tests stay deterministic).
     """
     if now is None:
-        now = utcnow()
+        now = clock_now()
     events = _relevance(result.events, now)
     dropped = len(result.events) - len(events)
     _merge_default_location(events, result.source.default_location)

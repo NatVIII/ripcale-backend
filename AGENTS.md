@@ -74,6 +74,7 @@ Key files:
 - `app/services/archive.py` — `archive()` (soft-delete expired/removed events), `list_archived()`, `restore()` (F22).
 - `app/services/scheduler.py` — background ingest scheduler (F11): `start()` (daemon thread) + `status()`.
 - `app/services/lock.py` — cross-process `ingest.lock` (atomic, stale-aware) guarding `ingest._run()` (F11).
+- `app/services/clock.py` — central `now()` (frozen when `debug_now` is set) + `debug_active()` (F56.01).
 - `app/services/actions.py` — request-agnostic admin operations (read/write/pipeline + parsing + `ActionError`); the single source of truth shared by `/api/v1/*` and the HTML debug pages. `category_mapping()` exposes the full category config + DB counts with exposure (F29).
 - `app/services/testrunner.py` — `collect_tests()` / `run_tests()` (subprocess `python -m pytest`).
 - `app/security.py` — `in_docker()`, `is_debug_allowed()`, CSRF, `form_data()`/`json_body()`, `api_guard()`/`session_guard()`.
@@ -88,7 +89,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (310)
+.venv/bin/python -m pytest                       # test suite (316)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -192,6 +193,13 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   run returns a `skipped` summary. Scheduler state (`enabled`/`interval`/
   `last_run_at`/`next_run_at`/`running`) is exposed via `GET /api/v1/scheduler`
   and a `/debug` line.
+- **Central clock (F56.01)** — `app/services/clock.now()` is the single "now"
+  source for domain logic (decisionmaker `run_ts`, sieve relevance, archive
+  expiry, stats upcoming/past/stale). `debug_now` freezes it at a fixed instant
+  for reproduction; `/events` responses carry it in the `X-Server-Time` header
+  (`Access-Control-Expose-Headers` set in `app/public.py`), and `/debug` shows a
+  banner when frozen. Security (auth session expiry) and audit timestamps
+  (`created_at`/`updated_at`) stay on the real wall clock.
 - **Logs are a shared rotating file** — `setup_logging()` attaches a
   `RotatingFileHandler` to the root logger in every entrypoint, so `public`,
   `admin`, and `ingest` all write the same `{data_dir}/ripcale.log`. Rotation is
@@ -274,6 +282,7 @@ System fields in `config.yaml` (env prefix `RIPCALE_`; `.env` overrides):
 - `display_timezone` — IANA zone used to render event times in the admin UI (display-only; storage stays naive-UTC; default `America/New_York`).
 - `ingest_interval_minutes` — how often the scheduler runs the full ingest (`None`/`0` disables; default `60`); also the stale-lock timeout.
 - `ingest_startup_delay_minutes` — cooldown after admin startup before the scheduler's first ingest (default `3`).
+- `debug_now` — fixed naive-UTC ISO timestamp that freezes the backend "now" (debug/time-travel); empty = real clock (F56.01).
 - `log_file` — rotating log path (relative → `data_dir`; empty → `data/ripcale.log`).
 - `log_max_bytes` — rotate once the file reaches this size (default `1000000`).
 - `log_backup_count` — rotated backups to keep (default `3`).

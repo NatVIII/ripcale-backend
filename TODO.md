@@ -6,6 +6,8 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
  
+- [ ] F56 - More Debug Tools and Settings for Testing and Bug Reproduction
+  - [ ] F56.02 - Create a list of other debug configurations that may help down the road for ensuring everything works as expected
 - [ ] F55 - Gatherer: Libcal Integration with Richmond Public Library System
 - [ ] F21 - Gatherer: Instagram source (research HikerAPI - see DEVLOG note)
 - [ ] F40 - Post-Sieve Feature, FITB with image OCR. The Instagram 
@@ -91,6 +93,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F44 - Poll-based auto-deploy: `deploy/deploy.sh` (git pull + rebuild only on new commit) + `deploy/ripcale-deploy.{service,timer}` + `docs/DEPLOYMENT.md` guide; no CI/SSH into the server (2026-09-08)
 - [x] F11 - Scheduler: automatic ingest every `ingest_interval_minutes` (default 60) after an `ingest_startup_delay_minutes` cooldown; cross-process `ingest.lock` guard; state via `GET /api/v1/scheduler` + `/debug` (2026-09-08)
 - [x] F25 - Google Calendar Gatherer: generic `ics` gatherer (RFC 5545; no API key) — maps UID/SUMMARY/DESCRIPTION/LOCATION/URL/CATEGORIES/RRULE/RECURRENCE-ID/EXDATE/ATTACH + `STATUS`→lowercase category; `intake.example.yaml` examples for Gold Lion (F25.01) + Coalition Theater (F25.02) (2026-09-08)
+- [x] F56.01 - Debug clock: `debug_now` config + `app/services/clock.py` (`now()`/`debug_active()`); threaded into decisionmaker/sieve/archive/stats; served to the frontend via the `X-Server-Time` header (+ CORS expose); `/debug` banner when frozen (2026-09-08)
 
 ## Deleted
 - [ ] F30 - Deleted Event

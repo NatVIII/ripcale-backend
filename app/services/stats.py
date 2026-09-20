@@ -6,7 +6,7 @@ URLs or the `raw` source payload (which is not persisted).
 """
 #region: imports
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy import func, or_
@@ -15,6 +15,7 @@ from sqlmodel import Session, select
 from app.config import settings
 from app.models import Event, Source
 from app.schema import load_images
+from app.services.clock import now as clock_now
 from app.services.expiry import is_expired
 from app.timeutil import display_time
 #endregion
@@ -22,8 +23,8 @@ from app.timeutil import display_time
 
 #region: helpers
 def _now() -> datetime:
-    """Current time as a naive UTC datetime (matches stored convention)."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    """Current time as a naive UTC datetime (respects the debug clock)."""
+    return clock_now()
 #endregion
 
 

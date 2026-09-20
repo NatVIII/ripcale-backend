@@ -61,7 +61,8 @@ the automatic ingest scheduler every N minutes (`0`/`null` disables it), with an
 `ingest_startup_delay_minutes` (default 3) cooldown after boot. A single ingest
 run is guarded by a lockfile at `data/ingest.lock`; if a run is already in
 progress (or a previous one crashed less than one interval ago), the new run
-skips — the lock is considered stale after one interval.
+skips — the lock is considered stale after one interval. `debug_now` (an ISO
+timestamp) freezes the backend "now" for debugging/time-travel.
 
 The admin login is configured via `.env` too: `RIPCALE_ADMIN_USERNAME`,
 `RIPCALE_ADMIN_PASSWORD_HASH`, and `RIPCALE_PEPPER`. (API tokens are per-user,
@@ -183,6 +184,10 @@ read path.
 | `GET /feed.ics?tag=` | full ICS feed (subscribe; optionally filtered by tag) |
 | `GET /events/{id}/ics` | single event ICS (404 if absent) |
 | `GET /healthz` | liveness |
+
+`/events` responses also carry the server's current time in an `X-Server-Time`
+header (UTC ISO with `Z`; exposed to browsers via CORS), so the frontend can
+align "today" to the server's clock.
 
 ## Admin API (`/api/v1/*`)
 

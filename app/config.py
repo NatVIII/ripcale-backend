@@ -69,6 +69,12 @@ class Settings(BaseSettings):
     # Cooldown after startup before the scheduler's first ingest.
     ingest_startup_delay_minutes: int = 3
 
+    # Debug clock (F56.01): a fixed naive-UTC ISO timestamp (e.g. "2026-12-25T12:00:00").
+    # When set, the backend's "now" is frozen at that instant (expiry/relevance/
+    # archive/relevance all run "as of" it) and is served to the frontend via the
+    # X-Server-Time header. Debug only — empty = real clock.
+    debug_now: str | None = None
+
     # -- logging ----------------------------------------------------------
     # Path to the rotating log file. Relative paths are resolved against
     # `data_dir`; absolute paths are used as-is. Empty = `{data_dir}/ripcale.log`.

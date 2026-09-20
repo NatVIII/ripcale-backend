@@ -1,3 +1,14 @@
+## 2026-09-08 05:00:00 [AI]
+
+F56.01: central clock + debug time-travel.
+
+- `app/config.py`: `debug_now: str | None` — a fixed naive-UTC ISO instant that freezes the backend "now".
+- `app/services/clock.py` (new): `now()` (frozen instant when set, else `utcnow()`) + `debug_active()`; re-parses only when the config value changes.
+- Threaded `clock.now()` into domain logic: `decisionmaker.apply` (`run_ts`), `sieve.classify` default `now`, `archive` default `now`, `stats._now()` (upcoming/past/stale). Auth session expiry + `created_at`/`updated_at` stay on the real clock.
+- Served to the frontend via an `X-Server-Time` header on `/events` + `/events/{id}` (`app/routers/events.py::_json`); `app/public.py` adds `Access-Control-Expose-Headers: X-Server-Time` (Robyn's `ALLOW_CORS` doesn't set expose-headers).
+- `/debug` shows a "debug clock (frozen)" banner when active.
+- Tests: `test_clock.py` (real/frozen/aware-normalized/invalid), `test_events.py` (header + CORS expose), `test_archive.py` (archive respects the debug clock) (316 passing).
+
 ## 2026-09-08 04:30:00 [AI]
 
 F25: generic `ics` gatherer (Google Calendar + any RFC 5545 feed).

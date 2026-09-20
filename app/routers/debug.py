@@ -12,7 +12,7 @@ from robyn import Response, jsonify
 
 from app.logging import LOG_TAIL_LINES
 from app.security import debug_guard, session_guard
-from app.services import actions
+from app.services import actions, clock
 from app.services.events import DEFAULT_LIMIT
 from app.services.status import source_status
 from app.timeutil import display_time
@@ -80,6 +80,16 @@ def _scheduler_line(sched: dict) -> str:
         f" · last {fmt(sched['last_run_at'])}"
         f" · next {fmt(sched['next_run_at'])}{running}</p>"
     )
+
+
+def _debug_clock_banner() -> str:
+    if not clock.debug_active():
+        return ""
+    return (
+        "<p style='background:#b00;color:#fff;padding:.5rem 1rem'>"
+        f"debug clock: {escape(clock.now().isoformat())} (frozen)"
+        "</p>"
+    )
 #endregion
 
 
@@ -123,7 +133,8 @@ def register(app) -> None:
             )
 
         body = (
-            _coherence_section()
+            _debug_clock_banner()
+            + _coherence_section()
             + f"<p>events: {ov['events']} (upcoming {ov['upcoming']}, past {ov['past']})"
             f" · archived: {ov['archived']} · sources: {ov['sources']}</p>"
             + _scheduler_line(sched)

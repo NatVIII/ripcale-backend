@@ -202,6 +202,34 @@ def test_get_event_hides_archived(tmp_path):
         assert get_event(session, "dead") is None
 
 
+def test_events_serves_server_time_header(tmp_path, monkeypatch):
+    import app.routers.events as router_mod
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'header.db'}")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        src = Source(name="S", url="https://x")
+        session.add(src)
+        session.commit()
+        session.refresh(src)
+        session.add(_make_event(id="e1", source_id=src.id, title="Upcoming"))
+        session.commit()
+
+    monkeypatch.setattr(router_mod, "engine", engine)
+
+    from robyn.testing import TestClient
+
+    from app.public import app
+
+    r = TestClient(app).get("/events")
+    assert r.status_code == 200
+
+    lower = {str(k).lower(): str(v) for k, v in r.headers.items()}
+    assert "x-server-time" in lower
+    assert lower["x-server-time"].endswith("Z")
+    assert "access-control-expose-headers" in lower
+
+
 def test_set_pinned_toggles_flag(tmp_path):
     from app.services.events import set_pinned
 

@@ -18,6 +18,7 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.models import Event, Source, utcnow
+from app.services.clock import now as clock_now
 from app.services.events import DEFAULT_LIMIT
 from app.services.expiry import is_expired
 #endregion
@@ -51,7 +52,7 @@ def archive(session: Session, now=None, dry_run: bool = True, limit: int | None 
     capped at `limit` (most-recent reference time first) while the counts stay
     complete; `limit=None`/`0` = uncapped.
     """
-    now = now or utcnow()
+    now = now or clock_now()
     fetched = {s.id: s.last_fetched_at for s in session.exec(select(Source)).all()}
 
     candidates: list[tuple[Event, str]] = []

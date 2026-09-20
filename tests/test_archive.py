@@ -272,4 +272,27 @@ def test_archive_is_idempotent(tmp_path, monkeypatch):
     assert first["expired"] == 1
     assert second["expired"] == 0
     assert second["removed"] == 0
+
+
+def test_archive_uses_debug_clock(tmp_path, monkeypatch):
+    from app.config import settings
+
+    engine = _setup(tmp_path, monkeypatch, past_days=30)
+    monkeypatch.setattr(settings, "debug_now", "2026-09-15T12:00:00")
+
+    with Session(engine) as session:
+        sid = _source(session, datetime(2026, 9, 15, 12, 0))
+        _add(
+            session, sid, "old",
+            start=datetime(2026, 7, 31, 10, 0), end=datetime(2026, 8, 1, 10, 0),
+            last_seen_at=datetime(2026, 9, 15, 12, 0),
+        )
+
+    with Session(engine) as session:
+        result = archive(session, dry_run=False)  # no `now` -> uses the debug clock
+        session.commit()
+
+    assert result["expired"] == 1
+    with Session(engine) as session:
+        assert session.get(Event, "old").archived_at is not None
 #endregion
