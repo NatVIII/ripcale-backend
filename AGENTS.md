@@ -45,7 +45,7 @@ below).
 
 Key files:
 
-- `app/config.py` — `Settings` (system `config.yaml` + .env; env > dotenv > yaml > defaults).
+- `app/config.py` — `Settings` (system `config.yaml` + `.env`; `config.yaml` > env > dotenv > defaults; `.env` = auth/secrets only).
 - `app/intake.py` — `IntakeSettings` + `load()`/`save()` for the mutable `intake.yaml` (sources, gatherers, category symlinks).
 - `app/logging.py` — `setup_logging()` (console + rotating `data/ripcale.log`, idempotent) + `read_log_tail()` (constant-time backward tail for `/debug/logs`).
 - `app/models.py` — `Source`, `Event`, `User`, `LoginSession`, `ApiToken` (SQLModel).
@@ -264,12 +264,14 @@ see `docs/DEPLOYMENT.md` for the full server setup.
 
 ## Configuration
 
-Configuration is split into two files: **system** settings (`config.yaml`, hand-edited,
-never written by the program) and **intake** data (`intake.yaml`, hand-editable *and*
-program-editable via `app/intake.py`). Both are gitignored with tracked `*.example.yaml`
-templates.
+Configuration is split into three places: **system** settings (`config.yaml`, the
+single source of truth, hand-edited and never written by the program), **auth +
+secrets** (`.env` — `admin_username`/`admin_password_hash`/`pepper` + future API
+keys; it does **not** override `config.yaml`), and **intake** data (`intake.yaml`,
+hand-editable *and* program-editable via `app/intake.py`). All are gitignored with
+tracked `*.example` templates.
 
-System fields in `config.yaml` (env prefix `RIPCALE_`; `.env` overrides):
+System fields in `config.yaml`:
 
 - `public_host` / `public_port` — read-only listener (default `0.0.0.0` / `8081`).
 - `admin_host` / `admin_port` — debug listener (default `127.0.0.1` / `8082`).

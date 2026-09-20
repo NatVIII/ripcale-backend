@@ -94,6 +94,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F11 - Scheduler: automatic ingest every `ingest_interval_minutes` (default 60) after an `ingest_startup_delay_minutes` cooldown; cross-process `ingest.lock` guard; state via `GET /api/v1/scheduler` + `/debug` (2026-09-08)
 - [x] F25 - Google Calendar Gatherer: generic `ics` gatherer (RFC 5545; no API key) — maps UID/SUMMARY/DESCRIPTION/LOCATION/URL/CATEGORIES/RRULE/RECURRENCE-ID/EXDATE/ATTACH + `STATUS`→lowercase category; `intake.example.yaml` examples for Gold Lion (F25.01) + Coalition Theater (F25.02) (2026-09-08)
 - [x] F56.01 - Debug clock: `debug_now` config + `app/services/clock.py` (`now()`/`debug_active()`); threaded into decisionmaker/sieve/archive/stats; served to the frontend via the `X-Server-Time` header (+ CORS expose); `/debug` banner when frozen (2026-09-08)
+- [x] F56.03 - Single source of truth for config: `config.yaml` now authoritative (`init > config.yaml > env > .env`), `.env` = auth/secrets only (no override); templates + docs updated (2026-09-08)
 
 ## Deleted
 - [ ] F30 - Deleted Event

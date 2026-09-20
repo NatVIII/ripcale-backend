@@ -1,3 +1,13 @@
+## 2026-09-08 05:20:00 [AI]
+
+F56.03: single source of truth for config (config.yaml authoritative; `.env` = auth/secrets only).
+
+- `app/config.py`: reordered `settings_customise_sources` to `init > config.yaml > env > dotenv > defaults`, so `config.yaml` wins and env/`.env` only fill gaps (secrets not defined there).
+- `config.example.yaml`: removed the `admin_username`/`admin_password_hash`/`pepper` block (auth lives in `.env`); clarified the header.
+- `.env.example`: dropped the system "Overrides" block; now documents only `RIPCALE_ADMIN_USERNAME`/`RIPCALE_ADMIN_PASSWORD_HASH`/`RIPCALE_PEPPER` + future keys.
+- Docs: AGENTS.md + README.md configuration sections updated (authoritative config.yaml; `.env` = auth/secrets, no override).
+- Tests: precedence test (yaml beats .env; auth from .env) (317 passing).
+
 ## 2026-09-08 05:00:00 [AI]
 
 F56.01: central clock + debug time-travel.

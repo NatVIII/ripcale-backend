@@ -1,7 +1,9 @@
 # ripcale configuration — copy to config.yaml and adjust.
 #
-# NOTE: config.yaml is gitignored (keeps your local/secret sources private).
-# API keys and other secrets belong in .env, NOT in this file.
+# NOTE: config.yaml is gitignored (keeps your local config private).
+# This file is the single source of truth for SYSTEM settings. Auth + secrets
+# (admin username/password hash, pepper, future API keys) live in `.env` and
+# are NOT defined here — see `.env.example`.
 #
 # The Studio Two Three source below is real, public community data included as
 # starter content — copy this file to config.yaml and run `python -m app.ingest`
@@ -61,13 +63,8 @@ ingest_startup_delay_minutes: 3
 # debug_allowed_cidrs: "10.0.0.0/8,192.168.1.0/24"
 # Optional fixed CSRF token for the pipeline playground (auto-generated if empty).
 # debug_token: ""
-# Admin login (bootstrap): username + an argon2id password hash.
-# Generate the hash with: python -m app.auth hash-password
-# admin_username: admin
-# admin_password_hash: ""
-# Optional pepper: a secret keyed into every password before hashing.
-# Generate with: python -m app.auth gen-pepper  (changing it invalidates existing hashes)
-# pepper: ""
+# Admin login (bootstrap username + argon2id password hash) and the optional
+# pepper live in `.env` (auth/secrets — not defined here). See `.env.example`.
 
 # Intake settings (sources, per-gatherer defaults, category symlinks) live in a
 # SEPARATE file — `intake.yaml` — so the program can edit them (via the admin

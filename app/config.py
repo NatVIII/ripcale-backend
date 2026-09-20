@@ -4,11 +4,12 @@
 nearly every other gatherer (db, registry, routers, security, ...). Values are
 loaded with this precedence:
 
-    init kwargs > environment / `.env` > `config.yaml` > defaults
+    init kwargs > config.yaml > environment / .env > defaults
 
-API keys and secrets belong in `.env`; system settings in `config.yaml`; the
-mutable intake data (sources, gatherers, category symlinks) in `intake.yaml`
-(see `app/intake.py`).
+`config.yaml` is authoritative for system settings; `.env` holds auth + secrets
+(`admin_username`/`admin_password_hash`/`pepper`, future API keys) that
+`config.yaml` deliberately omits. The mutable intake data (sources, gatherers,
+category symlinks) lives in `intake.yaml` (see `app/intake.py`).
 """
 #region: imports
 from pydantic_settings import (
@@ -110,12 +111,12 @@ class Settings(BaseSettings):
     def settings_customise_sources(
         cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings
     ):
-        """Insert the YAML source below env/.env but above defaults."""
+        """config.yaml is authoritative; env/.env only fill the gaps (F56.03)."""
         return (
             init_settings,
+            YamlConfigSettingsSource(settings_cls),
             env_settings,
             dotenv_settings,
-            YamlConfigSettingsSource(settings_cls),
             file_secret_settings,
         )
 

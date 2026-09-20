@@ -41,14 +41,14 @@ For automated deploys to a server, see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md
 
 Configuration is split in two:
 
-- **`config.yaml`** — system settings (hosts/ports, logging, debug access). Hand-edited.
+- **`config.yaml`** — system settings (hosts/ports, logging, debug access). Hand-edited; the single source of truth.
+- **`.env`** — auth + secrets only (`RIPCALE_ADMIN_USERNAME`, `RIPCALE_ADMIN_PASSWORD_HASH`, `RIPCALE_PEPPER`, future API keys). Does **not** override `config.yaml`.
 - **`intake.yaml`** — intake data (sources, per-gatherer defaults, category
   symlinks). Hand-editable *and* written by the program (via the admin menu).
 
-Both are gitignored; `config.example.yaml` and `intake.example.yaml` are the
-tracked templates. `intake.example.yaml` ships one real *public* source (Studio
-Two Three) as starter data. API keys and secrets go in `.env` (see
-`.env.example`), never in `config.yaml`. Env vars / `.env` override `config.yaml`.
+All three are gitignored; `config.example.yaml`, `.env.example`, and
+`intake.example.yaml` are the tracked templates. `intake.example.yaml` ships one
+real *public* source (Studio Two Three) as starter data.
 
 The ingest relevance window is set in `config.yaml`: `expire_past_days` (default
 90) drops events that fully ended more than N days ago (recurring series only
@@ -64,7 +64,7 @@ progress (or a previous one crashed less than one interval ago), the new run
 skips — the lock is considered stale after one interval. `debug_now` (an ISO
 timestamp) freezes the backend "now" for debugging/time-travel.
 
-The admin login is configured via `.env` too: `RIPCALE_ADMIN_USERNAME`,
+The admin login is configured via `.env`: `RIPCALE_ADMIN_USERNAME`,
 `RIPCALE_ADMIN_PASSWORD_HASH`, and `RIPCALE_PEPPER`. (API tokens are per-user,
 minted in the DB with `app.auth token create`, not an env var.)
 
