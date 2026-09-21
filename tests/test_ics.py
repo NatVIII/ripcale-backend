@@ -35,9 +35,9 @@ def test_event_to_vevent():
     assert "CATEGORIES:external:art,external:workshop" in ical
     assert "LOCATION:Studio Two Three" in ical
     assert "ATTACH:https://x.com/img.jpg" in ical
-    assert "X-RVA-SOURCE:Studio Two Three" in ical
-    assert "X-RVA-TIMEZONE:America/New_York" in ical
-    assert "X-RVA-IMAGE:https://x.com/img.jpg" in ical
+    assert "X-RIPCALE-SOURCE:Studio Two Three" in ical
+    assert "X-RIPCALE-TIMEZONE:America/New_York" in ical
+    assert "X-RIPCALE-IMAGE:https://x.com/img.jpg" in ical
     assert "X-ALT-DESC;FMTTYPE=text/html:" in ical
     assert "DESCRIPTION:hello" in ical
 
@@ -67,7 +67,7 @@ def test_event_to_vevent_multiple_images():
     ical = event_to_vevent(e).to_ical().decode()
     assert "ATTACH:https://x.com/a.jpg" in ical
     assert "ATTACH:https://x.com/b.jpg" in ical
-    assert "X-RVA-IMAGE:https://x.com/a.jpg" in ical
+    assert "X-RIPCALE-IMAGE:https://x.com/a.jpg" in ical
 
 
 def test_event_to_vevent_rrule():

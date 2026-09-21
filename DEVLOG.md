@@ -1,3 +1,36 @@
+## 2026-09-08 06:20:00 [AI]
+
+Generic ICS tags (drop instance name "rva.rip" from the calendar output).
+
+- `app/services/ics.py`: `X-RVA-SOURCE`/`X-RVA-TIMEZONE`/`X-RVA-IMAGE` → `X-RIPCALE-SOURCE`/`X-RIPCALE-TIMEZONE`/`X-RIPCALE-IMAGE`; `PRODID` → `-//ripcale//ripcale//EN`; default `X-WR-CALNAME` title → `"ripcale"`.
+- `docs/GATHERER_CONTRACT.md` + `tests/test_ics.py` updated to the new tags (317 passing).
+
+## 2026-09-08 06:00:00 [AI]
+
+F21.03: Instagram image-reading pipeline (design map — read each image once per update).
+
+- OCR runs **post-sieve** (not in the gatherer). The sieve already yields `new`/`updated` vs `unchanged`, and `content_hash` includes `images`, so OCR only fires when an event is new or its content (incl. images) changed.
+- **Per-image cache** keyed by image URL (or a hash of the bytes) → extracted text. On re-ingest, only *new* image URLs are OCR'd; unchanged images reuse the cached text. This is the "read once per update" guarantee, naturally.
+- Output must be persisted so downstream stages (categorize / decisionmaker / F14) can use it to pull title/date/time/location out of flyers.
+- Open forks for the implementation ticket (F40): where OCR results live (Event column vs a separate `ocr` table), whether OCR runs synchronously in the pipeline or async/queued, and retry policy on failed OCR.
+
+## 2026-09-08 05:50:00 [AI]
+
+F21.02: OCR for artistic flyer text (Chinese tech + stable interface + affordable).
+
+- Requirement (updated): handle artistic/stylized text, prefer an **extremely stable interface**, and prefer **Chinese technology** ("like DeepSeek").
+- Correction: **DeepSeek's public API is text-only** (V3/R1; no strong public vision/OCR endpoint — its VL variants are open-weights, not the maintained product line). So it points at the right *category* but isn't the vendor for images.
+- Recommendation: **Alibaba Qwen2.5-VL** as primary — best-in-class OCR/document understanding + key-information extraction (ideal for flyers), open-weights (3B/7B/72B), stable interface both on the managed **DashScope** API and self-hosted (ollama/vLLM), and affordable (cheap per-token; the 3B/7B self-host is ~zero marginal cost on a single GPU).
+- Alternatives: Baidu PaddleOCR/PP-ChatOCR (self-host, stable Python lib; classic PaddleOCR weaker on stylized text), Baidu ERNIE-VL/Qianfan, Tencent Hunyuan, Zhipu GLM-4V.
+
+## 2026-09-08 05:40:00 [AI]
+
+F21.01: Instagram source research — HikerAPI confirmed.
+
+- HikerAPI is a third-party Instagram data API: public profiles, **posts/reels**, stories, hashtags, locations — **no OAuth, no Instagram account**, pay-per-request, 100 free requests. Matches "watch specific public event pages" exactly.
+- Alternatives weighed: Instagram **Graph API** (official — only for accounts you own/manage, so unsuitable), **Instaloader** (free but needs your own login + rate-limit/ban risk + fragile vs Meta changes), **Apify** Instagram scrapers (works but general-purpose/pricier for this narrow use).
+- Decision: use HikerAPI; keep the gatherer swappable behind the standard `run(source)` interface (URL = API/account config) so no HikerAPI-specific logic leaks elsewhere.
+
 ## 2026-09-08 05:20:00 [AI]
 
 F56.03: single source of truth for config (config.yaml authoritative; `.env` = auth/secrets only).

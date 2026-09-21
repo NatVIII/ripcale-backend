@@ -128,7 +128,7 @@ Each entry is an `ImageRef`:
 **Today (external linking only):** a Gatherer sets `url` to the external image
 URL (and `alt` when available); `source_url` stays `None`. `images` flows
 `Gatherer → ScrapedEvent → Event → JSON extendedProps.images` and
-`→ ICS (one ATTACH per image, in order; X-RVA-IMAGE = images[0].url)`.
+`→ ICS (one ATTACH per image, in order; X-RIPCALE-IMAGE = images[0].url)`.
 
 **Planned (internal hosting, F18):** hosting logic stores a local copy and
 rewrites each `url` to an internal path while stashing the origin in

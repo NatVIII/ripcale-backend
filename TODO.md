@@ -6,12 +6,12 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
  
+- [ ] F18 - Image hosting (v1 links out; self-hosting deferred by design)
+- [ ] F21 - Gatherer: Instagram source (research HikerAPI - see DEVLOG note)
+- [ ] F40 - Post-Sieve Feature, FITB with image OCR. The Instagram 
 - [ ] F56 - More Debug Tools and Settings for Testing and Bug Reproduction
   - [ ] F56.02 - Create a list of other debug configurations that may help down the road for ensuring everything works as expected
 - [ ] F55 - Gatherer: Libcal Integration with Richmond Public Library System
-- [ ] F21 - Gatherer: Instagram source (research HikerAPI - see DEVLOG note)
-- [ ] F40 - Post-Sieve Feature, FITB with image OCR. The Instagram 
-- [ ] F18 - Image hosting (v1 links out; self-hosting deferred by design)
 - [ ] F12 - Recurrence expansion (recurring Elfsight events; fields kept in `raw`)
 - [ ] F14 - Decisionmaker heuristics (cross-source dedup, manual-over-scraped priority)
 - [ ] F19 - Frontend (rva.rip - FullCalendar consuming `/events` + `/feed.ics`)
@@ -95,6 +95,9 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F25 - Google Calendar Gatherer: generic `ics` gatherer (RFC 5545; no API key) — maps UID/SUMMARY/DESCRIPTION/LOCATION/URL/CATEGORIES/RRULE/RECURRENCE-ID/EXDATE/ATTACH + `STATUS`→lowercase category; `intake.example.yaml` examples for Gold Lion (F25.01) + Coalition Theater (F25.02) (2026-09-08)
 - [x] F56.01 - Debug clock: `debug_now` config + `app/services/clock.py` (`now()`/`debug_active()`); threaded into decisionmaker/sieve/archive/stats; served to the frontend via the `X-Server-Time` header (+ CORS expose); `/debug` banner when frozen (2026-09-08)
 - [x] F56.03 - Single source of truth for config: `config.yaml` now authoritative (`init > config.yaml > env > .env`), `.env` = auth/secrets only (no override); templates + docs updated (2026-09-08)
+- [x] F21.01 - Instagram source research: HikerAPI confirmed (public pages, no OAuth, pay-per-request) vs Graph API/Instaloader/Apify (2026-09-08)
+- [x] F21.02 - OCR research: Alibaba Qwen2.5-VL (Chinese, stable DashScope + self-host, affordable, strong flyer/artistic-text OCR + key-info extraction); DeepSeek is text-only; Baidu/Tencent/Zhipu alternatives (2026-09-08)
+- [x] F21.03 - Image-reading pipeline design: post-sieve OCR + per-image cache keyed by URL/hash → "read once per update"; output persisted for categorize/decisionmaker; forks (storage location, sync/async, retry) left for F40 (2026-09-08)
 
 ## Deleted
 - [ ] F30 - Deleted Event

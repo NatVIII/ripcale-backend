@@ -2,7 +2,7 @@
 
 `events_to_ics()` is called from `app/routers/feeds.py`. Uses standard
 properties where possible (UID, SUMMARY, DTSTART/DTEND, DESCRIPTION, X-ALT-DESC,
-LOCATION, URL, ATTACH, CATEGORIES) plus `X-RVA-*` custom props — compliant
+LOCATION, URL, ATTACH, CATEGORIES) plus `X-RIPCALE-*` custom props — compliant
 clients ignore unknown properties.
 """
 #region: imports
@@ -70,7 +70,7 @@ def event_to_vevent(event: Event, source_name: str | None = None) -> VEvent:
     for image in images:
         v.add("attach", image.url)
     if images:
-        v.add("x-rva-image", images[0].url)
+        v.add("x-ripcale-image", images[0].url)
     if event.rrule:
         v.add("rrule", vRecur.from_ical(event.rrule))
     for exdate in load_exdates(event.exdates):
@@ -80,9 +80,9 @@ def event_to_vevent(event: Event, source_name: str | None = None) -> VEvent:
     if event.categories:
         v.add("categories", resolve_event_categories(event.categories))
     if event.timezone:
-        v.add("x-rva-timezone", event.timezone)
+        v.add("x-ripcale-timezone", event.timezone)
     if source_name:
-        v.add("x-rva-source", source_name)
+        v.add("x-ripcale-source", source_name)
 
     return v
 #endregion
@@ -92,11 +92,11 @@ def event_to_vevent(event: Event, source_name: str | None = None) -> VEvent:
 def events_to_ics(
     events: list[Event],
     names: dict[int, str] | None = None,
-    title: str = "rva.rip",
+    title: str = "ripcale",
 ) -> str:
     """Build a complete VCALENDAR string from a list of events."""
     cal = Calendar()
-    cal.add("prodid", "-//rva.rip//ripcale//EN")
+    cal.add("prodid", "-//ripcale//ripcale//EN")
     cal.add("version", "2.0")
     cal.add("calscale", "GREGORIAN")
     cal.add("method", "PUBLISH")
