@@ -270,3 +270,31 @@ def test_pinned_event_stays_unchanged(tmp_path):
     assert len(sieved.updated) == 0
     assert sieved.unchanged_ids == [stable_id("Test", make_scraped("u1", "One"))]
 #endregion
+
+
+#region: archived (F59.01)
+def test_archived_event_is_frozen(tmp_path):
+    engine, source_id = _setup(tmp_path)
+    cfg = SourceConfig(name="Test", gatherer="elfsight", url="https://x")
+
+    with Session(engine) as session:
+        _seed_event(session, source_id, make_scraped("u1", "One"))
+        session.commit()
+
+    eid = stable_id("Test", make_scraped("u1", "One"))
+    with Session(engine) as session:
+        ev = session.get(Event, eid)
+        ev.archived_at = datetime(2026, 9, 1)
+        ev.archived_reason = "removed"
+        session.commit()
+
+    incoming = GathererResult(source=cfg, events=[make_scraped("u1", "One Changed")])
+    with Session(engine) as session:
+        sieved = classify(session, incoming, now=NOW)
+
+    assert sieved.archived_ids == [eid]
+    assert len(sieved.new) == 0
+    assert len(sieved.updated) == 0
+    assert sieved.unchanged == 0
+    assert sieved.unchanged_ids == []
+#endregion

@@ -44,6 +44,8 @@ For each `ClassifiedEvent` in the sieve verdict:
 2. **`updated`** — find the existing row by `id` and copy the mapped fields in
    place (bumping `updated_at`); if the row is missing (defensive), insert instead.
 3. **`unchanged_ids`** — stamp `last_seen_at` on those rows only (no field copy).
+4. **`archived_ids`** — ignored. Archived events are frozen (F59.01); the
+   decisionmaker never updates or un-archives them.
 
 Afterward the decisionmaker sets `source.last_fetched_at = run_ts` (the same
 timestamp used for `last_seen_at`) and detects **stale** events: any `Event` for

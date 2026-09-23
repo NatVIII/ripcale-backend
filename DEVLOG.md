@@ -1,3 +1,12 @@
+## 2026-09-22 23:30:00 [AI]
+
+F18.01 (image GC + re-host on restore), F59 (full event page), F59.01 (archived = frozen).
+
+- **F18.01** — `app/services/images.py`: `referenced_filenames()` (live events only), `prune()` (dry-run default; deletes `data/images/*` files no *live* event references — archived-only images are also removed), `is_local()`, `rehost_missing_images()`. Surfaces: `python -m app.images prune [--commit]`, `POST /api/v1/images/prune`, `/debug/images` (`app/routers/images_admin.py`, registered in `app/admin.py`, linked from `/debug`). `archive.restore()` now re-hosts pruned local images (content-addressed → same bytes land on the same filename) before un-archiving.
+- **F59** — `stats.event_dump()` images now carry a `hosted` flag; `/debug/event/{id}` renders **all** fields (uid/description/location/url/timezone/all_day/rrule/recurrence_id/redirect_to_id/priority/content_hash/created/updated/exdates) plus an image gallery with `<img>` previews and a hosted/external badge. `app/routers/images.py` is now also registered on the admin app so previews resolve.
+- **F59.01** — `SieveResult` gains `archived_ids` (SIEVE_CONTRACT v4→v5). The sieve buckets an incoming event whose stable id maps to an archived row into `archived_ids` (no `content_hash`, no update); `ingest.process_source` skips `host_images()` for those events; the decisionmaker no longer un-archives on the updated/unchanged paths. Archived events are frozen — they return only via explicit `restore()`.
+- Tests: +11 (338 passing) — sieve frozen, prune dry-run/commit/archived-only, re-host present/missing/external, restore re-host, `/api/v1/images/prune`, `/debug/images`, full event page.
+
 ## 2026-09-22 22:30:00 [AI]
 
 B01: SQLModel timezone bug (Docker login/ingest broken) + `uv` lockfile.

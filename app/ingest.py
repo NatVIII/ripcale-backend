@@ -21,8 +21,9 @@ from app.categorize import apply as categorize
 from app.config import settings
 from app.db import engine, init_db
 from app.decisionmaker import apply
+from app.identity import stable_id
 from app.logging import setup_logging
-from app.models import Source, utcnow
+from app.models import Event, Source, utcnow
 from app.registry import load_gatherer, load_sources
 from app.schema import CategoryRule, GathererResult, SieveResult, SourceConfig
 from app.services import lock
@@ -55,6 +56,16 @@ def _ensure_source(session: Session, cfg: SourceConfig) -> Source:
 
 
 #region: per-source pipeline
+def _archived_ids(session: Session, ids: list[str]) -> set[str]:
+    """Ids of already-archived events among `ids` (for skipping image hosting, F59.01)."""
+    if not ids:
+        return set()
+    rows = session.exec(
+        select(Event.id).where(Event.id.in_(ids), Event.archived_at.is_not(None))
+    ).all()
+    return set(rows)
+
+
 def process_source(
     session: Session,
     cfg: SourceConfig,
@@ -69,7 +80,10 @@ def process_source(
     (debug playground). Returns (sieved, report).
     """
     result = run_fn(cfg)                       # gather
-    host_images(result.events)                 # host images (pre-sieve; stable content_hash)
+    # Host images pre-sieve (stable content_hash), but skip archived events (F59.01).
+    ids = [stable_id(result.source.name, e) for e in result.events]
+    archived = _archived_ids(session, ids)
+    host_images([e for e, i in zip(result.events, ids) if i not in archived])
     categorize(result.source, result.events, rules=rules)   # categorize (assign rules, before hash)
     sieved = classify(session, result)         # sieve (reads DB)
 

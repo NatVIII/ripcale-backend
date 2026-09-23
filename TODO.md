@@ -6,7 +6,7 @@ Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tic
 
 ## Backlog
  
-- [ ] F18.01 - Image GC: orphan prune — delete `data_dir/images/*` files referenced by no event (manual action + dry-run default + report; `python -m app.images prune`, `POST /api/v1/images/prune`, `/debug/images`).
+- [ ] F58 - Implement some kind of vulnerability scanner into the build process??? (depends on F41: run the scanner as a CI step, e.g. `uv`-aware `pip-audit`/`trivy` on `uv.lock`)
 - [ ] F36 - Implement decisionmaking page and logic. I want a telegram bot to be able to help me be notified of possible event conflicts and help choose in the future, so this should be done via some kind of API communication or something so that the same interface. We can't implement the telegram bot yet, so let's make the interface via code and then make a debug page that allows for this to take place.
 - [ ] F21 - Gatherer: Instagram source (research HikerAPI - see DEVLOG note)
 - [ ] F40 - Post-Sieve Feature: image OCR/extraction — Qwen2.5-VL reads each new/updated flyer image + caption and emits structured event JSON (title/start/end/timezone/location/description) in one call, cached per image hash ("read once per update"), then updates the provisional event.
@@ -24,7 +24,6 @@ Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tic
 - [ ] F57 - Implement "Highlight" Feature to Events. 
   - [ ] F57.01 - First part of "Highlight" feature, a `purpose` (null by default, meaning not highlighted) which is a short string. If this can be interpreted and included in the JSON in a way that allows FullCalendar to apply standard css based on this value to the event preview on the calendar; even better!
   - [ ] F57.01 - Second part of "Highlight" feature, a `message` (even if the `purpose` is null, this is still passed, and the frontend can still display it). This includes a little message which can explain why a given event was highlighted.
-- [ ] F58 - Implement some kind of vulnerability scanner into the build process??? (depends on F41: run the scanner as a CI step, e.g. `uv`-aware `pip-audit`/`trivy` on `uv.lock`)
 
 ## In Progress
 
@@ -104,6 +103,9 @@ Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tic
 - [x] F21.02 - OCR research: Alibaba Qwen2.5-VL (Chinese, stable DashScope + self-host, affordable, strong flyer/artistic-text OCR + key-info extraction); DeepSeek is text-only; Baidu/Tencent/Zhipu alternatives (2026-09-08)
 - [x] F21.03 - Image-reading pipeline design: post-sieve OCR + per-image cache keyed by URL/hash → "read once per update"; output persisted for categorize/decisionmaker; forks (storage location, sync/async, retry) left for F40 (2026-09-08)
 - [x] B01 - SQLModel timezone bug: latest SQLModel enforces tz-aware datetimes but storage is naive-UTC → Docker login/ingest broke. Fixed with explicit `DateTime(timezone=False)` columns on every naive datetime field in `app/models.py` + `uv` lockfile (`uv.lock`, sqlmodel pinned 0.0.46) + Dockerfile switched to `uv sync --frozen --all-extras` (2026-09-22)
+- [x] F18.01 - Image GC: orphan prune (live-only referenced; archived-only images deleted) via `python -m app.images prune`, `POST /api/v1/images/prune`, `/debug/images`; plus re-host on restore (`archive.restore()` re-downloads pruned images) (2026-09-22)
+- [x] F59 - Full event properties + image previews (hosted/external badge) on `/debug/event/{id}` (2026-09-22)
+- [x] F59.01 - Archived = frozen: sieve buckets archived-mapped events into `SieveResult.archived_ids`, skips image hosting + hash/compare, decisionmaker no longer un-archives (SIEVE_CONTRACT v5) (2026-09-22)
 
 ## Deleted
 - [ ] F30 - Deleted Event

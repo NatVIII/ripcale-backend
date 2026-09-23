@@ -75,7 +75,8 @@ Key files:
 - `app/services/scheduler.py` — background ingest scheduler (F11): `start()` (daemon thread) + `status()`.
 - `app/services/lock.py` — cross-process `ingest.lock` (atomic, stale-aware) guarding `ingest._run()` (F11).
 - `app/services/clock.py` — central `now()` (frozen when `debug_now` is set) + `debug_active()` (F56.01).
-- `app/services/images.py` — local content-addressed image hosting (`store()`/`resolve()`/`host_images()`) (F18).
+- `app/services/images.py` — local content-addressed image hosting (`store()`/`resolve()`/`host_images()`) + GC (`prune()`/`referenced_filenames()`) + `is_local()`/`rehost_missing_images()` (F18/F18.01).
+- `app/routers/images.py` — `GET /images/{filename}` (serve hosted images; also registered on the admin app for previews).
 - `app/routers/images.py` — `GET /images/{filename}` (serve hosted images).
 - `app/services/actions.py` — request-agnostic admin operations (read/write/pipeline + parsing + `ActionError`); the single source of truth shared by `/api/v1/*` and the HTML debug pages. `category_mapping()` exposes the full category config + DB counts with exposure (F29).
 - `app/services/testrunner.py` — `collect_tests()` / `run_tests()` (subprocess `python -m pytest`).
@@ -91,13 +92,15 @@ Key files:
 
 ```sh
 uv sync --all-extras                             # create/refresh .venv from uv.lock (incl. pytest)
-.venv/bin/python -m pytest                       # test suite (327)
+.venv/bin/python -m pytest                       # test suite (338)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
 .venv/bin/python -m app.ingest --dry-run         # classify only, no writes
 .venv/bin/python -m app.ingest                   # scrape -> sieve -> decide -> store
 .venv/bin/python -m app.debug                    # CLI: stats / sources / events --id
+.venv/bin/python -m app.archive --commit          # archive (GC) — dry-run by default
+.venv/bin/python -m app.images prune [--commit]   # orphan image GC — dry-run by default
 docker compose up --build                        # public + admin services (Dockerfile runs `uv sync --frozen`)
 ```
 
@@ -220,6 +223,18 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   URL is the change-detection identity. Served via `GET /images/{filename}` on
   the public app; ICS absolutizes local URLs with `public_base_url` (else falls
   back to `source_url`). Failed downloads leave the image on its external URL.
+- **Image GC + re-host (F18.01)** — `images.prune()` deletes `{data_dir}/images/*`
+  files no **live** event references (dry-run default; files referenced only by
+  archived events are also removed). Surfaces: `python -m app.images prune`,
+  `POST /api/v1/images/prune`, and `/debug/images`. `archive.restore()` re-hosts
+  any pruned local images via `images.rehost_missing_images()` (content-addressed,
+  so identical bytes re-land on the same filename) before un-archiving.
+- **Archived events are frozen (F59.01)** — an incoming event whose stable id maps
+  to an archived row is bucketed into `SieveResult.archived_ids` and skipped: no
+  image hosting, no `content_hash` comparison, no update, no un-archive.
+  `ingest.process_source` skips `host_images()` for those events; the
+  decisionmaker never un-archives (archived events return only via an explicit
+  `restore()`).
 - **Logs are a shared rotating file** — `setup_logging()` attaches a
   `RotatingFileHandler` to the root logger in every entrypoint, so `public`,
   `admin`, and `ingest` all write the same `{data_dir}/ripcale.log`. Rotation is
@@ -253,9 +268,9 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   after `archive_grace_hours`. Archiving runs automatically at the end of each
   non-dry ingest (`ingest._run()`) and manually via `python -m app.archive`,
   `/debug/archive`, or `POST /api/v1/archive`. The public read path
-  (`query_events`/`get_event`) excludes archived rows, as do stats/stale; the
-  decisionmaker **un-archives** an event that reappears in its source (updated/
-  unchanged paths) and ignores archived rows in its stale count. `stats.stale_events()`
+  (`query_events`/`get_event`) excludes archived rows, as do stats/stale; archived
+  events are frozen (F59.01) — they don't un-archive on re-ingest and are ignored
+  in the stale count. `stats.stale_events()`
   tags each stale event with `kind` (`"expired"`/`"removed"`). An idempotent
   migration in `init_db()` adds the two columns to existing SQLite DBs. Admin
   visibility/restore (F22.02): `stats.event_dump()` exposes

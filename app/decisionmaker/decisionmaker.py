@@ -67,8 +67,6 @@ def _apply_update(existing: Event, classified: ClassifiedEvent, run_ts) -> None:
     existing.categories = _categories(classified)
     existing.content_hash = classified.content_hash
     existing.last_seen_at = run_ts
-    existing.archived_at = None        # re-seen -> un-archive (F22)
-    existing.archived_reason = None
     existing.updated_at = utcnow()
 #endregion
 
@@ -102,8 +100,6 @@ def apply(session: Session, source: Source, sieved: SieveResult) -> dict:
         rows = session.exec(select(Event).where(Event.id.in_(sieved.unchanged_ids))).all()
         for row in rows:
             row.last_seen_at = run_ts
-            row.archived_at = None        # re-seen -> un-archive (F22)
-            row.archived_reason = None
 
     # Mark the source as fetched at this run's timestamp (shared with last_seen_at).
     source.last_fetched_at = run_ts

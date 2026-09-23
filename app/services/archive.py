@@ -8,8 +8,8 @@ stamps `archived_at` / `archived_reason` instead of deleting them:
 - **removed** — no longer in the source feed (`last_seen_at != last_fetched_at`,
   or never seen) and stale longer than `archive_grace_hours` (F22.01).
 
-Archived events stay in the DB (restore-on-reseen is handled by the
-decisionmaker when the event reappears).
+Archived events stay in the DB, frozen: the sieve skips them on re-ingest
+(F59.01), so they only return to the live set via an explicit `restore()`.
 """
 #region: imports
 from datetime import timedelta
@@ -18,9 +18,11 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.models import Event, Source, utcnow
+from app.schema import dump_images, load_images
 from app.services.clock import now as clock_now
 from app.services.events import DEFAULT_LIMIT
 from app.services.expiry import is_expired
+from app.services.images import rehost_missing_images
 #endregion
 
 
@@ -107,11 +109,16 @@ def list_archived(session: Session, limit: int | None = DEFAULT_ARCHIVE_LIMIT) -
 
 
 def restore(session: Session, event_id: str) -> bool:
-    """Un-archive one event (no-op when missing or not archived); returns success."""
+    """Un-archive one event (no-op when missing or not archived); returns success.
+
+    Re-hosts any local images pruned while the event was archived (F18.01) so a
+    restored event's gallery points at files that actually exist again.
+    """
     event = session.get(Event, event_id)
     if event is None or event.archived_at is None:
         return False
     event.archived_at = None
     event.archived_reason = None
+    event.images = dump_images(rehost_missing_images(load_images(event.images)))
     return True
 #endregion

@@ -123,6 +123,8 @@ Every entrypoint, with its intended use. (Run from the repo root inside the venv
 .venv/bin/python -m app.ingest --dry-run   # classify only, no writes (preview)
 .venv/bin/python -m app.ingest             # scrape → sieve → decide → store
 .venv/bin/python -m app.gatherers.elfsight # run one gatherer standalone (dev)
+.venv/bin/python -m app.archive --commit   # archive (GC) — dry-run by default
+.venv/bin/python -m app.images prune --commit  # orphan image GC — dry-run by default
 ```
 
 ### Inspect data (reads the DB directly; no IP gate applies)

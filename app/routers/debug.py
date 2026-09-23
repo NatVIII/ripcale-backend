@@ -162,6 +162,7 @@ def register(app) -> None:
             + "<p><a href='/debug/events'>events</a></p>"
             + "<p><a href='/debug/retag'>retag categories</a></p>"
             + "<p><a href='/debug/archive'>archive (gc)</a> · <a href='/debug/archived'>archived events</a></p>"
+            + "<p><a href='/debug/images'>images (gc)</a></p>"
             + "<h2>danger zone</h2>"
             + "<p><a href='/debug/wipe'>wipe database</a></p>"
         )

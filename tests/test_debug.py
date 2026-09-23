@@ -219,6 +219,78 @@ def test_debug_event_page_and_pin(tmp_path, monkeypatch):
         assert session.get(Event, "e1").pinned is True
 
 
+def test_debug_event_page_shows_all_fields_and_images(tmp_path, monkeypatch):
+    from app.schema import ImageRef, dump_images
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'eventfull.db'}")
+    SQLModel.metadata.create_all(engine)
+    fn = "a" * 64 + ".jpg"
+    (tmp_path / "images").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "images" / fn).write_bytes(b"x")
+    with Session(engine) as session:
+        src = Source(name="S", url="https://x")
+        session.add(src)
+        session.commit()
+        session.refresh(src)
+        session.add(
+            Event(
+                id="e1", source_id=src.id, title="Upcoming", uid="u1",
+                description="desc", location="loc", url="https://e.example",
+                timezone="America/New_York", rrule="FREQ=WEEKLY",
+                start_at=datetime(2030, 1, 1, 0, 0),
+                images=dump_images([ImageRef(url=f"/images/{fn}", alt="cover", source_url="https://cdn/x.jpg")]),
+            )
+        )
+        session.commit()
+
+    monkeypatch.setattr("app.services.actions.engine", engine)
+
+    from robyn.testing import TestClient
+
+    from app.admin import app
+
+    client = TestClient(app)
+
+    r = client.get("/debug/event/e1")
+    assert r.status_code == 200
+    assert "u1" in r.text            # uid (previously hidden)
+    assert "desc" in r.text          # description
+    assert "loc" in r.text           # location
+    assert "FREQ=WEEKLY" in r.text   # rrule
+    assert "America/New_York" in r.text  # timezone
+    assert "<img" in r.text          # image preview
+    assert "hosted" in r.text        # kept-on-server marker
+    assert "cover" in r.text         # alt text
+
+
+def test_debug_images_page_and_prune(tmp_path, monkeypatch):
+    engine = create_engine(f"sqlite:///{tmp_path / 'images.db'}")
+    SQLModel.metadata.create_all(engine)
+    monkeypatch.setattr("app.services.actions.engine", engine)
+
+    fn = "e" * 64 + ".jpg"
+    (tmp_path / "images").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "images" / fn).write_bytes(b"orphan")
+
+    from robyn.testing import TestClient
+
+    from app.admin import app
+
+    client = TestClient(app)
+
+    r = client.get("/debug/images")
+    assert r.status_code == 200
+    assert fn in r.text
+
+    r = client.post("/debug/images", form_data={"csrf_token": debug_csrf_token(), "dry_run": "1"})
+    assert r.status_code == 200
+    assert (tmp_path / "images" / fn).exists()  # dry-run
+
+    r = client.post("/debug/images", form_data={"csrf_token": debug_csrf_token()})
+    assert r.status_code == 200
+    assert not (tmp_path / "images" / fn).exists()  # committed
+
+
 def test_debug_event_edit_page_and_post(tmp_path, monkeypatch):
     engine = create_engine(f"sqlite:///{tmp_path / 'edit.db'}")
     SQLModel.metadata.create_all(engine)

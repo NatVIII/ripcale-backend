@@ -15,6 +15,7 @@ from sqlmodel import Session, select
 from app.config import settings
 from app.models import Event, Source
 from app.schema import load_images
+from app.services import images
 from app.services.clock import now as clock_now
 from app.services.expiry import is_expired
 from app.timeutil import display_time
@@ -108,7 +109,15 @@ def event_dump(session: Session, event_id: str) -> dict | None:
         "description": event.description,
         "location": event.location,
         "url": event.url,
-        "images": [{"url": img.url, "alt": img.alt, "source_url": img.source_url} for img in load_images(event.images)],
+        "images": [
+            {
+                "url": img.url,
+                "alt": img.alt,
+                "source_url": img.source_url,
+                "hosted": images.is_local(img.url),
+            }
+            for img in load_images(event.images)
+        ],
         "start_at": event.start_at.isoformat() if event.start_at else None,
         "end_at": event.end_at.isoformat() if event.end_at else None,
         "start_at_display": display_time(event.start_at),

@@ -20,8 +20,8 @@ from app.services.clock import now as clock_now
 
 
 #region: contract
-# Contract: Sieve v4 (docs/SIEVE_CONTRACT.md)
-CONTRACT_VERSION = 4
+# Contract: Sieve v5 (docs/SIEVE_CONTRACT.md)
+CONTRACT_VERSION = 5
 #endregion
 
 
@@ -119,11 +119,15 @@ def classify(session: Session, result: GathererResult, *, now=None) -> SieveResu
     updated: list[ClassifiedEvent] = []
     unchanged = 0
     unchanged_ids: list[str] = []
+    archived_ids: list[str] = []
 
     for event, event_id in zip(events, ids):
         old = existing.get(event_id)
         if old is None:
             new.append(ClassifiedEvent(id=event_id, content_hash=content_hash(event), event=event))
+        elif old.archived_at is not None:
+            # Archived = frozen (F59.01): skip hash/compare, never update or un-archive.
+            archived_ids.append(event_id)
         elif old.pinned:
             # Pinned = content frozen: never report a source change (F22.03).
             unchanged += 1
@@ -149,6 +153,7 @@ def classify(session: Session, result: GathererResult, *, now=None) -> SieveResu
         updated=updated,
         unchanged=unchanged,
         unchanged_ids=unchanged_ids,
+        archived_ids=archived_ids,
         dropped=dropped,
     )
 #endregion

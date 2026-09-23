@@ -1,8 +1,12 @@
-"""Tests for local image hosting (F18)."""
+"""Tests for local image hosting (F18) + image GC (F18.01)."""
 #region: imports
 import hashlib
+from datetime import datetime
 
-from app.schema import ImageRef, ScrapedEvent
+from sqlmodel import Session, SQLModel, create_engine
+
+from app.models import Event, Source
+from app.schema import ImageRef, ScrapedEvent, dump_images
 from app.services import images
 #endregion
 
@@ -94,4 +98,108 @@ def test_images_endpoint_serves_file(tmp_path):
     assert client.get(f"/images/{filename}").status_code == 200
     assert client.get("/images/" + "a" * 64 + ".png").status_code == 404  # missing file
     assert client.get("/images/not-valid").status_code == 404  # traversal guard
+#endregion
+
+
+#region: F18.01 — GC + re-host
+def _engine(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'gc.db'}")
+    SQLModel.metadata.create_all(engine)
+    return engine
+
+
+def _seed_images(engine, images_json, *, archived_at=None):
+    with Session(engine) as session:
+        src = Source(name="S", url="https://x")
+        session.add(src)
+        session.commit()
+        session.refresh(src)
+        session.add(
+            Event(id="e", source_id=src.id, title="E", images=images_json, archived_at=archived_at)
+        )
+        session.commit()
+
+
+def test_is_local(tmp_path):
+    fn = "a" * 64 + ".jpg"
+    (tmp_path / "images").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "images" / fn).write_bytes(b"x")
+
+    assert images.is_local(f"/images/{fn}") is True
+    assert images.is_local(f"/images/{'b' * 64}.jpg") is False
+    assert images.is_local("https://cdn.example/a.jpg") is False
+
+
+def test_prune_deletes_orphans(tmp_path):
+    engine = _engine(tmp_path)
+    fn_kept = "a" * 64 + ".jpg"
+    fn_orphan = "b" * 64 + ".jpg"
+    (tmp_path / "images").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "images" / fn_kept).write_bytes(b"kept")
+    (tmp_path / "images" / fn_orphan).write_bytes(b"orphan")
+
+    _seed_images(engine, dump_images([ImageRef(url=f"/images/{fn_kept}")]))
+
+    with Session(engine) as session:
+        result = images.prune(session, dry_run=True)
+
+    assert result["dry_run"] is True
+    assert result["orphan_count"] == 1
+    assert fn_orphan in result["preview"]
+    assert (tmp_path / "images" / fn_orphan).exists()  # dry-run leaves it
+
+    with Session(engine) as session:
+        result = images.prune(session, dry_run=False)
+
+    assert result["orphan_count"] == 1
+    assert not (tmp_path / "images" / fn_orphan).exists()
+    assert (tmp_path / "images" / fn_kept).exists()
+
+
+def test_prune_deletes_archived_only_images(tmp_path):
+    engine = _engine(tmp_path)
+    fn = "c" * 64 + ".png"
+    (tmp_path / "images").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "images" / fn).write_bytes(b"x")
+
+    _seed_images(engine, dump_images([ImageRef(url=f"/images/{fn}")]), archived_at=datetime(2026, 1, 1))
+
+    with Session(engine) as session:
+        result = images.prune(session, dry_run=False)
+
+    assert result["orphan_count"] == 1
+    assert not (tmp_path / "images" / fn).exists()
+
+
+def test_rehost_missing_images_re_downloads(tmp_path, monkeypatch):
+    _fake_get(monkeypatch, b"rehost bytes", "image/png")
+    sha = hashlib.sha256(b"rehost bytes").hexdigest()
+    fn = f"{sha}.png"
+
+    img = ImageRef(url=f"/images/{fn}", source_url="https://cdn.example/a.jpg")
+    out = images.rehost_missing_images([img])
+
+    assert out[0].url == f"/images/{fn}"
+    assert (tmp_path / "images" / fn).read_bytes() == b"rehost bytes"
+
+
+def test_rehost_skips_present_file(tmp_path, monkeypatch):
+    fn = "a" * 64 + ".jpg"
+    (tmp_path / "images").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "images" / fn).write_bytes(b"existing")
+
+    img = ImageRef(url=f"/images/{fn}", source_url="https://cdn.example/a.jpg")
+    out = images.rehost_missing_images([img])
+
+    assert out[0].url == f"/images/{fn}"
+    assert (tmp_path / "images" / fn).read_bytes() == b"existing"
+
+
+def test_rehost_skips_external_and_missing_source(tmp_path, monkeypatch):
+    ext = ImageRef(url="https://cdn.example/a.jpg", source_url=None)
+    local_no_src = ImageRef(url=f"/images/{'b' * 64}.jpg", source_url=None)
+    out = images.rehost_missing_images([ext, local_no_src])
+
+    assert out[0].url == "https://cdn.example/a.jpg"
+    assert out[1].url == f"/images/{'b' * 64}.jpg"
 #endregion

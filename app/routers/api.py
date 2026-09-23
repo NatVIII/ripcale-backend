@@ -173,6 +173,11 @@ def register(app) -> None:
     def api_archive(request):
         return _ok(actions.archive(dry_run=json_body(request).get("dry_run", True)))
 
+    @app.post(f"{prefix}/images/prune")
+    @_route
+    def api_images_prune(request):
+        return _ok(actions.prune_images(dry_run=json_body(request).get("dry_run", True)))
+
     @app.post(f"{prefix}/archived/:id/restore")
     @_route
     def api_archived_restore(request):

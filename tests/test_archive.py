@@ -6,6 +6,7 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from app.config import settings
 from app.models import Event, Source
+from app.schema import ImageRef, dump_images, load_images
 from app.services.archive import DEFAULT_ARCHIVE_LIMIT, archive, list_archived, restore
 #endregion
 
@@ -202,6 +203,35 @@ def test_restore_returns_false_when_not_archived(tmp_path, monkeypatch):
     with Session(engine) as session:
         assert restore(session, "live") is False
         assert restore(session, "nope") is False
+
+
+def test_restore_rehosts_missing_images(tmp_path, monkeypatch):
+    from app.services import images as images_mod
+
+    engine = _setup(tmp_path, monkeypatch, past_days=None, grace_hours=None)
+    missing = "f" * 64 + ".jpg"  # not on disk
+    with Session(engine) as session:
+        sid = _source(session, NOW)
+        session.add(
+            Event(
+                id="a", source_id=sid, title="A",
+                start_at=NOW + timedelta(days=1), archived_at=NOW, archived_reason="removed",
+                images=dump_images([ImageRef(url=f"/images/{missing}", source_url="https://cdn.example/a.jpg")]),
+            )
+        )
+        session.commit()
+
+    with Session(engine) as session:
+        assert restore(session, "a") is True
+        session.commit()
+
+    with Session(engine) as session:
+        e = session.get(Event, "a")
+        assert e.archived_at is None
+        img = load_images(e.images)[0]
+        assert img.url.startswith("/images/")
+        assert img.url != f"/images/{missing}"
+        assert images_mod.is_local(img.url) is True
 
 
 def test_event_dump_includes_archive_fields(tmp_path):

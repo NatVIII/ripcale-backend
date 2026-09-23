@@ -36,16 +36,54 @@ def _event_body(dump: dict, token: str) -> str:
     rows = [
         ["id", dump["id"]],
         ["source", dump["source"] or ""],
+        ["uid", dump["uid"] or ""],
         ["title", dump["title"]],
-        ["start", dump["start_at_display"] or ""],
-        ["end", dump["end_at_display"] or ""],
+        ["description", dump["description"] or ""],
+        ["location", dump["location"] or ""],
+        ["url", dump["url"] or ""],
+        ["start (utc)", dump["start_at"] or ""],
+        ["end (utc)", dump["end_at"] or ""],
+        ["start (display)", dump["start_at_display"] or ""],
+        ["end (display)", dump["end_at_display"] or ""],
+        ["timezone", dump["timezone"] or ""],
+        ["all day", "yes" if dump["all_day"] else "no"],
+        ["rrule", dump["rrule"] or ""],
+        ["recurrence_id", dump["recurrence_id"] or ""],
+        ["redirect_to_id", dump["redirect_to_id"] or ""],
         ["categories", dump["categories"]],
+        ["priority", "" if dump["priority"] is None else str(dump["priority"])],
+        ["content_hash", dump["content_hash"] or ""],
+        ["last seen", dump["last_seen_at"] or ""],
+        ["created", dump["created_at"] or ""],
+        ["updated", dump["updated_at"] or ""],
         ["pinned", "yes" if dump["pinned"] else "no"],
         ["archived", dump["archived_at"] or "no"],
         ["archived reason", dump["archived_reason"] or ""],
-        ["last seen", dump["last_seen_at"] or ""],
     ]
     body = table(["field", "value"], rows)
+
+    images = dump["images"] or []
+    if images:
+        figures = []
+        for img in images:
+            badge = "hosted" if img["hosted"] else "external"
+            caption = badge
+            if img.get("source_url"):
+                caption += f" · <a href='{escape(img['source_url'])}'>source</a>"
+            if img.get("alt"):
+                caption += f" · {escape(img['alt'])}"
+            figures.append(
+                "<figure style='display:inline-block;margin:0 1rem 1rem 0;max-width:200px;vertical-align:top'>"
+                f"<img src='{escape(img['url'])}' alt='{escape(img.get('alt') or '')}' "
+                "style='max-width:200px;max-height:200px;border:1px solid #ddd'>"
+                f"<figcaption style='font-size:.8rem;word-break:break-all'>{caption}</figcaption>"
+                "</figure>"
+            )
+        body += "<h2>images</h2>" + "".join(figures)
+
+    if dump["exdates"]:
+        body += "<h2>exdates</h2>" + table(["datetime"], [[d] for d in dump["exdates"]])
+
     body += f"<p><a href='/debug/event/{escape(dump['id'])}/edit'>edit</a></p>"
 
     pin_label = "unpin" if dump["pinned"] else "pin"

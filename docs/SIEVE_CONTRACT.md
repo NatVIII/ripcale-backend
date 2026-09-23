@@ -1,6 +1,6 @@
 # Sieve Contract
 
-Version: 4
+Version: 5
 
 The contract between the **Sieve** (`app/sieve/sieve.py`) and the rest of the
 pipeline (Gatherer → Categorize → Sieve → Decisionmaker → storage). This document
@@ -35,6 +35,7 @@ writes.
 | `updated` | `list[ClassifiedEvent]` | Events whose stored row has a different `content_hash`. |
 | `unchanged` | `int` | Count of events identical to their stored row. |
 | `unchanged_ids` | `list[str]` | Ids of unchanged events (so `apply()` can stamp `last_seen_at`). |
+| `archived_ids` | `list[str]` | Ids of events whose stored row is archived (skipped; F59.01). |
 | `dropped` | `int` | Events removed by the relevance/expiry filter (F13). |
 
 ### `ClassifiedEvent`
@@ -62,6 +63,9 @@ For each incoming event the sieve:
 3. Computes `id = stable_id(source.name, event)` and `content_hash(event)`.
 4. Buckets each event:
    - **new** — no stored `Event` has this `id`.
+   - **archived** (F59.01) — the stored `Event` is archived; the incoming event is
+     bucketed into `archived_ids` and skipped (no `content_hash` computation, no
+     update, no un-archive).
    - **updated** — the stored `Event` exists but has a different `content_hash`;
      `changed_fields` is the subset of mutable fields that differ.
    - **unchanged** — the stored `Event` has the same `content_hash`.
@@ -89,4 +93,5 @@ The complete set of fields that, when they differ, mark an event **updated**:
 ## What the Decisionmaker relies on
 
 `apply()` trusts `SieveResult.new` / `updated` for persistence and
-`unchanged_ids` for stamping `last_seen_at`. It never re-runs classification.
+`unchanged_ids` for stamping `last_seen_at`. It ignores `archived_ids` (archived
+events are frozen). It never re-runs classification.

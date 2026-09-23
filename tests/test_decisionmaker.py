@@ -69,7 +69,7 @@ def test_apply_inserts_and_updates(tmp_path):
         assert two.content_hash == content_hash(make_scraped("u2", "Two Updated"))
 
 
-def test_apply_unarchives_reseen_event(tmp_path):
+def test_apply_does_not_unarchive_reseen_event(tmp_path):
     engine = create_engine(f"sqlite:///{tmp_path / 'unarchive.db'}")
     SQLModel.metadata.create_all(engine)
 
@@ -106,11 +106,11 @@ def test_apply_unarchives_reseen_event(tmp_path):
 
     with Session(engine) as session:
         row = session.get(Event, eid)
-        assert row.archived_at is None
-        assert row.archived_reason is None
+        assert row.archived_at is not None   # frozen (F59.01): no auto un-archive
+        assert row.archived_reason == "removed"
 
 
-def test_apply_unarchives_updated_event(tmp_path):
+def test_apply_does_not_unarchive_updated_event(tmp_path):
     engine = create_engine(f"sqlite:///{tmp_path / 'unarchive_upd.db'}")
     SQLModel.metadata.create_all(engine)
 
@@ -149,5 +149,5 @@ def test_apply_unarchives_updated_event(tmp_path):
     with Session(engine) as session:
         row = session.get(Event, eid)
         assert row.title == "New Title"
-        assert row.archived_at is None
-        assert row.archived_reason is None
+        assert row.archived_at is not None   # frozen (F59.01): update applied, still archived
+        assert row.archived_reason == "removed"

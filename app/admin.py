@@ -20,6 +20,8 @@ from app.routers import archive as archive_router
 from app.routers import auth as auth_router
 from app.routers import debug as debug_router
 from app.routers import event as event_router
+from app.routers import images as images_router
+from app.routers import images_admin as images_admin_router
 from app.routers import ingest as ingest_router
 from app.routers import pipeline as pipeline_router
 from app.routers import retag as retag_router
@@ -44,6 +46,8 @@ tests_router.register(app)     # /debug/tests
 retag_router.register(app)     # /debug/retag
 archive_router.register(app)   # /debug/archive, /debug/archived
 event_router.register(app)     # /debug/event/{id}
+images_router.register(app)    # /images/{filename} (image previews on /debug/event)
+images_admin_router.register(app)  # /debug/images (orphan prune)
 #endregion
 
 

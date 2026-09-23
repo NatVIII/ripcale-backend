@@ -236,6 +236,28 @@ def test_api_archived_list_and_restore(tmp_path, monkeypatch):
     assert r.json()["data"] == []
 
 
+def test_api_images_prune(tmp_path, monkeypatch):
+    client, engine, auth_header = _make_client(tmp_path, monkeypatch)
+    fn_orphan = "d" * 64 + ".jpg"
+    (tmp_path / "images").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "images" / fn_orphan).write_bytes(b"orphan")
+
+    # dry-run (default) -> nothing deleted
+    r = client.post("/api/v1/images/prune", headers=auth_header, json_data={})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    assert body["data"]["dry_run"] is True
+    assert body["data"]["orphan_count"] == 1
+    assert (tmp_path / "images" / fn_orphan).exists()
+
+    # commit -> deletes
+    r = client.post("/api/v1/images/prune", headers=auth_header, json_data={"dry_run": False})
+    assert r.status_code == 200
+    assert r.json()["data"]["dry_run"] is False
+    assert not (tmp_path / "images" / fn_orphan).exists()
+
+
 def test_api_event_pin(tmp_path, monkeypatch):
     client, engine, auth_header = _make_client(tmp_path, monkeypatch)
     _seed_event(engine, "e1", "A", "external:art")

@@ -27,6 +27,7 @@ from app.services import archive as archive_mod
 from app.services.archive import DEFAULT_ARCHIVE_LIMIT
 from app.services.coherence import check as coherence_check
 from app.services.events import DEFAULT_LIMIT, query_events, set_pinned, source_names, update_event
+from app.services.images import prune as prune_images_service
 from app.services.retag import retag as retag_service
 from app.services.scheduler import status as scheduler_status
 from app.services.status import gatherer_rollup, read_status, record_run, record_status
@@ -201,6 +202,12 @@ def restore(event_id: str) -> bool:
         restored = archive_mod.restore(session, event_id)
         session.commit()
     return restored
+
+
+def prune_images(dry_run: bool = True) -> dict:
+    """Delete orphaned hosted image files (no live event references) — F18.01."""
+    with Session(engine) as session:
+        return prune_images_service(session, dry_run=dry_run)
 
 
 def pin(event_id: str, pinned: bool) -> bool | None:
