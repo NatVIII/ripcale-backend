@@ -157,7 +157,7 @@ def register(app) -> None:
             + "".join(gatherer_blocks)
             + "<details><summary>status (raw)</summary>" + json_pre(statuses) + "</details>"
             + "<h2>last ingest</h2>"
-            + (json_pre(ov["last_ingest"]) if ov["last_ingest"] else "<p>no ingest run yet</p>")
+            + "<details><summary>data (raw)</summary>" + (json_pre(ov["last_ingest"]) if ov["last_ingest"] else "<p>no ingest run yet</p>") + "</details>"
             + "<p><a href='/debug/stale'>stale events</a></p>"
             + "<p><a href='/debug/events'>events</a></p>"
             + "<p><a href='/debug/retag'>retag categories</a></p>"
