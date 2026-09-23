@@ -130,10 +130,12 @@ URL (and `alt` when available); `source_url` stays `None`. `images` flows
 `Gatherer → ScrapedEvent → Event → JSON extendedProps.images` and
 `→ ICS (one ATTACH per image, in order; X-RIPCALE-IMAGE = images[0].url)`.
 
-**Planned (internal hosting, F18):** hosting logic stores a local copy and
-rewrites each `url` to an internal path while stashing the origin in
-`source_url`. A Gatherer written today stays valid — hosting is a downstream
-rewrite, not a Gatherer concern.
+**Hosting (implemented, F18):** the pipeline hosts images **pre-sieve** —
+`ingest.process_source` runs `host_images()` after `gather`, which downloads each
+image to `{data_dir}/images/<sha256>.<ext>` and rewrites `url` to the local
+`/images/...` path while stashing the origin in `source_url`. A Gatherer written
+today stays valid — hosting is a pipeline step, not a Gatherer concern.
+`content_hash` hashes images by `url` only (not `alt`/`source_url`).
 
 ## Recurrence
 

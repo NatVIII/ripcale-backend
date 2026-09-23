@@ -40,6 +40,12 @@ def test_content_hash_changes_on_images():
     assert content_hash(a) != content_hash(b)
 
 
+def test_content_hash_ignores_image_metadata():
+    a = make_event(images=[ImageRef(url="https://x.com/a.jpg", alt="one", source_url="https://cdn/a1")])
+    b = make_event(images=[ImageRef(url="https://x.com/a.jpg", alt="two", source_url="https://cdn/a2")])
+    assert content_hash(a) == content_hash(b)  # url-only image identity (F18)
+
+
 def test_content_hash_changes_on_rrule():
     a = make_event(rrule="FREQ=WEEKLY")
     b = make_event(rrule="FREQ=DAILY")

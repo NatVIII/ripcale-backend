@@ -26,6 +26,7 @@ from app.models import Source, utcnow
 from app.registry import load_gatherer, load_sources
 from app.schema import CategoryRule, GathererResult, SieveResult, SourceConfig
 from app.services import lock
+from app.services.images import host_images
 from app.services.status import record_run, record_status
 from app.services.archive import archive as archive_service
 from app.sieve import classify
@@ -68,6 +69,7 @@ def process_source(
     (debug playground). Returns (sieved, report).
     """
     result = run_fn(cfg)                       # gather
+    host_images(result.events)                 # host images (pre-sieve; stable content_hash)
     categorize(result.source, result.events, rules=rules)   # categorize (assign rules, before hash)
     sieved = classify(session, result)         # sieve (reads DB)
 

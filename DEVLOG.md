@@ -1,3 +1,15 @@
+## 2026-09-08 06:40:00 [AI]
+
+F18: local image hosting (pre-sieve).
+
+- `app/config.py`: `public_base_url: str = ""` (absolutize local image URLs in ICS).
+- `app/services/images.py` (new): `store()` (content-addressed `{data_dir}/images/<sha256>.<ext>`, atomic write), `resolve()` (traversal guard), `host_images()` (rewrite `url`→local, `source_url`→origin; graceful on failure).
+- `app/ingest.py`: `host_images()` runs after `gather`, before `categorize`/`sieve`.
+- `app/identity.py`: `content_hash` now hashes images by **`img.url` only** (not `alt`/`source_url`) — the stable local URL is the identity. One-time "updated" churn documented.
+- `app/routers/images.py` (new) + `app/public.py`: `GET /images/{filename}` via `robyn.serve_file`.
+- `app/services/ics.py`: `ATTACH`/`X-RIPCALE-IMAGE` use `public_base_url`-absolutized local URLs, else fall back to `source_url`.
+- Tests: `test_images.py` (store/dedup/ext/guard/endpoint), `test_identity.py` (url-only image hash), `test_ics.py` (absolute/fallback); conftest stubs `httpx.get` so tests never hit the network (327 passing).
+
 ## 2026-09-08 06:20:00 [AI]
 
 Generic ICS tags (drop instance name "rva.rip" from the calendar output).

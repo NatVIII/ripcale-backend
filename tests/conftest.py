@@ -1,7 +1,36 @@
 """Shared test fixtures."""
 #region: imports
+import hashlib
+
 import pytest
 #endregion
+
+
+class _FakeResponse:
+    """Minimal httpx.Response stand-in so image hosting never hits the network."""
+
+    def __init__(self, content: bytes):
+        self.content = content
+        self.headers = {"Content-Type": "image/jpeg"}
+
+    def raise_for_status(self) -> None:
+        pass
+
+    def json(self):
+        return {}
+
+    @property
+    def text(self) -> str:
+        return ""
+
+
+@pytest.fixture(autouse=True)
+def _fake_http(monkeypatch):
+    """Stub outbound HTTP so tests never download images from real CDNs."""
+    def fake_get(url, **kwargs):
+        return _FakeResponse(hashlib.sha256(url.encode()).hexdigest().encode())
+
+    monkeypatch.setattr("httpx.get", fake_get)
 
 
 @pytest.fixture

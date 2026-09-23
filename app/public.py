@@ -14,6 +14,7 @@ from app.db import init_db
 from app.logging import setup_logging
 from app.routers import events as events_router
 from app.routers import feeds as feeds_router
+from app.routers import images as images_router
 #endregion
 
 
@@ -22,6 +23,7 @@ app = Robyn(__file__)
 
 events_router.register(app)   # /events, /events/{id}
 feeds_router.register(app)    # /feed.ics, /events/{id}/ics
+images_router.register(app)   # /images/{filename}
 
 if settings.cors_origins:
     ALLOW_CORS(app, settings.cors_origins)

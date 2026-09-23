@@ -12,8 +12,9 @@ from html import unescape
 
 from icalendar import Calendar, Event as VEvent, vRecur
 
+from app.config import settings
 from app.models import Event
-from app.schema import load_exdates, load_images
+from app.schema import ImageRef, load_exdates, load_images
 from app.services.categories import resolve_event_categories
 #endregion
 
@@ -24,6 +25,20 @@ def _utc(dt: datetime) -> datetime:
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
+
+
+def _image_url(img: ImageRef) -> str | None:
+    """An absolute URL for an image (ICS requires one).
+
+    Local `/images/...` paths are absolutized with `public_base_url`; if that's
+    unset, fall back to the original `source_url`; external URLs pass through.
+    """
+    url = img.url
+    if url.startswith("/"):
+        if settings.public_base_url:
+            return settings.public_base_url.rstrip("/") + url
+        return img.source_url
+    return url
 
 
 def _strip_html(value: str) -> str:
@@ -68,9 +83,13 @@ def event_to_vevent(event: Event, source_name: str | None = None) -> VEvent:
         v.add("url", event.url)
     images = load_images(event.images)
     for image in images:
-        v.add("attach", image.url)
+        target = _image_url(image)
+        if target:
+            v.add("attach", target)
     if images:
-        v.add("x-ripcale-image", images[0].url)
+        target = _image_url(images[0])
+        if target:
+            v.add("x-ripcale-image", target)
     if event.rrule:
         v.add("rrule", vRecur.from_ical(event.rrule))
     for exdate in load_exdates(event.exdates):

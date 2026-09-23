@@ -75,6 +75,8 @@ Key files:
 - `app/services/scheduler.py` — background ingest scheduler (F11): `start()` (daemon thread) + `status()`.
 - `app/services/lock.py` — cross-process `ingest.lock` (atomic, stale-aware) guarding `ingest._run()` (F11).
 - `app/services/clock.py` — central `now()` (frozen when `debug_now` is set) + `debug_active()` (F56.01).
+- `app/services/images.py` — local content-addressed image hosting (`store()`/`resolve()`/`host_images()`) (F18).
+- `app/routers/images.py` — `GET /images/{filename}` (serve hosted images).
 - `app/services/actions.py` — request-agnostic admin operations (read/write/pipeline + parsing + `ActionError`); the single source of truth shared by `/api/v1/*` and the HTML debug pages. `category_mapping()` exposes the full category config + DB counts with exposure (F29).
 - `app/services/testrunner.py` — `collect_tests()` / `run_tests()` (subprocess `python -m pytest`).
 - `app/security.py` — `in_docker()`, `is_debug_allowed()`, CSRF, `form_data()`/`json_body()`, `api_guard()`/`session_guard()`.
@@ -89,7 +91,7 @@ Key files:
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest                       # test suite (316)
+.venv/bin/python -m pytest                       # test suite (327)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
 .venv/bin/python -m app.admin                    # 127.0.0.1:8082
@@ -200,6 +202,14 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   (`Access-Control-Expose-Headers` set in `app/public.py`), and `/debug` shows a
   banner when frozen. Security (auth session expiry) and audit timestamps
   (`created_at`/`updated_at`) stay on the real wall clock.
+- **Image hosting (F18)** — images are hosted **pre-sieve**: `ingest.process_source`
+  runs `host_images()` after `gather`, rewriting each `ImageRef.url` to a
+  content-addressed local path (`/images/<sha256>.<ext>`, stored in
+  `{data_dir}/images`) and stashing the origin in `source_url`. `content_hash`
+  hashes images by **`url` only** (not `alt`/`source_url`), so the stable local
+  URL is the change-detection identity. Served via `GET /images/{filename}` on
+  the public app; ICS absolutizes local URLs with `public_base_url` (else falls
+  back to `source_url`). Failed downloads leave the image on its external URL.
 - **Logs are a shared rotating file** — `setup_logging()` attaches a
   `RotatingFileHandler` to the root logger in every entrypoint, so `public`,
   `admin`, and `ingest` all write the same `{data_dir}/ripcale.log`. Rotation is
@@ -285,6 +295,7 @@ System fields in `config.yaml`:
 - `ingest_interval_minutes` — how often the scheduler runs the full ingest (`None`/`0` disables; default `60`); also the stale-lock timeout.
 - `ingest_startup_delay_minutes` — cooldown after admin startup before the scheduler's first ingest (default `3`).
 - `debug_now` — fixed naive-UTC ISO timestamp that freezes the backend "now" (debug/time-travel); empty = real clock (F56.01).
+- `public_base_url` — base URL used to absolutize local `/images/...` URLs in the ICS feed; empty = ICS falls back to `source_url` (F18).
 - `log_file` — rotating log path (relative → `data_dir`; empty → `data/ripcale.log`).
 - `log_max_bytes` — rotate once the file reaches this size (default `1000000`).
 - `log_backup_count` — rotated backups to keep (default `3`).

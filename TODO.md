@@ -6,9 +6,10 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 
 ## Backlog
  
-- [ ] F18 - Image hosting (v1 links out; self-hosting deferred by design)
+- [ ] F18.01 - Image GC: orphan prune — delete `data_dir/images/*` files referenced by no event (manual action + dry-run default + report; `python -m app.images prune`, `POST /api/v1/images/prune`, `/debug/images`).
+- [ ] F36 - Implement decisionmaking page and logic. I want a telegram bot to be able to help me be notified of possible event conflicts and help choose in the future, so this should be done via some kind of API communication or something so that the same interface. We can't implement the telegram bot yet, so let's make the interface via code and then make a debug page that allows for this to take place.
 - [ ] F21 - Gatherer: Instagram source (research HikerAPI - see DEVLOG note)
-- [ ] F40 - Post-Sieve Feature, FITB with image OCR. The Instagram 
+- [ ] F40 - Post-Sieve Feature: image OCR/extraction — Qwen2.5-VL reads each new/updated flyer image + caption and emits structured event JSON (title/start/end/timezone/location/description) in one call, cached per image hash ("read once per update"), then updates the provisional event.
 - [ ] F56 - More Debug Tools and Settings for Testing and Bug Reproduction
   - [ ] F56.02 - Create a list of other debug configurations that may help down the road for ensuring everything works as expected
 - [ ] F55 - Gatherer: Libcal Integration with Richmond Public Library System
@@ -19,8 +20,11 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [ ] F23 - Backup mechanism: in-app scheduled snapshots of the SQLite DB to a configurable location (e.g. a `backup_dir` config field), with a retention policy. Part of the internal workings (not an external cron).
 - [ ] F16 - `/sources` public endpoint (deferred)
 - [ ] F41 - Convert tests to CI/CD Pipeline that automatically triggers on each push to git (Codeberg, Github, Gittea?).
-- [ ] F36 - Implement decisionmaking page and logic. I want a telegram bot to be able to help me be notified of possible event conflicts and help choose in the future, so this should be done via some kind of API communication or something so that the same interface. We can't implement the telegram bot yet, so let's make the interface via code and then make a debug page that allows for this to take place.
 - [ ] F43 - External API Contract
+- [ ] F57 - Implement "Highlight" Feature to Events. 
+  - [ ] F57.01 - First part of "Highlight" feature, a `purpose` (null by default, meaning not highlighted) which is a short string. If this can be interpreted and included in the JSON in a way that allows FullCalendar to apply standard css based on this value to the event preview on the calendar; even better!
+  - [ ] F57.01 - Second part of "Highlight" feature, a `message` (even if the `purpose` is null, this is still passed, and the frontend can still display it). This includes a little message which can explain why a given event was highlighted.
+- [ ] F58 - Implement some kind of vulnerability scanner into the build process???
 
 ## In Progress
 
@@ -95,6 +99,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F25 - Google Calendar Gatherer: generic `ics` gatherer (RFC 5545; no API key) — maps UID/SUMMARY/DESCRIPTION/LOCATION/URL/CATEGORIES/RRULE/RECURRENCE-ID/EXDATE/ATTACH + `STATUS`→lowercase category; `intake.example.yaml` examples for Gold Lion (F25.01) + Coalition Theater (F25.02) (2026-09-08)
 - [x] F56.01 - Debug clock: `debug_now` config + `app/services/clock.py` (`now()`/`debug_active()`); threaded into decisionmaker/sieve/archive/stats; served to the frontend via the `X-Server-Time` header (+ CORS expose); `/debug` banner when frozen (2026-09-08)
 - [x] F56.03 - Single source of truth for config: `config.yaml` now authoritative (`init > config.yaml > env > .env`), `.env` = auth/secrets only (no override); templates + docs updated (2026-09-08)
+- [x] F18 - Local image hosting (pre-sieve): content-addressed `data_dir/images/`, `host_images()` after gather, `content_hash` images-by-url, `/images/{filename}` serving, `public_base_url` for ICS (2026-09-08)
 - [x] F21.01 - Instagram source research: HikerAPI confirmed (public pages, no OAuth, pay-per-request) vs Graph API/Instaloader/Apify (2026-09-08)
 - [x] F21.02 - OCR research: Alibaba Qwen2.5-VL (Chinese, stable DashScope + self-host, affordable, strong flyer/artistic-text OCR + key-info extraction); DeepSeek is text-only; Baidu/Tencent/Zhipu alternatives (2026-09-08)
 - [x] F21.03 - Image-reading pipeline design: post-sieve OCR + per-image cache keyed by URL/hash → "read once per update"; output persisted for categorize/decisionmaker; forks (storage location, sync/async, retry) left for F40 (2026-09-08)

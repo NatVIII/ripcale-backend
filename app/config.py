@@ -76,6 +76,10 @@ class Settings(BaseSettings):
     # X-Server-Time header. Debug only — empty = real clock.
     debug_now: str | None = None
 
+    # Public base URL (F18): used to absolutize local `/images/...` URLs in the
+    # ICS feed. Empty = ICS falls back to the original `source_url`.
+    public_base_url: str = ""
+
     # -- logging ----------------------------------------------------------
     # Path to the rotating log file. Relative paths are resolved against
     # `data_dir`; absolute paths are used as-is. Empty = `{data_dir}/ripcale.log`.

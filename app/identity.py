@@ -33,7 +33,7 @@ def content_hash(event: ScrapedEvent) -> str:
         "description": event.description,
         "location": event.location,
         "url": event.url,
-        "images": [img.model_dump() for img in event.images],
+        "images": [img.url for img in event.images],
         "start_at": event.start_at.isoformat() if event.start_at else None,
         "end_at": event.end_at.isoformat() if event.end_at else None,
         "timezone": event.timezone,

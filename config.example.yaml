@@ -50,6 +50,10 @@ ingest_startup_delay_minutes: 3
 # Debug only — empty = real clock.
 # debug_now: "2026-12-25T12:00:00"
 
+# Public base URL (F18): used to absolutize local /images/... URLs in the ICS
+# feed. Empty = ICS falls back to the original source URL.
+# public_base_url: "https://rva.rip"
+
 # Rotating log file (shared by all entrypoints; viewed at /debug/logs).
 # Relative paths resolve against data_dir; absolute paths are used as-is.
 # log_file: ripcale.log            # default: {data_dir}/ripcale.log

@@ -42,6 +42,26 @@ def test_event_to_vevent():
     assert "DESCRIPTION:hello" in ical
 
 
+def test_ics_local_image_absolutized(monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "public_base_url", "https://rva.rip")
+    e = _make_event(images='[{"url": "/images/abc.jpg", "source_url": "https://cdn/orig.jpg"}]')
+    ical = event_to_vevent(e).to_ical().decode()
+    assert "ATTACH:https://rva.rip/images/abc.jpg" in ical
+    assert "X-RIPCALE-IMAGE:https://rva.rip/images/abc.jpg" in ical
+
+
+def test_ics_local_image_falls_back_to_source(monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "public_base_url", "")
+    e = _make_event(images='[{"url": "/images/abc.jpg", "source_url": "https://cdn/orig.jpg"}]')
+    ical = event_to_vevent(e).to_ical().decode()
+    assert "ATTACH:https://cdn/orig.jpg" in ical
+    assert "X-RIPCALE-IMAGE:https://cdn/orig.jpg" in ical
+
+
 def test_event_to_vevent_all_day():
     e = _make_event(
         all_day=True,
