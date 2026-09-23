@@ -1,3 +1,12 @@
+## 2026-09-22 22:30:00 [AI]
+
+B01: SQLModel timezone bug (Docker login/ingest broken) + `uv` lockfile.
+
+- Root cause: the latest SQLModel (0.0.43+) enforces **timezone-aware** datetimes by default ("Datetime values must have timezone information"), but ripcale stores **naive UTC** everywhere. The local venv was pinned to the older 0.0.42 (no enforcement), while a fresh Docker `pip install ".[dev]"` resolved the loose `sqlmodel>=0.0.21` to 0.0.46 — so `init_db()`/`ensure_admin_user()` (naive `User.created_at`), login (naive `LoginSession.expires_at`), and ingest (naive `Event.start_at` etc.) all failed in Docker.
+- Fix: every naive datetime field in `app/models.py` now declares an explicit `sa_column=Column(DateTime(timezone=False))` (via a shared `_dt()` helper; `index=True` kept on `Event.start_at`/`Event.archived_at`). This is version-agnostic — it works under both 0.0.42 and 0.0.46.
+- `pyproject.toml` dependency pinning is now locked with **uv**: added `uv.lock` (sqlmodel pinned to 0.0.46; 46 packages). The `Dockerfile` now copies `uv.lock` and installs via `uv sync --frozen --all-extras` (venv at `/app/.venv`, added to `PATH`). Local dev: `uv sync --all-extras` instead of `pip install -e`.
+- Verified: 327 tests pass under 0.0.46; `docker compose build` + `up` boots clean (User row created with naive `created_at`), `healthz` OK, login returns clean 401, and a full ingest stored 524 events with naive `start_at`.
+
 ## 2026-09-08 06:40:00 [AI]
 
 F18: local image hosting (pre-sieve).

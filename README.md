@@ -11,8 +11,7 @@ ripcale is split into two listeners:
   — the interactive surface requires a session login (see "Admin login" below).
 
 ```sh
-python3 -m venv .venv
-.venv/bin/pip install -e ".[dev]"
+uv sync --all-extras   # create/refresh .venv from uv.lock (includes pytest)
 .venv/bin/python -m app.main   # dev launcher — runs both public + admin
 ```
 
@@ -32,10 +31,19 @@ docker compose up --build
 ```
 
 Starts two services: `public` (`0.0.0.0:8081`) and `admin` (`127.0.0.1:8082`,
-loopback-only so the interactive surface isn't reachable over the network).
+loopback-only so the interactive surface isn't reachable over the network). The
+image is built with `uv sync --frozen` from `uv.lock`, so dependencies are
+reproducible.
 
 For automated deploys to a server, see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
 (poll-based pull: the server pulls + rebuilds on a schedule).
+
+### Dependency upgrades
+
+Dependencies are pinned by `uv.lock`. To upgrade one: edit `pyproject.toml`,
+`uv lock --upgrade-package <name>` (or `uv lock` for a full refresh),
+`uv sync --all-extras`, run the test suite, and rebuild with
+`docker compose up --build`. Never edit `uv.lock` by hand.
 
 ## Configuration
 

@@ -90,7 +90,7 @@ Key files:
 ## Run / test / ingest
 
 ```sh
-python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+uv sync --all-extras                             # create/refresh .venv from uv.lock (incl. pytest)
 .venv/bin/python -m pytest                       # test suite (327)
 .venv/bin/python -m app.main                     # dev: both listeners
 .venv/bin/python -m app.public                   # :8081
@@ -98,7 +98,7 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/python -m app.ingest --dry-run         # classify only, no writes
 .venv/bin/python -m app.ingest                   # scrape -> sieve -> decide -> store
 .venv/bin/python -m app.debug                    # CLI: stats / sources / events --id
-docker compose up --build                        # public + admin services
+docker compose up --build                        # public + admin services (Dockerfile runs `uv sync --frozen`)
 ```
 
 Deployment is **poll-based pull** (no CI/SSH into the server): `deploy/deploy.sh`
@@ -139,7 +139,17 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   gatherers are written separately); the test discovers every gatherer package
   and checks it.
 - **Naive-UTC datetimes** everywhere in storage; the original IANA zone is kept
-  in `Event.timezone`. Convert with `app.timeutil.to_utc_naive()`.
+  in `Event.timezone`. Convert with `app.timeutil.to_utc_naive()`. Every datetime
+  column in `app/models.py` is declared with an explicit
+  `sa_column=Column(DateTime(timezone=False))` (via the `_dt()` helper) so
+  SQLModel's tz-aware default can never reject our naive values (B01) — keep
+  `index=True` inside `_dt(index=True)` for `Event.start_at`/`archived_at`.
+- **Dependencies are locked with `uv`** — `uv.lock` is the reproducible source of
+  truth (committed; the Dockerfile and `uv sync` both resolve from it). Adding or
+  upgrading a dependency: edit `pyproject.toml`, run `uv lock --upgrade-package
+  <name>` (or `uv lock` for a full refresh), `uv sync --all-extras`, then
+  `.venv/bin/python -m pytest` and a `docker compose up --build` before committing.
+  Never hand-edit `uv.lock`.
 - **`content_hash` is a stability contract** — defined once in `app/identity.py`;
   changing its inputs makes every stored event look "updated" on the next ingest.
 - **Events carry an ordered image gallery** — `Event.images` is a JSON column of

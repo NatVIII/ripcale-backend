@@ -2,7 +2,7 @@
 
 Kanban board. Move a card by moving its line between sections.
 
-Each Item has a ticket number (F##). Any child tickets which are necessary for accomplishing larger matters are denoted as children by using the larger feature's ticket as their initial followed by a period and then a number. Numbers are incrementing for tickets in a way that does not overlap, new ticket numbers are simply the new lowest value for what could be in that location. Each section has atleast two digits, so for example, the first ticket would be F01, the second would be F02, the first child of the second ticket would be F02.01, etc. 
+Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tickets which are necessary for accomplishing larger matters are denoted as children by using the larger feature's ticket as their initial followed by a period and then a number. Numbers are incrementing for tickets in a way that does not overlap, new ticket numbers are simply the new lowest value for what could be in that location. Each section has atleast two digits, so for example, the first ticket would be F01, the second would be F02, the first child of the second ticket would be F02.01, etc. 
 
 ## Backlog
  
@@ -24,7 +24,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [ ] F57 - Implement "Highlight" Feature to Events. 
   - [ ] F57.01 - First part of "Highlight" feature, a `purpose` (null by default, meaning not highlighted) which is a short string. If this can be interpreted and included in the JSON in a way that allows FullCalendar to apply standard css based on this value to the event preview on the calendar; even better!
   - [ ] F57.01 - Second part of "Highlight" feature, a `message` (even if the `purpose` is null, this is still passed, and the frontend can still display it). This includes a little message which can explain why a given event was highlighted.
-- [ ] F58 - Implement some kind of vulnerability scanner into the build process???
+- [ ] F58 - Implement some kind of vulnerability scanner into the build process??? (depends on F41: run the scanner as a CI step, e.g. `uv`-aware `pip-audit`/`trivy` on `uv.lock`)
 
 ## In Progress
 
@@ -103,6 +103,7 @@ Each Item has a ticket number (F##). Any child tickets which are necessary for a
 - [x] F21.01 - Instagram source research: HikerAPI confirmed (public pages, no OAuth, pay-per-request) vs Graph API/Instaloader/Apify (2026-09-08)
 - [x] F21.02 - OCR research: Alibaba Qwen2.5-VL (Chinese, stable DashScope + self-host, affordable, strong flyer/artistic-text OCR + key-info extraction); DeepSeek is text-only; Baidu/Tencent/Zhipu alternatives (2026-09-08)
 - [x] F21.03 - Image-reading pipeline design: post-sieve OCR + per-image cache keyed by URL/hash → "read once per update"; output persisted for categorize/decisionmaker; forks (storage location, sync/async, retry) left for F40 (2026-09-08)
+- [x] B01 - SQLModel timezone bug: latest SQLModel enforces tz-aware datetimes but storage is naive-UTC → Docker login/ingest broke. Fixed with explicit `DateTime(timezone=False)` columns on every naive datetime field in `app/models.py` + `uv` lockfile (`uv.lock`, sqlmodel pinned 0.0.46) + Dockerfile switched to `uv sync --frozen --all-extras` (2026-09-22)
 
 ## Deleted
 - [ ] F30 - Deleted Event
