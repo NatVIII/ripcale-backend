@@ -6,7 +6,6 @@ Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tic
 
 ## Backlog
  
-- [ ] F58 - Implement some kind of vulnerability scanner into the build process??? (depends on F41: run the scanner as a CI step, e.g. `uv`-aware `pip-audit`/`trivy` on `uv.lock`)
 - [ ] F36 - Implement decisionmaking page and logic. I want a telegram bot to be able to help me be notified of possible event conflicts and help choose in the future, so this should be done via some kind of API communication or something so that the same interface. We can't implement the telegram bot yet, so let's make the interface via code and then make a debug page that allows for this to take place.
 - [ ] F21 - Gatherer: Instagram source (research HikerAPI - see DEVLOG note)
 - [ ] F40 - Post-Sieve Feature: image OCR/extraction — Qwen2.5-VL reads each new/updated flyer image + caption and emits structured event JSON (title/start/end/timezone/location/description) in one call, cached per image hash ("read once per update"), then updates the provisional event.
@@ -23,7 +22,11 @@ Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tic
 - [ ] F43 - External API Contract
 - [ ] F57 - Implement "Highlight" Feature to Events. 
   - [ ] F57.01 - First part of "Highlight" feature, a `purpose` (null by default, meaning not highlighted) which is a short string. If this can be interpreted and included in the JSON in a way that allows FullCalendar to apply standard css based on this value to the event preview on the calendar; even better!
-  - [ ] F57.01 - Second part of "Highlight" feature, a `message` (even if the `purpose` is null, this is still passed, and the frontend can still display it). This includes a little message which can explain why a given event was highlighted.
+  - [ ] F57.02 - Second part of "Highlight" feature, a `message` (even if the `purpose` is null, this is still passed, and the frontend can still display it). This includes a little message which can explain why a given event was highlighted.
+- [ ] F60 - SSRF guard on outbound fetches: shared URL validator (http/https only, resolve + block private/loopback/link-local/metadata ranges, cap redirects) applied in `app/gatherers/base.py` + `app/services/images.store()`; config escape hatch (default off).
+- [ ] F61 - Scrub source URLs from error/status messages: sanitize `str(exc)` before `record_status()`/logging so secret feed URLs never reach `data/status.json`/logs.
+- [ ] F62 - Non-root Docker user: add `USER` + non-root account to the Dockerfile; document host-side `data/` ownership in `docs/DEPLOYMENT.md`.
+- [ ] F63 - Document TLS/reverse-proxy trust boundary in `docs/DEPLOYMENT.md` (HTTPS terminates at an external proxy; set `public_base_url`; admin stays loopback/SSH tunnel).
 
 ## In Progress
 
@@ -106,6 +109,8 @@ Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tic
 - [x] F18.01 - Image GC: orphan prune (live-only referenced; archived-only images deleted) via `python -m app.images prune`, `POST /api/v1/images/prune`, `/debug/images`; plus re-host on restore (`archive.restore()` re-downloads pruned images) (2026-09-22)
 - [x] F59 - Full event properties + image previews (hosted/external badge) on `/debug/event/{id}` (2026-09-22)
 - [x] F59.01 - Archived = frozen: sieve buckets archived-mapped events into `SieveResult.archived_ids`, skips image hosting + hash/compare, decisionmaker no longer un-archives (SIEVE_CONTRACT v5) (2026-09-22)
+- [x] F58 - Dependency vulnerability scanner: `pip-audit` (`security` extra, in `uv.lock`) — Dockerfile always reports, fails build only via `--build-arg SCAN_FAIL_ON`; `python -m app.audit` wrapper; docs + smoke test (2026-09-23)
+- [x] F58.01 - Scanner swap to `osv-scanner` + severity-threshold gate: severity-sorted report; fails build only on un-acknowledged critical/high (or `SCAN_FAIL_ON` severity); committed `osv-scanner.toml` acknowledgement list; removed pip-audit (2026-09-23)
 
 ## Deleted
 - [ ] F30 - Deleted Event

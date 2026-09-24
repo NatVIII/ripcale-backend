@@ -1,3 +1,34 @@
+## 2026-09-24 16:00:00 [AI]
+
+F58.01 follow-up: fail on high/critical by default + scan-error bypass.
+
+- `app/audit.py`: `--fail-severity` now defaults to `high` (was report-only); added `--allow-scan-errors` (downgrades a scanner error to a warning instead of failing, while findings still gate).
+- `Dockerfile`: `ARG SCAN_FAIL_ON="high"` and `ARG BUILD_DESPITE_OSV_DOWN=""`; the audit `RUN` conditionally appends `--allow-scan-errors` via `${BUILD_DESPITE_OSV_DOWN:+...}`. Escapes: `SCAN_FAIL_ON=""` (report only) and `BUILD_DESPITE_OSV_DOWN=1` (OSV-outage bypass).
+- README/AGENTS updated; 351 tests (added `allow_errors` coverage). Verified `docker compose build` succeeds under the new default gate.
+
+## 2026-09-23 01:00:00 [AI]
+
+F58.01: switch the dependency scanner to osv-scanner + severity-threshold gate.
+
+- Replaced pip-audit with **osv-scanner** (single scanner): it reads `uv.lock` natively and prints a **severity-sorted** table (critical → high → medium → low, with CVSS + fix versions).
+- `Dockerfile`: `COPY --from=ghcr.io/google/osv-scanner:latest /usr/local/bin/osv-scanner ...`, `COPY osv-scanner.toml .`, and `RUN python -m app.audit ... --fail-severity "$SCAN_FAIL_ON"` — empty = report only, else fail on an un-acknowledged finding at/above that severity (medium/low/unknown are warnings).
+- `app/audit.py` (rewritten): runs osv-scanner, prints its report, parses the `(N Critical, N High, …)` summary line, and applies the severity gate (conservative fail if findings can't be classified).
+- `osv-scanner.toml` (new, committed): `[[IgnoredVulns]]` acknowledgement list (id / reason / optional `ignoreUntil`).
+- `scripts/audit.sh` (new): local informational docker one-liner.
+- Removed the `security`/pip-audit extra from `pyproject.toml` (re-locked `uv.lock`).
+- Tests: `tests/test_audit.py` rewritten (summary parsing + severity gate + subprocess wiring; 11 tests).
+
+## 2026-09-23 00:00:00 [AI]
+
+F58: dependency vulnerability scanning (`pip-audit`).
+
+- `pyproject.toml`: new `security` extra (`pip-audit>=2.7.0`) → pinned in `uv.lock` (2.10.1); installed by `--all-extras` locally and in Docker.
+- `Dockerfile`: `ARG SCAN_FAIL_ON=""`; after `uv sync`, `pip-audit --skip-editable --format columns || [ -z "$SCAN_FAIL_ON" ]` — always prints the report, fails the build only when `--build-arg SCAN_FAIL_ON=1` is passed. (pip-audit has no severity tiers; it exits 1 on any known vuln.)
+- `app/audit.py` (new): `python -m app.audit` thin wrapper (defaults `--skip-editable`, forwards args, propagates exit code).
+- Docs: README "Security scanning" section + upgrade workflow; AGENTS.md run-command list + a "Dependency vulnerability scanning (F58)" invariant.
+- Tests: `tests/test_audit.py` (wrapper invocation + no-duplicate `--skip-editable`). Verified `python -m app.audit` → "No known vulnerabilities found" (exit 0).
+- Also added F60 (SSRF guard), F61 (scrub URLs from errors), F62 (non-root Docker user), F63 (TLS docs) to the backlog + fixed the duplicate `F57.01` → `F57.02`.
+
 ## 2026-09-22 23:30:00 [AI]
 
 F18.01 (image GC + re-host on restore), F59 (full event page), F59.01 (archived = frozen).

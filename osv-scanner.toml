@@ -1,0 +1,11 @@
+# ripcale vulnerability acknowledgements (F58.01).
+#
+# osv-scanner reads this file when scanning uv.lock. Add an entry here to
+# acknowledge a vulnerability you've reviewed and accepted — the build then no
+# longer fails on it (regardless of severity). Ignoring an ID also ignores its
+# aliases.
+#
+# [[IgnoredVulns]]
+# id = "GHSA-xxxx-xxxx-xxxx"
+# # ignoreUntil = 2026-12-31   # optional: the ignore stops applying after this date
+# reason = "Why this doesn't affect ripcale (and/or when it will be fixed)."

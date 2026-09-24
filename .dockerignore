@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Git
+.git/
+
+# Environment / secrets (never baked into an image)
+.env
+config.yaml
+intake.yaml
+
+# Local data (bind-mounted at runtime, not built)
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Not needed in the image
+deploy/
+machinelove.gif
+why-ripcale.md
+.env.example
+config.example.yaml
+intake.example.yaml

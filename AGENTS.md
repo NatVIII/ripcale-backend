@@ -101,6 +101,7 @@ uv sync --all-extras                             # create/refresh .venv from uv.
 .venv/bin/python -m app.debug                    # CLI: stats / sources / events --id
 .venv/bin/python -m app.archive --commit          # archive (GC) — dry-run by default
 .venv/bin/python -m app.images prune [--commit]   # orphan image GC — dry-run by default
+.venv/bin/python -m app.audit                      # dependency vuln scan (F58.01; fails on high+)
 docker compose up --build                        # public + admin services (Dockerfile runs `uv sync --frozen`)
 ```
 
@@ -151,8 +152,19 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   truth (committed; the Dockerfile and `uv sync` both resolve from it). Adding or
   upgrading a dependency: edit `pyproject.toml`, run `uv lock --upgrade-package
   <name>` (or `uv lock` for a full refresh), `uv sync --all-extras`, then
-  `.venv/bin/python -m pytest` and a `docker compose up --build` before committing.
-  Never hand-edit `uv.lock`.
+  `scripts/audit.sh` (F58 vulnerability scan), `.venv/bin/python -m pytest`, and a
+  `docker compose up --build` before committing. Never hand-edit `uv.lock`.
+- **Dependency vulnerability scanning (F58.01)** — `osv-scanner` (copied into the
+  image from `ghcr.io/google/osv-scanner`) scans `uv.lock` with the committed
+  `osv-scanner.toml` ignore list and prints a **severity-sorted** report. By
+  default the build **fails on un-acknowledged findings at `high`/`critical`**
+  (`SCAN_FAIL_ON`, default `high`) and **fails closed on scanner errors** — the
+  escape hatches are `--build-arg SCAN_FAIL_ON=""` (report only) and
+  `--build-arg BUILD_DESPITE_OSV_DOWN=1` (downgrade scan errors to warnings; findings
+  still gate). `app/audit.py` is the thin wrapper (`python -m app.audit`): runs
+  osv-scanner, prints its report, parses the summary line, and applies the
+  severity gate (`--allow-scan-errors` bypass). Local: `scripts/audit.sh`
+  (docker one-liner) — informational only.
 - **`content_hash` is a stability contract** — defined once in `app/identity.py`;
   changing its inputs makes every stored event look "updated" on the next ingest.
 - **Events carry an ordered image gallery** — `Event.images` is a JSON column of

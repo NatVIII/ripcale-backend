@@ -1,51 +1,94 @@
 # ripcale
 
-Calendar aggregator backend powering rva.rip.
+❤️🧡💛💚💙💜 A calendar aggregator backend designed for rva.rip 🩵🩷🤍🩷🩵
 
-## Run
+ripcale is split into two services:
 
-ripcale is split into two listeners:
-
-- **public** (read-only API) on `:8081`
-- **admin** (debug + pipeline playground + JSON admin API) on `127.0.0.1:8082`
-  — the interactive surface requires a session login (see "Admin login" below).
-
-```sh
-uv sync --all-extras   # create/refresh .venv from uv.lock (includes pytest)
-.venv/bin/python -m app.main   # dev launcher — runs both public + admin
-```
-
-Or run them separately:
-
-```sh
-.venv/bin/python -m app.public   # :8081
-.venv/bin/python -m app.admin    # 127.0.0.1:8082
-```
+- **public** (Read Only API) on `:8081`
+  - Expose this to the WAN
+- **admin** (R/W JSON Api + Debug Tool) on `127.0.0.1:8082` 
+  - Absolutely do not expose this to WAN
 
 `GET :8081/healthz` returns `{"status":"ok","service":"ripcale","version":"0.1.0"}`.
 
-## Docker
+## How to Run Ripcale
+
+### Running on Bare Metal
+
+You shouldn't do this
+
+### Running Via Docker
+
+First off, if you know what you're doing, the `docker-compose.yml` is just stored in the root of this project. Go nuts, look through the configs and take a crack at the [config section](#configuration).
+
+If you don't know what you're doing, [install git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) on your computer. Open up the terminal, navigate to where you'd like to store this service at on your server, and type in the following commands line by line
 
 ```sh
+git clone https://github.com/NatVIII/ripcale-backend.git
+cd ripcale-backend
+```
+
+Before continuing, please ensure that you have Docker Engine installed. If you haven't installed [Docker Engine](https://docs.docker.com/engine/install/) and [Docker Compose](https://docs.docker.com/compose/install/linux/) yet, please do so. 
+
+While you're in the ripcale-backend folder, enter the following commands to load the default configuration and start the service.
+
+```sh
+cp config.example.yaml config.yaml
+cp intake.example.yaml intake.yaml
+cp .env.example .env
 docker compose up --build
 ```
 
-Starts two services: `public` (`0.0.0.0:8081`) and `admin` (`127.0.0.1:8082`,
-loopback-only so the interactive surface isn't reachable over the network). The
-image is built with `uv sync --frozen` from `uv.lock`, so dependencies are
-reproducible.
+If you run into errors, they're likely due to security issues found by osc. Please refer to 
 
-For automated deploys to a server, see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
-(poll-based pull: the server pulls + rebuilds on a schedule).
+For automated deployments to a server based on new releases, please reference [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
 
-### Dependency upgrades
 
-Dependencies are pinned by `uv.lock`. To upgrade one: edit `pyproject.toml`,
-`uv lock --upgrade-package <name>` (or `uv lock` for a full refresh),
-`uv sync --all-extras`, run the test suite, and rebuild with
-`docker compose up --build`. Never edit `uv.lock` by hand.
 
-## Configuration
+#### Dependency Security and Scanning
+
+ripcale's admin Docker container utilizes `osv-scanner` for finding potential vulnerabilities in it's dependencies, stored in `uv.lock`. After a scan it outputs all the vulnerabilities present sorted by severity into the logs and console output.
+
+By default, building via docker fails if the following occur
+ 1. A critical or high level vulnerability is found by osv-scanner, **and** a bypass acknowledgement hasn't been specifically baked into osv-scanner.toml
+ 2. OSV wasn't able to be reached (is your internet down?)
+
+For scenario 1, `SCAN_FAIL_ON` can be used with the following properties
+
+```sh
+docker compose build --build-arg SCAN_FAIL_ON=critical   # stricter (critical only)
+docker compose build --build-arg SCAN_FAIL_ON=medium     # more sensitive
+docker compose build --build-arg SCAN_FAIL_ON=""         # report only (no gate)
+```
+
+For scenario 2, `BUILD_DESPITE_OSV_DOWN` can be set to `1` to allow a build to continue even if OSV is down (if it's up, this has no effect, the first failure case can still apply)
+
+```sh
+docker compose build --build-arg BUILD_DESPITE_OSV_DOWN=1
+```
+
+To acknowledge a vulnerability (it no longer blocks), add it to `osv-scanner.toml`
+with a reason — that commit is the acknowledgement:
+
+```toml
+[[IgnoredVulns]]
+id = "GHSA-xxxx-xxxx-xxxx"
+# ignoreUntil = 2026-12-31   # optional expiry
+reason = "Why this doesn't affect ripcale."
+```
+
+If you'd like to view the report yourself directly, you can use the following script:
+
+```sh
+scripts/audit.sh                    # severity-sorted table
+scripts/audit.sh --format json      # machine-readable
+```
+
+##### Dependency upgrades
+
+If you need to update dependencies stored in `uv.lock`, do not edit it by hand! Instead, edit `pyproject.toml`, run `uv lock --upgrade-package <name>`, `uv sync --all-extras`, run `scripts/audit.sh`, run the test suite, and rebuild with `docker compose up --build`. Never edit `uv.lock` by hand. 
+
+### Configuration
 
 Configuration is split in two:
 
@@ -79,7 +122,7 @@ minted in the DB with `app.auth token create`, not an env var.)
 
 `./data/` holds only generated data (the SQLite DB, logs, status) and is safe to wipe.
 
-## Admin login
+### Admin login
 
 The admin app requires a session login. One-time setup:
 

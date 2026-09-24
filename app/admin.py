@@ -8,6 +8,7 @@ host/port.
 """
 #region: imports
 import logging
+from pathlib import Path
 
 from robyn import Robyn
 
@@ -33,6 +34,19 @@ logger = logging.getLogger(__name__)
 #endregion
 
 
+#region: startup banner
+_BANNER_PATH = Path(__file__).resolve().parents[1] / "scripts" / "bannerStart.txt"
+
+
+def _print_start_banner() -> None:
+    """Print the start banner (scripts/bannerStart.txt) if present."""
+    try:
+        print(_BANNER_PATH.read_text(encoding="utf-8"))
+    except OSError:
+        pass
+#endregion
+
+
 #region: app + routing
 app = Robyn(__file__)
 
@@ -53,6 +67,7 @@ images_admin_router.register(app)  # /debug/images (orphan prune)
 
 #region: entrypoint
 def main() -> None:
+    _print_start_banner()
     setup_logging()
     init_db()
     from app.services.auth import ensure_admin_user
