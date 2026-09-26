@@ -9,6 +9,7 @@ clients ignore unknown properties.
 import re
 from datetime import datetime, timezone
 from html import unescape
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from icalendar import Calendar, Event as VEvent, vRecur
 
@@ -16,6 +17,7 @@ from app.config import settings
 from app.models import Event
 from app.schema import ImageRef, load_exdates, load_images
 from app.services.categories import resolve_event_categories
+from app.services.vtimezone import build as build_vtimezone
 #endregion
 
 
@@ -25,6 +27,22 @@ def _utc(dt: datetime) -> datetime:
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
+
+
+def _recurring_tz(event: Event) -> str | None:
+    """The IANA zone to expand a recurring event in, or None (fall back to `Z`)."""
+    if not event.rrule or not event.timezone:
+        return None
+    try:
+        ZoneInfo(event.timezone)
+    except (ZoneInfoNotFoundError, ValueError):
+        return None
+    return event.timezone
+
+
+def _local(dt: datetime, tz_name: str) -> datetime:
+    """Convert a naive-UTC datetime to a naive local datetime in `tz_name`."""
+    return dt.replace(tzinfo=timezone.utc).astimezone(ZoneInfo(tz_name)).replace(tzinfo=None)
 
 
 def _image_url(img: ImageRef) -> str | None:
@@ -60,12 +78,17 @@ def event_to_vevent(event: Event, source_name: str | None = None) -> VEvent:
     v = VEvent()
     v.add("uid", event.id)
     v.add("summary", event.title)
+    tz = _recurring_tz(event)
 
     if event.start_at is not None:
         if event.all_day:
             v.add("dtstart", event.start_at.date())
             if event.end_at is not None:
                 v.add("dtend", event.end_at.date())
+        elif tz is not None:
+            v.add("dtstart", _local(event.start_at, tz), parameters={"TZID": tz})
+            if event.end_at is not None:
+                v.add("dtend", _local(event.end_at, tz), parameters={"TZID": tz})
         else:
             v.add("dtstart", _utc(event.start_at))
             if event.end_at is not None:
@@ -93,9 +116,19 @@ def event_to_vevent(event: Event, source_name: str | None = None) -> VEvent:
     if event.rrule:
         v.add("rrule", vRecur.from_ical(event.rrule))
     for exdate in load_exdates(event.exdates):
-        v.add("exdate", exdate.date() if event.all_day else _utc(exdate))
+        if event.all_day:
+            v.add("exdate", exdate.date())
+        elif tz is not None:
+            v.add("exdate", _local(exdate, tz), parameters={"TZID": tz})
+        else:
+            v.add("exdate", _utc(exdate))
     if event.recurrence_id is not None:
-        v.add("recurrence-id", event.recurrence_id.date() if event.all_day else _utc(event.recurrence_id))
+        if event.all_day:
+            v.add("recurrence-id", event.recurrence_id.date())
+        elif tz is not None:
+            v.add("recurrence-id", _local(event.recurrence_id, tz), parameters={"TZID": tz})
+        else:
+            v.add("recurrence-id", _utc(event.recurrence_id))
     if event.categories:
         v.add("categories", resolve_event_categories(event.categories))
     if event.timezone:
@@ -120,6 +153,18 @@ def events_to_ics(
     cal.add("calscale", "GREGORIAN")
     cal.add("method", "PUBLISH")
     cal.add("x-wr-calname", title)
+
+    # Emit a VTIMEZONE for each zone used by a recurring event (F64), so their
+    # TZID-referenced local times stay wall-clock correct across DST.
+    seen_tz: set[str] = set()
+    for event in events:
+        tz = _recurring_tz(event)
+        if tz and tz not in seen_tz:
+            seen_tz.add(tz)
+            vtz = build_vtimezone(tz)
+            if vtz is not None:
+                cal.add_component(vtz)
+
     for event in events:
         cal.add_component(event_to_vevent(event, (names or {}).get(event.source_id)))
     return cal.to_ical().decode("utf-8")

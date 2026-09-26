@@ -170,10 +170,18 @@ see `docs/DEPLOYMENT.md` for the full server setup.
 - **Events carry an ordered image gallery** — `Event.images` is a JSON column of
   `{url, alt, source_url}` (`ImageRef`); the primary/cover image is `images[0]`.
 - **Recurrence** — `Event.rrule` holds an RFC 5545 RRULE (the series master;
-  interpreted relative to `start_at` in `timezone`). `recurrence_id` / `exdates`
-  (per-occurrence overrides/deletions, wired in F31.02 — an override's id is
+  interpreted relative to `start_at` in `timezone`). `UNTIL` is normalized to
+  **UTC with a trailing `Z`** at ingest (`app/services/recurrence.normalize_rrule`,
+  called by the `ics` gatherer). `recurrence_id` / `exdates` (per-occurrence
+  overrides/deletions, wired in F31.02 — an override's id is
   `sha256(source+uid+recurrence_id)`) and `redirect_to_id` (event
   redirects/symlinks, groundwork) live on `Event`.
+- **Recurrence serving is consumer-side (F64)** — the backend **never expands**
+  series into concrete occurrences. ICS emits recurring events with
+  `DTSTART;TZID=<timezone>` (local time) + a generated `VTIMEZONE`
+  (`app/services/vtimezone.py`) so clients keep the local wall-clock time across
+  DST; one-off events use UTC `Z`. JSON emits `rrule`/`exdates`/`recurrence_id`
+  for the frontend (FullCalendar `rrule` plugin) to expand.
 - **Event listing is future-first, capped by default** — `query_events()` orders by
   `start_at` descending (furthest future first; NULL start sorts last) and caps at
   `DEFAULT_LIMIT` (500) unless a `?limit=` is passed (`None`/`0` = unbounded, used

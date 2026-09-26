@@ -2,7 +2,7 @@
 #region: imports
 from datetime import datetime
 
-from app.services.recurrence import last_occurrence
+from app.services.recurrence import last_occurrence, normalize_rrule
 #endregion
 
 
@@ -42,6 +42,42 @@ def test_last_occurrence_unparseable_is_none():
 def test_last_occurrence_missing_inputs():
     assert last_occurrence(None, START) is None
     assert last_occurrence("FREQ=WEEKLY;COUNT=5", None) is None
+#endregion
+
+
+#region: normalize_rrule (F64)
+def test_normalize_rrule_utc_z_unchanged():
+    assert normalize_rrule("FREQ=WEEKLY;BYDAY=MO;UNTIL=20241230T045959Z") == "FREQ=WEEKLY;BYDAY=MO;UNTIL=20241230T045959Z"
+
+
+def test_normalize_rrule_iso_dashed_until_compacts():
+    assert normalize_rrule("FREQ=WEEKLY;UNTIL=2024-12-30T04:59:59Z") == "FREQ=WEEKLY;UNTIL=20241230T045959Z"
+
+
+def test_normalize_rrule_local_until_converts_to_utc():
+    # 2024-12-29 23:59:59 America/New_York (EST) -> 2024-12-30 04:59:59 UTC
+    assert (
+        normalize_rrule("FREQ=WEEKLY;UNTIL=20241229T235959", tz="America/New_York")
+        == "FREQ=WEEKLY;UNTIL=20241230T045959Z"
+    )
+
+
+def test_normalize_rrule_local_until_unknown_tz_assumes_utc():
+    assert normalize_rrule("FREQ=WEEKLY;UNTIL=20241230T045959") == "FREQ=WEEKLY;UNTIL=20241230T045959Z"
+
+
+def test_normalize_rrule_date_only_until():
+    assert normalize_rrule("FREQ=WEEKLY;UNTIL=20241230") == "FREQ=WEEKLY;UNTIL=20241230"
+    assert normalize_rrule("FREQ=WEEKLY;UNTIL=2024-12-30") == "FREQ=WEEKLY;UNTIL=20241230"
+
+
+def test_normalize_rrule_no_until_passthrough():
+    assert normalize_rrule("FREQ=WEEKLY;BYDAY=MO,WE") == "FREQ=WEEKLY;BYDAY=MO,WE"
+
+
+def test_normalize_rrule_idempotent():
+    once = normalize_rrule("FREQ=WEEKLY;UNTIL=2024-12-30T04:59:59Z")
+    assert normalize_rrule(once) == once
 #endregion
 
 

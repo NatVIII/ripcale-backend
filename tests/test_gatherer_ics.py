@@ -99,4 +99,21 @@ def test_ics_recurrence_and_status(monkeypatch):
 
 def test_ics_event_count(monkeypatch):
     assert len(_run(monkeypatch).events) == 5
+
+
+def test_ics_normalizes_local_until_to_utc(monkeypatch):
+    fixture = """BEGIN:VCALENDAR
+VERSION:2.0
+X-WR-TIMEZONE:America/New_York
+BEGIN:VEVENT
+UID:u-local
+DTSTART;TZID=America/New_York:20240101T190000
+RRULE:FREQ=WEEKLY;UNTIL=20241229T235959
+SUMMARY:Local Until
+END:VEVENT
+END:VCALENDAR
+"""
+    monkeypatch.setattr(gatherer, "fetch_text", lambda url: fixture)
+    result = gatherer.run(SourceConfig(name="Test", gatherer="ics", url="https://x/feed.ics"))
+    assert "UNTIL=20241230T045959Z" in result.events[0].rrule  # 23:59:59 EST -> 04:59:59 UTC
 #endregion

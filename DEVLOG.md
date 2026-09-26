@@ -1,3 +1,14 @@
+## 2026-09-24 17:00:00 [AI]
+
+F64: recurrence timezone correctness (recurring events no longer drift across DST).
+
+- `app/services/recurrence.py`: new `normalize_rrule()` — normalizes an RRULE's `UNTIL` to compact UTC (`YYYYMMDDTHHMMSSZ`), converting ISO-dashed and local (`TZID`-relative) values to UTC via the event's IANA zone; idempotent. `last_occurrence()` unchanged (still uses `_normalize_until` for dateutil).
+- `app/gatherers/ics/gatherer.py`: normalizes `RRULE` at ingest (`normalize_rrule(..., tz=timezone)`); CONTRACT_VERSION → 5.
+- `app/services/vtimezone.py` (new): `build(tz_name)` generates an RFC 5545 `VTIMEZONE` (`STANDARD`/`DAYLIGHT` with explicit `DTSTART`/`RDATE` transitions from `dateutil.tz`).
+- `app/services/ics.py`: recurring events with a valid `timezone` emit `DTSTART;TZID=<tz>`/`DTEND`/`EXDATE`/`RECURRENCE-ID` in local time; `events_to_ics()` adds a `VTIMEZONE` per recurring zone. One-off/all-day events unchanged (`Z`/`VALUE=DATE`).
+- `docs/GATHERER_CONTRACT.md` → v5: UNTIL must be UTC `Z`; recurrence is served as master+rrule (consumers expand); removed the F12 "server-side expansion" block. F12 moved to Deleted.
+- Tests: `normalize_rrule` (recurrence), gatherer UNTIL normalization, ICS `TZID`+`VTIMEZONE` (and one-off still `Z`), `vtimezone` builder (DST + no-DST + unknown/UTC). 366 passing.
+
 ## 2026-09-24 16:00:00 [AI]
 
 F58.01 follow-up: fail on high/critical by default + scan-error bypass.

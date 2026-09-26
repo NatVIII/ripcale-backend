@@ -4,8 +4,8 @@ Fetches an `.ics` feed (e.g. a public Google Calendar) and maps every `VEVENT`
 into the shared `ScrapedEvent` shape. Generic over any RFC 5545 source — no
 Google-specific assumptions.
 """
-# Contract: Gatherer v4 (docs/GATHERER_CONTRACT.md)
-CONTRACT_VERSION = 4
+# Contract: Gatherer v5 (docs/GATHERER_CONTRACT.md)
+CONTRACT_VERSION = 5
 
 #region: imports
 from datetime import date, datetime, time
@@ -15,6 +15,7 @@ from icalendar import Calendar
 
 from app.gatherers.base import fetch_text
 from app.schema import GathererResult, ImageRef, ScrapedEvent, SourceConfig
+from app.services.recurrence import normalize_rrule
 from app.timeutil import to_utc_naive
 #endregion
 
@@ -77,17 +78,20 @@ def _event(component, cal_tz: str | None) -> ScrapedEvent:
     start, start_all_day = _parse_dt(component.get("DTSTART"))
     end, _ = _parse_dt(component.get("DTEND"))
 
+    dtstart = component.get("DTSTART")
+    tzid = dtstart.params.get("TZID") if dtstart is not None else None
+    timezone = tzid or cal_tz
+
     rrule = component.get("RRULE")
     rrule_str = rrule.to_ical().decode() if rrule is not None else None
+    if rrule_str:
+        rrule_str = normalize_rrule(rrule_str, tz=timezone)  # UNTIL -> UTC Z (F64)
 
     rec_id = component.get("RECURRENCE-ID")
     recurrence_id = _to_datetime(rec_id.dt) if rec_id is not None else None
 
     exd = component.get("EXDATE")
     exdates = [_to_datetime(x.dt) for x in exd.dts if _to_datetime(x.dt) is not None] if exd is not None else []
-
-    dtstart = component.get("DTSTART")
-    tzid = dtstart.params.get("TZID") if dtstart is not None else None
 
     return ScrapedEvent(
         uid=_text(component, "UID"),
@@ -98,7 +102,7 @@ def _event(component, cal_tz: str | None) -> ScrapedEvent:
         images=_images(component),
         start_at=start,
         end_at=end,
-        timezone=tzid or cal_tz,
+        timezone=timezone,
         all_day=start_all_day,
         rrule=rrule_str,
         recurrence_id=recurrence_id,

@@ -1,6 +1,6 @@
 # Gatherer Contract
 
-Version: 4
+Version: 5
 
 The contract between a **Gatherer** (a gatherer in `app/gatherers/*/gatherer.py`)
 and the rest of the pipeline (**Sieve → Decisionmaker → storage → API/ICS**).
@@ -85,7 +85,7 @@ class GathererResult:
 | `end_at` | `datetime \| None` | optional | End time, **naive UTC**, **exclusive** (FullCalendar/ICS convention). |
 | `timezone` | `str \| None` | optional | IANA zone (e.g. `America/New_York`). Display-only; storage is naive UTC. |
 | `all_day` | `bool` | optional | All-day events use date-only semantics. |
-| `rrule` | `str \| None` | optional | RFC 5545 recurrence rule (RRULE *value* only — no `RRULE:` prefix, no `DTSTART`). Interpreted relative to `start_at` (the first occurrence) in `timezone`. |
+| `rrule` | `str \| None` | optional | RFC 5545 recurrence rule (RRULE *value* only — no `RRULE:` prefix, no `DTSTART`). `UNTIL`, when present, **MUST be UTC with a trailing `Z`** (e.g. `UNTIL=20241230T045959Z`). Interpreted relative to `start_at` (the first occurrence) in `timezone`. |
 | `recurrence_id` | `datetime \| None` | optional | On an *override* occurrence: the original `DTSTART` of the occurrence it replaces (naive UTC). Also feeds `stable_id()` so overrides don't collide with the master. |
 | `exdates` | `list[datetime]` | optional | On the series master: the cancelled occurrence `DTSTART`s (naive UTC). |
 | `categories` | `list[str]` | optional | Tags. |
@@ -142,18 +142,20 @@ today stays valid — hosting is a pipeline step, not a Gatherer concern.
 A recurring event is represented as **one** `ScrapedEvent` whose `start_at` is
 the *first* occurrence (`DTSTART`) and whose `rrule` generates the rest.
 
-- `rrule` is the RFC 5545 RRULE *value* string (e.g. `FREQ=WEEKLY;BYDAY=MO,WE`),
-  without the `RRULE:` prefix and without `DTSTART` (the first occurrence is
-  `start_at`).
-- The rule is interpreted in the event's `timezone` (IANA). `UNTIL`, when
-  present, is UTC to match the naive-UTC `start_at`.
+- `rrule` is a **normalized** RFC 5545 RRULE *value* string (e.g.
+  `FREQ=WEEKLY;BYDAY=MO,WE`), without the `RRULE:` prefix and without `DTSTART`
+  (the first occurrence is `start_at`).
+- `UNTIL`, when present, **MUST be UTC with a trailing `Z`** (compact
+  `UNTIL=YYYYMMDDTHHMMSSZ`). The gatherer normalizes the source's `UNTIL` —
+  converting ISO-dashed and local/`TZID`-relative values to UTC using the event's
+  `timezone` (see `app/services/recurrence.normalize_rrule`). A gatherer that
+  can't produce a valid normalized rule leaves `rrule` `None`.
+- The rule is interpreted in the event's `timezone` (IANA), so recurrence holds
+  its local wall-clock time across DST.
 - `rrule` participates in `content_hash` and `_CHANGED_FIELDS` — changing the
   recurrence rule is a real "updated".
-- The gatherer is responsible for translating its source's native recurrence
-  representation into a valid RRULE. A gatherer with no recurrence leaves it
-  `None`.
 
-**Series & overrides (implemented):**
+**Series & overrides:**
 
 - Occurrences of a series are linked by `(source_id, uid)`. The master carries
   `rrule`; an *edited* occurrence is a separate `ScrapedEvent` with
@@ -164,10 +166,17 @@ the *first* occurrence (`DTSTART`) and whose `rrule` generates the rest.
 - `exdates` participates in `content_hash` + change detection; `recurrence_id`
   is identity-only.
 
-**Planned (not yet implemented):**
+**Serving (no server-side expansion):**
 
-- **Expansion** (F12) — turning `rrule` + `exdates` + overrides into concrete
-  occurrence instances for serving (server-side) and correct timezone-aware ICS.
+- The backend **never** expands a series into concrete occurrences. It serves the
+  master (`rrule`) + `exdates` + overrides and lets the consumer expand:
+  - **ICS** (`/feed.ics`, `/events/{id}/ics`): recurring events are emitted with
+    `DTSTART;TZID=<timezone>` (local time) plus a `VTIMEZONE` component, so
+    clients keep the correct local wall-clock time across DST. One-off events
+    use UTC `Z`.
+  - **JSON** (`/events`): `extendedProps.rrule`/`exdates`/`recurrence_id` are
+    emitted; the frontend (FullCalendar `rrule` plugin) expands in its own
+    timezone.
 
 ## Event relationships (planned)
 

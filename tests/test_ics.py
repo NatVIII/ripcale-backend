@@ -97,6 +97,33 @@ def test_event_to_vevent_rrule():
     assert "BYDAY=MO,WE" in ical
 
 
+def test_event_to_vevent_recurring_uses_tzid_local_time():
+    # 23:00 UTC in July = 19:00 EDT (America/New_York)
+    e = _make_event(
+        rrule="FREQ=WEEKLY;BYDAY=MO",
+        start_at=datetime(2026, 7, 6, 23, 0),
+        end_at=datetime(2026, 7, 7, 1, 0),
+    )
+    ical = event_to_vevent(e).to_ical().decode()
+    assert "DTSTART;TZID=America/New_York:20260706T190000" in ical
+    assert "DTEND;TZID=America/New_York:20260706T210000" in ical
+
+
+def test_events_to_ics_includes_vtimezone_for_recurring():
+    events = [_make_event(id="e1", title="A", rrule="FREQ=WEEKLY;BYDAY=MO")]
+    ical_text = events_to_ics(events, {1: "Studio Two Three"})
+    assert "BEGIN:VTIMEZONE" in ical_text
+    assert "TZID:America/New_York" in ical_text
+    assert "BEGIN:STANDARD" in ical_text
+    assert "BEGIN:DAYLIGHT" in ical_text
+
+
+def test_events_to_ics_one_off_has_no_vtimezone():
+    events = [_make_event(id="e1", title="A")]
+    ical_text = events_to_ics(events, {1: "Studio Two Three"})
+    assert "BEGIN:VTIMEZONE" not in ical_text
+
+
 def test_event_to_vevent_exdates_and_recurrence_id():
     e = _make_event(
         rrule="FREQ=WEEKLY",
@@ -104,8 +131,9 @@ def test_event_to_vevent_exdates_and_recurrence_id():
         recurrence_id=datetime(2026, 9, 10, 18, 0),
     )
     ical = event_to_vevent(e).to_ical().decode()
-    assert "EXDATE" in ical and "20260917T180000Z" in ical
-    assert "RECURRENCE-ID" in ical and "20260910T180000Z" in ical
+    # Recurring -> local time with TZID (18:00 UTC = 14:00 EDT)
+    assert "EXDATE;TZID=America/New_York:20260917T140000" in ical
+    assert "RECURRENCE-ID;TZID=America/New_York:20260910T140000" in ical
 
 
 def test_events_to_ics_parses():

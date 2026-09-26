@@ -6,13 +6,13 @@ Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tic
 
 ## Backlog
  
+
 - [ ] F36 - Implement decisionmaking page and logic. I want a telegram bot to be able to help me be notified of possible event conflicts and help choose in the future, so this should be done via some kind of API communication or something so that the same interface. We can't implement the telegram bot yet, so let's make the interface via code and then make a debug page that allows for this to take place.
 - [ ] F21 - Gatherer: Instagram source (research HikerAPI - see DEVLOG note)
 - [ ] F40 - Post-Sieve Feature: image OCR/extraction — Qwen2.5-VL reads each new/updated flyer image + caption and emits structured event JSON (title/start/end/timezone/location/description) in one call, cached per image hash ("read once per update"), then updates the provisional event.
 - [ ] F56 - More Debug Tools and Settings for Testing and Bug Reproduction
   - [ ] F56.02 - Create a list of other debug configurations that may help down the road for ensuring everything works as expected
 - [ ] F55 - Gatherer: Libcal Integration with Richmond Public Library System
-- [ ] F12 - Recurrence expansion (recurring Elfsight events; fields kept in `raw`)
 - [ ] F14 - Decisionmaker heuristics (cross-source dedup, manual-over-scraped priority)
 - [ ] F19 - Frontend (rva.rip - FullCalendar consuming `/events` + `/feed.ics`)
 - [ ] F20 - Community submission + approval system (deferred by design)
@@ -111,6 +111,8 @@ Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tic
 - [x] F59.01 - Archived = frozen: sieve buckets archived-mapped events into `SieveResult.archived_ids`, skips image hosting + hash/compare, decisionmaker no longer un-archives (SIEVE_CONTRACT v5) (2026-09-22)
 - [x] F58 - Dependency vulnerability scanner: `pip-audit` (`security` extra, in `uv.lock`) — Dockerfile always reports, fails build only via `--build-arg SCAN_FAIL_ON`; `python -m app.audit` wrapper; docs + smoke test (2026-09-23)
 - [x] F58.01 - Scanner swap to `osv-scanner` + severity-threshold gate: severity-sorted report; fails build only on un-acknowledged critical/high (or `SCAN_FAIL_ON` severity); committed `osv-scanner.toml` acknowledgement list; removed pip-audit (2026-09-23)
+- [x] F64 - Recurrence timezone correctness: `normalize_rrule()` (UNTIL → UTC `Z`) wired into the `ics` gatherer; ICS emits recurring events with `DTSTART;TZID=<tz>` + a generated `VTIMEZONE` (DST-correct) while one-off events stay `Z`; GATHERER_CONTRACT v5; F12 (server-side expansion) superseded/removed (2026-09-24)
 
 ## Deleted
 - [ ] F30 - Deleted Event
+- [ ] F12 - Recurrence expansion (recurring Elfsight events; fields kept in `raw`)

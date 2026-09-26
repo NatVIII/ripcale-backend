@@ -6,7 +6,8 @@ collector (F22) to decide whether a recurring series has fully ended. F12
 """
 #region: imports
 import re
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from dateutil.rrule import rrulestr
 #endregion
@@ -35,6 +36,61 @@ def _normalize_until(rrule_str: str) -> str:
         return f"UNTIL={date_}"
 
     return _UNTIL_Z.sub(r"\1", _UNTIL_ISO.sub(_rebuild, rrule_str))
+#endregion
+
+
+#region: rrule normalization (RFC 5545, UTC UNTIL — F64)
+def _local_to_utc(dt: datetime, tz: str | None) -> datetime:
+    """Interpret `dt` in IANA `tz` (or UTC if unknown) and return naive UTC."""
+    if tz:
+        try:
+            aware = dt.replace(tzinfo=ZoneInfo(tz))
+        except (ZoneInfoNotFoundError, ValueError):
+            aware = dt.replace(tzinfo=timezone.utc)
+    else:
+        aware = dt.replace(tzinfo=timezone.utc)
+    return aware.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _normalize_until_value(value: str, tz: str | None) -> str:
+    """Normalize one `UNTIL` value (sans the `UNTIL=` prefix) to compact UTC."""
+    v = value.strip()
+    has_z = v.upper().endswith("Z")
+    if has_z:
+        v = v[:-1]
+
+    if "T" in v:
+        date_part, time_part = v.split("T", 1)
+        date_part = date_part.replace("-", "")
+        time_part = time_part.replace(":", "")
+        time_part = (time_part + "000000")[:6]
+        if not has_z:
+            dt = datetime.strptime(f"{date_part}T{time_part}", "%Y%m%dT%H%M%S")
+            dt = _local_to_utc(dt, tz)
+            date_part = dt.strftime("%Y%m%d")
+            time_part = dt.strftime("%H%M%S")
+        return f"UNTIL={date_part}T{time_part}Z"
+
+    return f"UNTIL={v.replace('-', '')}"
+
+
+def normalize_rrule(rrule_str: str, tz: str | None = None) -> str:
+    """Normalize an RRULE's `UNTIL` to compact UTC form.
+
+    - ISO-dashed dates collapse to `YYYYMMDD` / `YYYYMMDDTHHMMSS`.
+    - A date-time `UNTIL` without a trailing `Z` is treated as local and
+      converted to UTC using `tz` (IANA); missing/unknown `tz` assumes UTC.
+    - UTC `UNTIL` keeps its `Z`; date-only `UNTIL` is left as a date.
+    - Idempotent; other rule parts pass through untouched.
+    """
+    parts = rrule_str.split(";")
+    out = []
+    for part in parts:
+        if part.strip().upper().startswith("UNTIL="):
+            out.append(_normalize_until_value(part.strip()[6:], tz))
+        else:
+            out.append(part)
+    return ";".join(out)
 #endregion
 
 
