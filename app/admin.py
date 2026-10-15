@@ -34,6 +34,21 @@ logger = logging.getLogger(__name__)
 #endregion
 
 
+#region: llm misconfiguration warning (F65)
+def _warn_llm_misconfigured() -> None:
+    from app.registry import gatherer_decide_before_insert, load_sources
+
+    for cfg in load_sources():
+        if not gatherer_decide_before_insert(cfg.gatherer):
+            continue
+        if not settings.deepseek_key:
+            logger.warning("LLM source %r configured but RIPCALE_DEEPSEEK_KEY is not set — posts will queue unresolved", cfg.name)
+        elif not settings.llm_enabled:
+            logger.warning("LLM source %r configured but llm_enabled is false — posts will queue unresolved", cfg.name)
+        break  # one warning is enough
+#endregion
+
+
 #region: startup banner
 _BANNER_PATH = Path(__file__).resolve().parents[1] / "scripts" / "bannerStart.txt"
 
@@ -72,12 +87,15 @@ def main() -> None:
     init_db()
     from app.services.auth import ensure_admin_user
     from app.services.scheduler import start as start_scheduler
+    from app.services.llm_worker import start as start_llm_worker
 
     if not settings.admin_password_hash:
         logger.warning("admin_password_hash is not set — no admin user; login is unavailable")
     elif ensure_admin_user():
         logger.info("created admin user %r", settings.admin_username)
     start_scheduler()
+    start_llm_worker()
+    _warn_llm_misconfigured()
     # Inside Docker the published port DNATs to the container's eth0, so the
     # app must bind 0.0.0.0; the host publish (127.0.0.1:8082) still restricts
     # external reach to loopback.

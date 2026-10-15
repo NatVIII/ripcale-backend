@@ -111,6 +111,21 @@ class Settings(BaseSettings):
     # `python -m app.auth gen-pepper`. Changing it invalidates existing hashes.
     pepper: str = ""
 
+    # HikerAPI access key (Instagram gatherer, F21). Empty = the gatherer is
+    # disabled (raises a clear error). Lives in `.env` (a secret).
+    hikerapi_key: str = ""
+
+    # DeepSeek LLM event pipeline (F65). `deepseek_key` lives in `.env` (secret).
+    deepseek_key: str = ""
+    deepseek_model: str = "deepseek-flash"
+    llm_enabled: bool = False
+    llm_interval_seconds: int = 30
+    llm_max_per_tick: int = 5
+    llm_context_events: int = 50
+    llm_max_attempts: int = 3
+    llm_max_images: int = 2
+    llm_stale_processing_seconds: int = 600
+
     @classmethod
     def settings_customise_sources(
         cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings

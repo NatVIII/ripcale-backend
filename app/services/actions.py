@@ -107,6 +107,28 @@ def scheduler() -> dict:
     return scheduler_status()
 
 
+def llm_status() -> dict:
+    """LLM worker state (F65)."""
+    from app.services.llm_worker import status
+
+    return status()
+
+
+def llm_queue(limit: int = 100) -> list:
+    """Pending-post queue (F65)."""
+    from app.services.pending import list_pending
+
+    with Session(engine) as session:
+        return list_pending(session, limit)
+
+
+def llm_process_now() -> dict:
+    """Run one LLM worker tick (F65)."""
+    from app.services.llm_worker import run_once
+
+    return run_once()
+
+
 def logs(n: int = LOG_TAIL_LINES) -> str:
     return read_log_tail(n)
 

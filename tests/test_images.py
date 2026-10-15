@@ -59,17 +59,27 @@ def test_resolve_guards_traversal():
     assert images.resolve("a" * 64 + ".jpg") is not None
 
 
-def test_host_images_rewrites_urls():
+def _host_engine(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'host.db'}")
+    SQLModel.metadata.create_all(engine)
+    return engine
+
+
+def test_host_images_rewrites_urls(tmp_path):
+    engine = _host_engine(tmp_path)
     events = [ScrapedEvent(uid="u1", title="E", images=[ImageRef(url="https://cdn.example/a.jpg")])]
 
-    images.host_images(events)
+    with Session(engine) as session:
+        images.host_images(session, events)
+        session.commit()
 
     img = events[0].images[0]
     assert img.url.startswith("/images/")
     assert img.source_url == "https://cdn.example/a.jpg"
 
 
-def test_host_images_skips_already_hosted():
+def test_host_images_skips_already_hosted(tmp_path):
+    engine = _host_engine(tmp_path)
     events = [
         ScrapedEvent(
             uid="u1", title="E",
@@ -77,11 +87,81 @@ def test_host_images_skips_already_hosted():
         )
     ]
 
-    images.host_images(events)
+    with Session(engine) as session:
+        images.host_images(session, events)
+        session.commit()
 
     img = events[0].images[0]
     assert img.url == "/images/abc.jpg"
     assert img.source_url == "https://cdn.example/a.jpg"
+
+
+def test_host_images_skips_redownload_for_same_url(tmp_path, monkeypatch):
+    engine = _host_engine(tmp_path)
+    calls = []
+    orig = images.store
+
+    def counting_store(url):
+        calls.append(url)
+        return orig(url)
+
+    monkeypatch.setattr(images, "store", counting_store)
+
+    make = lambda uid: [ScrapedEvent(uid=uid, title="E", images=[ImageRef(url="https://cdn.example/a.jpg")])]
+    with Session(engine) as session:
+        images.host_images(session, make("u1"))
+        session.commit()
+    with Session(engine) as session:
+        images.host_images(session, make("u2"))
+        session.commit()
+
+    assert calls == ["https://cdn.example/a.jpg"]  # downloaded once, reused the second time
+
+
+def test_host_images_redownloads_when_file_missing(tmp_path, monkeypatch):
+    engine = _host_engine(tmp_path)
+    url = "https://cdn.example/a.jpg"
+
+    with Session(engine) as session:
+        images.host_images(session, [ScrapedEvent(uid="u1", title="E", images=[ImageRef(url=url)])])
+        session.commit()
+
+    for f in (tmp_path / "images").iterdir():  # simulate a GC prune
+        f.unlink()
+
+    calls = []
+    orig = images.store
+
+    def counting_store(u):
+        calls.append(u)
+        return orig(u)
+
+    monkeypatch.setattr(images, "store", counting_store)
+
+    with Session(engine) as session:
+        images.host_images(session, [ScrapedEvent(uid="u2", title="E", images=[ImageRef(url=url)])])
+        session.commit()
+
+    assert calls == [url]  # file gone → re-downloaded
+
+
+def test_evict_lru_removes_oldest(tmp_path, monkeypatch):
+    from app.models import HostedImage
+
+    engine = _host_engine(tmp_path)
+    monkeypatch.setattr(images, "_INDEX_MAX", 2)
+    with Session(engine) as session:
+        session.add(HostedImage(url="old", filename="a.jpg", last_used_at=datetime(2020, 1, 1)))
+        session.add(HostedImage(url="mid", filename="b.jpg", last_used_at=datetime(2021, 1, 1)))
+        session.add(HostedImage(url="new", filename="c.jpg", last_used_at=datetime(2022, 1, 1)))
+        session.commit()
+        images._evict_lru(session)
+        session.commit()
+
+    with Session(engine) as session:
+        assert session.get(HostedImage, "mid") is not None
+        assert session.get(HostedImage, "new") is not None
+        assert session.get(HostedImage, "old") is None  # least-recently-used evicted
 
 
 def test_images_endpoint_serves_file(tmp_path):

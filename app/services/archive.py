@@ -18,6 +18,7 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.models import Event, Source, utcnow
+from app.registry import gatherer_permanent
 from app.schema import dump_images, load_images
 from app.services.clock import now as clock_now
 from app.services.events import DEFAULT_LIMIT
@@ -55,13 +56,15 @@ def archive(session: Session, now=None, dry_run: bool = True, limit: int | None 
     complete; `limit=None`/`0` = uncapped.
     """
     now = now or clock_now()
-    fetched = {s.id: s.last_fetched_at for s in session.exec(select(Source)).all()}
+    sources = session.exec(select(Source)).all()
+    fetched = {s.id: s.last_fetched_at for s in sources}
+    permanent = {s.id: gatherer_permanent(s.gatherer) for s in sources}
 
     candidates: list[tuple[Event, str]] = []
     for event in session.exec(select(Event).where(Event.archived_at.is_(None))).all():
         if is_expired(event.start_at, event.end_at, event.rrule, now, settings.expire_past_days):
             candidates.append((event, "expired"))
-        elif _removed_candidate(event, fetched.get(event.source_id), now, settings.archive_grace_hours):
+        elif not permanent.get(event.source_id) and _removed_candidate(event, fetched.get(event.source_id), now, settings.archive_grace_hours):
             candidates.append((event, "removed"))
 
     if not dry_run:

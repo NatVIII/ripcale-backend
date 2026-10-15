@@ -67,4 +67,19 @@ def test_load_revalidates_on_mtime_change(tmp_path, monkeypatch):
 
     save(IntakeSettings(category_symlinks={"c": "d"}))
     assert load().category_symlinks == {"c": "d"}
+
+
+def test_source_config_llm_context_round_trip(tmp_path, monkeypatch):
+    from app.config import settings
+
+    path = tmp_path / "intake.yaml"
+    monkeypatch.setattr(settings, "intake_file", str(path))
+
+    save(
+        IntakeSettings(
+            sources=[SourceConfig(name="S", gatherer="hikerapi", url="https://x", llm_context="rides Monday")],
+        )
+    )
+
+    assert load().sources[0].llm_context == "rides Monday"
 #endregion

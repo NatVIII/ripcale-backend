@@ -151,3 +151,29 @@ def test_apply_does_not_unarchive_updated_event(tmp_path):
         assert row.title == "New Title"
         assert row.archived_at is not None   # frozen (F59.01): update applied, still archived
         assert row.archived_reason == "removed"
+
+
+def test_apply_permanent_source_reports_zero_removed(tmp_path, monkeypatch):
+    import app.decisionmaker.decisionmaker as decisionmaker_mod
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'perm.db'}")
+    SQLModel.metadata.create_all(engine)
+    monkeypatch.setattr(decisionmaker_mod, "gatherer_permanent", lambda name: name == "hikerapi")
+
+    with Session(engine) as session:
+        source = Source(name="Test", url="https://x", gatherer="hikerapi")
+        session.add(source)
+        session.commit()
+        session.refresh(source)
+        source_id = source.id
+        # An event that was NOT seen this run -> would be "removed" for a normal source.
+        session.add(Event(id="e1", source_id=source_id, title="E", last_seen_at=datetime(2020, 1, 1)))
+        session.commit()
+
+    cfg = SourceConfig(name="Test", gatherer="hikerapi", url="https://x")
+    with Session(engine) as session:
+        source = session.get(Source, source_id)
+        report = apply(session, source, SieveResult(source=cfg))
+        session.commit()
+
+    assert report["removed"] == 0

@@ -31,6 +31,21 @@ def parse_iso_utc(value: str | None) -> datetime | None:
 
 
 #region: display
+def local_datetime(dt: datetime | None) -> str | None:
+    """Format a naive-UTC datetime in the display timezone, e.g. `2026-10-05 12:32 America/New_York`."""
+    if dt is None:
+        return None
+    utc = dt.replace(tzinfo=timezone.utc)
+    tz_name = settings.display_timezone or "UTC"
+    try:
+        tz = ZoneInfo(tz_name)
+    except (ZoneInfoNotFoundError, ValueError):
+        tz = timezone.utc
+        tz_name = "UTC"
+    local = utc.astimezone(tz)
+    return f"{local.strftime('%Y-%m-%d %H:%M')} {tz_name}"
+
+
 def display_time(dt: datetime | None) -> str | None:
     """Format a naive-UTC datetime as `local TZ (… UTC)` for the admin UI.
 

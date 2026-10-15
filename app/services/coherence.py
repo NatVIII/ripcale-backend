@@ -30,6 +30,7 @@ def check() -> list[dict]:
     issues: list[dict] = []
     issues.extend(_check_intake())
     issues.extend(_check_config())
+    issues.extend(_check_keys())
     return issues
 #endregion
 
@@ -155,5 +156,30 @@ def _check_config() -> list[dict]:
     data_dir = Path(settings.data_dir)
     if data_dir.exists() and not os.access(data_dir, os.W_OK):
         issues.append(_issue("error", "config", f"data_dir {str(data_dir)!r} is not writable"))
+    return issues
+#endregion
+
+
+#region: keys (F65)
+def _check_keys() -> list[dict]:
+    """Warn when a configured source's required API key is missing or the LLM is off."""
+    from app.intake import load as load_intake
+    from app.registry import gatherer_decide_before_insert
+
+    issues: list[dict] = []
+    try:
+        sources = load_intake().sources
+    except Exception:  # noqa: BLE001 — broken intake is already reported by _check_intake
+        return issues
+
+    has_hikerapi = any(s.gatherer == "hikerapi" for s in sources)
+    llm_sources = [s for s in sources if gatherer_decide_before_insert(s.gatherer)]
+
+    if has_hikerapi and not settings.hikerapi_key:
+        issues.append(_issue("warning", "config", "hikerapi sources are configured but RIPCALE_HIKERAPI_KEY is not set"))
+    if llm_sources and not settings.deepseek_key:
+        issues.append(_issue("warning", "config", "LLM sources are configured but RIPCALE_DEEPSEEK_KEY is not set"))
+    if llm_sources and not settings.llm_enabled:
+        issues.append(_issue("warning", "config", "LLM worker is disabled (llm_enabled=false); posts will queue but never resolve"))
     return issues
 #endregion

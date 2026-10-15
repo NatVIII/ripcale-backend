@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from app.db import wipe_db
-from app.models import Event, Source
+from app.models import Event, PendingPost, Source
 from app.security import debug_csrf_token
 from app.services.status import read_status, record_status
 from app.services.wipe import wipe_all
@@ -55,6 +55,62 @@ def test_wipe_db_empties_tables_and_schema_survives(tmp_path, monkeypatch):
         session.add(Source(name="S2", url="https://y"))
         session.commit()
     assert _counts(engine) == (0, 1)
+
+
+def test_wipe_db_clears_pending_posts_before_sources(tmp_path, monkeypatch):
+    """Wipe must not trip the source.id FK from pending posts (B03)."""
+    engine = create_engine(f"sqlite:///{tmp_path / 'wipe_pending.db'}")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        src = Source(name="S", url="https://x")
+        session.add(src)
+        session.commit()
+        session.refresh(src)
+        session.add(PendingPost(uid="p1", source_id=src.id, caption="ride"))
+        session.commit()
+
+    monkeypatch.setattr("app.db.engine", engine)
+    assert wipe_db() == (0, 1)
+
+    with Session(engine) as session:
+        assert session.exec(select(Source)).all() == []
+        assert session.exec(select(PendingPost)).all() == []
+#endregion
+
+
+def test_wipe_preserves_api_tokens_and_clears_sessions(tmp_path, monkeypatch):
+    """Wipe resets events but must NOT break API connectivity (tokens survive)."""
+    from app.models import ApiToken, LoginSession, User
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'wipe_auth.db'}")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        user = User(username="admin", password_hash="x")
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        user_id = user.id
+        session.add(LoginSession(token="sess1", user_id=user_id, expires_at=datetime(2030, 1, 1)))
+        session.add(ApiToken(token_hash="hash1", user_id=user_id, label="t"))
+        src = Source(name="S", url="https://x")
+        session.add(src)
+        session.commit()
+        session.refresh(src)
+        session.add(Event(id="e1", source_id=src.id, title="Event"))
+        session.add(PendingPost(uid="p1", source_id=src.id, caption="ride"))
+        session.commit()
+
+    monkeypatch.setattr("app.db.engine", engine)
+    assert wipe_db() == (1, 1)
+
+    with Session(engine) as session:
+        assert session.exec(select(Event)).all() == []
+        assert session.exec(select(Source)).all() == []
+        assert session.exec(select(PendingPost)).all() == []
+        assert session.get(User, user_id) is not None          # credentials preserved
+        assert session.get(ApiToken, "hash1") is not None      # API token preserved
+        assert session.get(LoginSession, "sess1") is None      # session cleared
 #endregion
 
 

@@ -74,6 +74,32 @@ def is_exposed(category: str) -> bool:
 def expose(categories: list[str]) -> list[str]:
     """Keep only the exposed ("true") categories; dedupe + sort."""
     return sorted({c for c in categories if is_exposed(c)})
+
+
+def exposed_category_names() -> list[str]:
+    """The human-facing names of every exposed category (the public vocabulary).
+
+    Used to constrain the LLM's category choices (F65): the model may only pick
+    names from this list.
+    """
+    intake = load_intake()
+    exposed = exposed_classes()
+    names: set[str] = set()
+    for class_name, class_names in intake.category_definitions.items():
+        if slugify(class_name) in exposed:
+            names.update(slugify(n) for n in class_names if slugify(n))
+    return sorted(names)
+
+
+def normalize_proposed(names: list[str]) -> list[str]:
+    """Normalize free-text category names to stored, exposed `class:name`s.
+
+    Qualifies each name to `class:name` (default `intake`), applies symlinks, and
+    drops anything whose class isn't exposed. Made-up/internal categories vanish;
+    only existing, publicly-exposed ones survive (F65).
+    """
+    joined = ",".join(qualify(n) for n in names if n and slugify(n))
+    return resolve_event_categories(joined)
 #endregion
 
 

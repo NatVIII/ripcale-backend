@@ -11,7 +11,7 @@ from urllib.parse import unquote_plus
 from robyn import Response, jsonify
 
 from app.logging import LOG_TAIL_LINES
-from app.security import debug_guard, session_guard
+from app.security import debug_csrf_token, debug_guard, session_guard, verify_csrf
 from app.services import actions, clock
 from app.services.events import DEFAULT_LIMIT
 from app.services.status import source_status
@@ -163,6 +163,7 @@ def register(app) -> None:
             + "<p><a href='/debug/retag'>retag categories</a></p>"
             + "<p><a href='/debug/archive'>archive (gc)</a> · <a href='/debug/archived'>archived events</a></p>"
             + "<p><a href='/debug/images'>images (gc)</a></p>"
+            + "<p><a href='/debug/llm'>llm queue</a></p>"
             + "<h2>danger zone</h2>"
             + "<p><a href='/debug/wipe'>wipe database</a></p>"
         )
@@ -278,4 +279,53 @@ def register(app) -> None:
                 description=jsonify({"error": "not found"}),
             )
         return dump
+
+    # -- HTML: LLM queue (F65) ----------------------------------------------
+    @app.get("/debug/llm")
+    def llm_page(request):
+        guard = debug_guard(request)
+        if guard:
+            return guard
+        st = actions.llm_status()
+        rows = actions.llm_queue(limit=100)
+        reason = f" · {escape(st['reason'])}" if st.get("reason") else ""
+        body = (
+            f"<p>llm worker: enabled={st['enabled']}, processed={st['processed']}, "
+            f"last_tick={st['last_tick_at']}{reason}</p>"
+            f"<form method='post' action='/debug/llm'>"
+            f"<input type='hidden' name='csrf_token' value='{escape(debug_csrf_token())}'>"
+            f"<button type='submit'>process now</button></form>"
+        )
+        if not rows:
+            body += "<p>no pending posts.</p>"
+        else:
+            trs = "".join(
+                "<tr>"
+                f"<td>{escape(r['source'] or '')}</td>"
+                f"<td>{escape(r['uid'])}</td>"
+                f"<td>{escape(r['status'])}</td>"
+                f"<td>{escape(r['caption'] or '')}</td>"
+                f"<td>{escape(r['error'] or '')}</td>"
+                "</tr>"
+                for r in rows
+            )
+            body += (
+                "<table><tr><th>source</th><th>uid</th><th>status</th><th>caption</th><th>error</th></tr>"
+                + trs + "</table>"
+            )
+        return _html(page("ripcale · llm", body, back="/debug"))
+
+    @app.post("/debug/llm")
+    def llm_process(request):
+        guard = debug_guard(request)
+        if guard:
+            return guard
+        if not verify_csrf(request):
+            return Response(
+                status_code=403,
+                headers={"Content-Type": "text/html"},
+                description=page("ripcale · llm", "<p>invalid CSRF token</p>"),
+            )
+        result = actions.llm_process_now()
+        return _html(page("ripcale · llm", f"<p>processed {result['processed']} post(s).</p>", back="/debug/llm"))
 #endregion

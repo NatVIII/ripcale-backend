@@ -11,7 +11,7 @@ from sqlalchemy import event, func
 from sqlmodel import Session, SQLModel, create_engine, delete, select
 
 from app.config import settings
-from app.models import ApiToken, Event, LoginSession, Source
+from app.models import Event, LoginSession, PendingPost, Source
 #endregion
 
 
@@ -68,23 +68,41 @@ def _migrate() -> None:
         if "pinned" not in columns:
             conn.exec_driver_sql("ALTER TABLE event ADD COLUMN pinned BOOLEAN NOT NULL DEFAULT 0")
         conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_event_archived_at ON event (archived_at)")
+
+        has_source = conn.exec_driver_sql(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='source'"
+        ).first() is not None
+        if has_source:
+            source_columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(source)")}
+            if "llm_context" not in source_columns:
+                conn.exec_driver_sql("ALTER TABLE source ADD COLUMN llm_context VARCHAR")
+
+        has_pending = conn.exec_driver_sql(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='pendingpost'"
+        ).first() is not None
+        if has_pending:
+            pending_columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(pendingpost)")}
+            if "published_at" not in pending_columns:
+                conn.exec_driver_sql("ALTER TABLE pendingpost ADD COLUMN published_at DATETIME")
 #endregion
 
 
 #region: wipe
 def wipe_db() -> tuple[int, int]:
-    """Delete every Event and Source row, leaving the schema intact.
+    """Delete ingest data (Event/PendingPost/Source) and sessions, leaving the schema intact.
 
-    Returns `(events_deleted, sources_deleted)`. Events are deleted before
-    sources so foreign-key enforcement doesn't block the source removal.
+    Returns `(events_deleted, sources_deleted)`. `Event`/`PendingPost` are deleted
+    before `Source` so foreign-key enforcement doesn't block the source removal.
+    `LoginSession` is cleared (so the admin is logged out), but `ApiToken` and the
+    `User` table are **preserved** — wiping events must not break API connectivity.
     """
     with Session(engine) as session:
         events = session.exec(select(func.count()).select_from(Event)).one()
         sources = session.exec(select(func.count()).select_from(Source)).one()
         session.exec(delete(Event))
+        session.exec(delete(PendingPost))  # child of Source (F65) — delete before its parent
         session.exec(delete(Source))
         session.exec(delete(LoginSession))
-        session.exec(delete(ApiToken))
         session.commit()
     return events, sources
 #endregion

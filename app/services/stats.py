@@ -14,6 +14,7 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.models import Event, Source
+from app.registry import gatherer_permanent
 from app.schema import load_images
 from app.services import images
 from app.services.clock import now as clock_now
@@ -153,15 +154,19 @@ def stale_events(session: Session, now: datetime | None = None) -> list[dict]:
     `last_fetched_at` (or is NULL — never seen since the column was added).
     """
     now = now or _now()
+    sources = session.exec(select(Source)).all()
+    names = {s.id: s.name for s in sources}
+    permanent = {s.id: gatherer_permanent(s.gatherer) for s in sources}
     stale = session.exec(
         select(Event).join(Source, Event.source_id == Source.id).where(
             Event.archived_at.is_(None),
             or_(Event.last_seen_at.is_(None), Event.last_seen_at != Source.last_fetched_at),
         )
     ).all()
-    names = {s.id: s.name for s in session.exec(select(Source)).all()}
     out = []
     for event in stale:
+        if permanent.get(event.source_id):
+            continue  # permanent posts are never "removed at source" (F21)
         src = names.get(event.source_id)
         out.append(
             {

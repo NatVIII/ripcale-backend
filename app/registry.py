@@ -24,6 +24,25 @@ def source_priority(cfg: SourceConfig) -> int:
         return cfg.priority
     gatherer = load_intake().gatherers.get(cfg.gatherer)
     return gatherer.priority if gatherer else 0
+
+
+def gatherer_permanent(name: str) -> bool:
+    """True when a gatherer's posts are permanent (never "removed at source", F21)."""
+    return _gatherer_flag(name, "PERMANENT")
+
+
+def gatherer_decide_before_insert(name: str) -> bool:
+    """True when a gatherer's posts are enqueued for LLM resolution (F65)."""
+    return _gatherer_flag(name, "DECIDE_BEFORE_INSERT")
+
+
+def _gatherer_flag(name: str, attr: str) -> bool:
+    """Read a gatherer capability constant (declared in its module, not config)."""
+    try:
+        mod = importlib.import_module(f"app.gatherers.{name}.gatherer")
+    except ImportError:
+        return False
+    return bool(getattr(mod, attr, False))
 #endregion
 
 

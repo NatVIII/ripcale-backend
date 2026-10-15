@@ -4,8 +4,10 @@ Fetches an `.ics` feed (e.g. a public Google Calendar) and maps every `VEVENT`
 into the shared `ScrapedEvent` shape. Generic over any RFC 5545 source — no
 Google-specific assumptions.
 """
-# Contract: Gatherer v5 (docs/GATHERER_CONTRACT.md)
-CONTRACT_VERSION = 5
+# Contract: Gatherer v8 (docs/GATHERER_CONTRACT.md)
+CONTRACT_VERSION = 9
+PERMANENT = False               # events can be removed at the source
+DECIDE_BEFORE_INSERT = False    # normal sieve → decisionmaker path
 
 #region: imports
 from datetime import date, datetime, time

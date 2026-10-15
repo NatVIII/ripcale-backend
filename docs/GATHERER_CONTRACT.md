@@ -1,6 +1,6 @@
 # Gatherer Contract
 
-Version: 5
+Version: 9
 
 The contract between a **Gatherer** (a gatherer in `app/gatherers/*/gatherer.py`)
 and the rest of the pipeline (**Sieve → Decisionmaker → storage → API/ICS**).
@@ -36,14 +36,34 @@ Every source uses the same fields:
 | `default_categories` | Tags applied to every event from this source (sugar for an `assign` rule). |
 | `default_location` | Optional fallback applied to events whose `location` is missing/blank. |
 | `rules` | Categorization heuristics applied to every event from this source (see `docs/CATEGORIZE_CONTRACT.md`). |
+| `llm_context` | Optional free-text standing guidance fed to the LLM decide stage (F65) — e.g. "rides every Monday at 6:30 PM ET". Not read by gatherers. |
 
 ### Per-gatherer defaults (`GathererConfig`)
 
 The `gatherers:` block in `intake.yaml` holds defaults keyed by gatherer name —
 `priority` and `rules` (categorization heuristics applied to every source of that
-gatherer) today, extensible with more typed fields over time. Gatherer-level
-resolution is centralized (e.g. `registry.source_priority`), never duplicated
-per gatherer.
+gatherer), extensible with more typed fields over time. Gatherer-level resolution
+is centralized (e.g. `registry.source_priority`), never duplicated per gatherer.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `priority` | `int` | Default source priority (source override > this > `0`). |
+| `rules` | `list[CategoryRule]` | Categorization heuristics applied to every source of this gatherer. |
+
+### Gatherer capabilities (declared in code, not config)
+
+Two behaviors are intrinsic to a gatherer and are declared as **module constants**
+on the gatherer (beside `CONTRACT_VERSION`), not in `intake.yaml`:
+
+- `PERMANENT` (`bool`) — when `True`, the gatherer's posts are **never "removed at
+  source"** (they only *expire* by date). Instagram (F21) sets this because its
+  posts don't disappear from the feed the way a calendar event does.
+- `DECIDE_BEFORE_INSERT` (`bool`) — when `True`, the gatherer's events are
+  **enqueued** into the pending-post queue (F65) instead of inserted; an LLM
+  worker later decides `create`/`modify`/`ignore`. Instagram sets this.
+
+`registry.gatherer_permanent()` / `registry.gatherer_decide_before_insert()` read
+these constants; the archive/stale/decisionmaker/ingest stages use them.
 
 ### Resolution order
 

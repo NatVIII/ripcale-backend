@@ -261,4 +261,27 @@ def test_stale_events_excludes_archived(tmp_path, monkeypatch):
 
     with Session(engine) as session:
         assert stale_events(session) == []
+
+
+def test_stale_events_excludes_permanent_source(tmp_path, monkeypatch):
+    import app.services.stats as stats_mod
+
+    engine = _setup(tmp_path)
+    monkeypatch.setattr(stats_mod, "gatherer_permanent", lambda name: name == "hikerapi")
+    with Session(engine) as session:
+        sid = _stale_source(session)
+        src = session.get(Source, sid)
+        src.gatherer = "hikerapi"
+        session.commit()
+        session.add(
+            Event(
+                id="perm", source_id=sid, title="Permanent",
+                start_at=datetime(2026, 10, 1),
+                last_seen_at=datetime(2026, 9, 1),
+            )
+        )
+        session.commit()
+
+    with Session(engine) as session:
+        assert stale_events(session, now=datetime(2026, 9, 15)) == []
 #endregion

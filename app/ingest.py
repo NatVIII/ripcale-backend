@@ -24,10 +24,11 @@ from app.decisionmaker import apply
 from app.identity import stable_id
 from app.logging import setup_logging
 from app.models import Event, Source, utcnow
-from app.registry import load_gatherer, load_sources
+from app.registry import gatherer_decide_before_insert, load_gatherer, load_sources
 from app.schema import CategoryRule, GathererResult, SieveResult, SourceConfig
 from app.services import lock
 from app.services.images import host_images
+from app.services.pending import enqueue as enqueue_posts
 from app.services.status import record_run, record_status
 from app.services.archive import archive as archive_service
 from app.sieve import classify
@@ -47,10 +48,13 @@ def _ensure_source(session: Session, cfg: SourceConfig) -> Source:
             gatherer=cfg.gatherer,
             is_public=cfg.is_public,
             default_categories=",".join(cfg.default_categories),
+            llm_context=cfg.llm_context,
         )
         session.add(source)
         session.flush()
         session.refresh(source)
+    else:
+        source.llm_context = cfg.llm_context  # live-update the LLM tuning knob (F65)
     return source
 #endregion
 
@@ -83,7 +87,7 @@ def process_source(
     # Host images pre-sieve (stable content_hash), but skip archived events (F59.01).
     ids = [stable_id(result.source.name, e) for e in result.events]
     archived = _archived_ids(session, ids)
-    host_images([e for e, i in zip(result.events, ids) if i not in archived])
+    host_images(session, [e for e, i in zip(result.events, ids) if i not in archived])
     categorize(result.source, result.events, rules=rules)   # categorize (assign rules, before hash)
     sieved = classify(session, result)         # sieve (reads DB)
 
@@ -94,6 +98,28 @@ def process_source(
         session.add(source)
 
     return sieved, report
+#endregion
+
+
+#region: enqueue path (F65)
+def _enqueue_source(
+    session: Session,
+    cfg: SourceConfig,
+    run_fn: Callable[[SourceConfig], GathererResult],
+    *,
+    dry_run: bool = False,
+) -> dict:
+    """Run a decide-before-insert source: gather -> enqueue posts (no Event rows)."""
+    result = run_fn(cfg)
+    source = _ensure_source(session, cfg)
+    return enqueue_posts(session, source, result, dry_run=dry_run)
+
+
+def _print_enqueue(name: str, summary: dict) -> None:
+    print(
+        f"{name}: enqueued {summary['enqueued']}, changed {summary['changed']}, "
+        f"unchanged {summary['unchanged']}"
+    )
 #endregion
 
 
@@ -148,32 +174,46 @@ def _run_locked(dry_run: bool = False) -> tuple[list[SieveResult], list[dict]]:
         for cfg in load_sources():
             try:
                 run_fn = load_gatherer(cfg.gatherer)
-                sieved, report = process_source(session, cfg, run_fn, dry_run=dry_run)
+                if gatherer_decide_before_insert(cfg.gatherer):
+                    summary = _enqueue_source(session, cfg, run_fn, dry_run=dry_run)
+                    total = summary["enqueued"] + summary["changed"] + summary["unchanged"]
+                    record_run(cfg.name, total)
+                    _print_enqueue(cfg.name, summary)
+                    summaries.append(
+                        {
+                            "name": cfg.name,
+                            "status": "ok",
+                            "enqueued": summary["enqueued"],
+                            "changed": summary["changed"],
+                            "unchanged": summary["unchanged"],
+                        }
+                    )
+                else:
+                    sieved, report = process_source(session, cfg, run_fn, dry_run=dry_run)
+                    total = len(sieved.new) + len(sieved.updated) + sieved.unchanged
+                    record_run(cfg.name, total)
+                    _print_report(cfg.name, sieved, report)
+                    results.append(sieved)
+                    summaries.append(
+                        {
+                            "name": cfg.name,
+                            "status": "warning" if total == 0 else "ok",
+                            "message": "returned 0 events" if total == 0 else None,
+                            "new": len(sieved.new),
+                            "updated": len(sieved.updated),
+                            "unchanged": sieved.unchanged,
+                            "dropped": sieved.dropped,
+                            "inserted": report["inserted"] if report else None,
+                            "updated_rows": report["updated"] if report else None,
+                            "removed": report["removed"] if report else None,
+                        }
+                    )
             except Exception as exc:
                 logger.exception("source %r failed", cfg.name)
                 session.rollback()
                 record_status(cfg.name, "error", message=str(exc))
                 summaries.append({"name": cfg.name, "status": "error", "message": str(exc)})
                 continue
-
-            total = len(sieved.new) + len(sieved.updated) + sieved.unchanged
-            record_run(cfg.name, total)
-            _print_report(cfg.name, sieved, report)
-            results.append(sieved)
-            summaries.append(
-                {
-                    "name": cfg.name,
-                    "status": "warning" if total == 0 else "ok",
-                    "message": "returned 0 events" if total == 0 else None,
-                    "new": len(sieved.new),
-                    "updated": len(sieved.updated),
-                    "unchanged": sieved.unchanged,
-                    "dropped": sieved.dropped,
-                    "inserted": report["inserted"] if report else None,
-                    "updated_rows": report["updated"] if report else None,
-                    "removed": report["removed"] if report else None,
-                }
-            )
             if not dry_run:
                 session.commit()
 

@@ -13,6 +13,7 @@ from sqlalchemy import or_
 from sqlmodel import Session, select
 
 from app.models import Event, Source, utcnow
+from app.registry import gatherer_permanent
 from app.schema import ClassifiedEvent, SieveResult, dump_exdates, dump_images
 from app.services.clock import now as clock_now
 #endregion
@@ -104,18 +105,22 @@ def apply(session: Session, source: Source, sieved: SieveResult) -> dict:
     # Mark the source as fetched at this run's timestamp (shared with last_seen_at).
     source.last_fetched_at = run_ts
 
-    stale = session.exec(
-        select(Event).where(
-            Event.source_id == source.id,
-            Event.archived_at.is_(None),
-            or_(Event.last_seen_at.is_(None), Event.last_seen_at != run_ts),
-        )
-    ).all()
+    if gatherer_permanent(source.gatherer):
+        removed = 0  # permanent posts are never "removed at source" (F21)
+    else:
+        stale = session.exec(
+            select(Event).where(
+                Event.source_id == source.id,
+                Event.archived_at.is_(None),
+                or_(Event.last_seen_at.is_(None), Event.last_seen_at != run_ts),
+            )
+        ).all()
+        removed = len(stale)
 
     return {
         "inserted": inserted,
         "updated": updated,
         "unchanged": sieved.unchanged,
-        "removed": len(stale),
+        "removed": removed,
     }
 #endregion

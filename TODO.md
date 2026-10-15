@@ -7,17 +7,17 @@ Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tic
 ## Backlog
  
 
+- [ ] F21.05 - Instagram cost-saving change-probe: v2 single-call profile as a "did anything change?" probe + persisted `media_count`/newest-pk watermark + short-circuit re-stamp on unchanged runs (safe because of F21's `permanent` flag) + deeper pagination.
+- [ ] F21.07 - HikerAPI error/rate handling: private/unknown accounts (403/404) → warn/skip not permanent error; 429 backoff; graceful per-source status.
+- [ ] F40 - Superseded by F65 (LLM event pipeline: DeepSeek transcription + decision).
+- [ ] F55 - Gatherer: Libcal Integration with Richmond Public Library System
+- [ ] F23 - Backup mechanism: in-app scheduled snapshots of the SQLite DB to a configurable location (e.g. a `backup_dir` config field), with a retention policy. Part of the internal workings (not an external cron).
 - [ ] F36 - Implement decisionmaking page and logic. I want a telegram bot to be able to help me be notified of possible event conflicts and help choose in the future, so this should be done via some kind of API communication or something so that the same interface. We can't implement the telegram bot yet, so let's make the interface via code and then make a debug page that allows for this to take place.
-- [ ] F21 - Gatherer: Instagram source (research HikerAPI - see DEVLOG note)
-- [ ] F40 - Post-Sieve Feature: image OCR/extraction — Qwen2.5-VL reads each new/updated flyer image + caption and emits structured event JSON (title/start/end/timezone/location/description) in one call, cached per image hash ("read once per update"), then updates the provisional event.
 - [ ] F56 - More Debug Tools and Settings for Testing and Bug Reproduction
   - [ ] F56.02 - Create a list of other debug configurations that may help down the road for ensuring everything works as expected
-- [ ] F55 - Gatherer: Libcal Integration with Richmond Public Library System
-- [ ] F14 - Decisionmaker heuristics (cross-source dedup, manual-over-scraped priority)
-- [ ] F19 - Frontend (rva.rip - FullCalendar consuming `/events` + `/feed.ics`)
 - [ ] F20 - Community submission + approval system (deferred by design)
-- [ ] F23 - Backup mechanism: in-app scheduled snapshots of the SQLite DB to a configurable location (e.g. a `backup_dir` config field), with a retention policy. Part of the internal workings (not an external cron).
-- [ ] F16 - `/sources` public endpoint (deferred)
+- [ ] F14 - Superseded by F65.04 (LLM decision worker does per-source dedup/modify).
+- [ ] F19 - Frontend (rva.rip - FullCalendar consuming `/events` + `/feed.ics`)
 - [ ] F41 - Convert tests to CI/CD Pipeline that automatically triggers on each push to git (Codeberg, Github, Gittea?).
 - [ ] F43 - External API Contract
 - [ ] F57 - Implement "Highlight" Feature to Events. 
@@ -27,6 +27,7 @@ Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tic
 - [ ] F61 - Scrub source URLs from error/status messages: sanitize `str(exc)` before `record_status()`/logging so secret feed URLs never reach `data/status.json`/logs.
 - [ ] F62 - Non-root Docker user: add `USER` + non-root account to the Dockerfile; document host-side `data/` ownership in `docs/DEPLOYMENT.md`.
 - [ ] F63 - Document TLS/reverse-proxy trust boundary in `docs/DEPLOYMENT.md` (HTTPS terminates at an external proxy; set `public_base_url`; admin stays loopback/SSH tunnel).
+- [ ] F16 - `/sources` public endpoint (deferred)
 
 ## In Progress
 
@@ -103,10 +104,24 @@ Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tic
 - [x] F56.03 - Single source of truth for config: `config.yaml` now authoritative (`init > config.yaml > env > .env`), `.env` = auth/secrets only (no override); templates + docs updated (2026-09-08)
 - [x] F18 - Local image hosting (pre-sieve): content-addressed `data_dir/images/`, `host_images()` after gather, `content_hash` images-by-url, `/images/{filename}` serving, `public_base_url` for ICS (2026-09-08)
 - [x] F21.01 - Instagram source research: HikerAPI confirmed (public pages, no OAuth, pay-per-request) vs Graph API/Instaloader/Apify (2026-09-08)
-- [x] F21.02 - OCR research: Alibaba Qwen2.5-VL (Chinese, stable DashScope + self-host, affordable, strong flyer/artistic-text OCR + key-info extraction); DeepSeek is text-only; Baidu/Tencent/Zhipu alternatives (2026-09-08)
+- [x] F21.02 - OCR research: Alibaba Qwen2.5-VL (Chinese, stable DashScope + self-host, affordable, strong flyer/artistic-text OCR + key-info extraction); DeepSeek is text-only; Baidu/Tencent/Zhipu alternatives (2026-09-08) — superseded by DeepSeek `deepseek-flash` vision (F65)
 - [x] F21.03 - Image-reading pipeline design: post-sieve OCR + per-image cache keyed by URL/hash → "read once per update"; output persisted for categorize/decisionmaker; forks (storage location, sync/async, retry) left for F40 (2026-09-08)
+- [x] F21 - Instagram gatherer (HikerAPI): username→pk→latest media page → provisional events (uid=pk, caption→title/desc, highest-res images, start_at=taken_at); `permanent` gatherer (never removed-at-source) + contract v6 (2026-09-26)
+- [x] F21.04 - Event-likelihood heuristic — DROPPED: superseded by the LLM's `ignore` decision (F65); the rule-based heuristic and `event_min_score` were removed entirely (2026-10-14)
+- [x] F21.08 - HikerAPI diagnostics: `_get` raises with the response body; `--save-raw` (full raw responses) + `--verify` (shape sanity checks) on the standalone runner (2026-09-26)
+- [x] F21.09 - HikerAPI endpoint migration: `/v1/user/medias/chunk` retired → `/g2/user/medias` (`response.items`, `caption.text` object, `image_versions2.candidates`, `carousel_media`, `1ltaken_at` timestamp); `_media_list`/`to_event`/`_image_refs`/`_taken_at`/`verify` updated (2026-10-14)
+- [x] F65 fixes (A→Z verification) — `decide()` now non-thinking (`thinking=False`, fixes empty JSON from reasoning consuming max_tokens) + `EventFields` coerces `all_day`/`categories` null→default; verified live: 9/9 Instagram posts → pinned events (2026-10-14)
+- [x] F65.01 - Per-source LLM context: `llm_context` on `SourceConfig`/`Source` (migration), threaded into `decide()` as a "standing guidance" block + a "today's date (display_timezone)" anchor via `clock_now()`; GATHERER_CONTRACT v9 (2026-10-14)
+- [x] F65.02 - LLM publish-date reference: `PendingPost.published_at` (from `ScrapedEvent.start_at` = post publish time), threaded into `decide()` so relative dates ("next Monday"/"TONIGHT") anchor to the publish date, not read time; `timeutil.local_datetime()` (2026-10-14)
+- [x] F21.06 - Image churn fixed: `enqueue()` stores/compares `url` only (drops ephemeral `source_url`), so signed-CDN churn no longer marks posts changed (2026-10-14)
+- [x] F65 - DeepSeek LLM event pipeline: `PendingPost` queue + enqueue stage, `deepseek-flash` vision transcription → calendar-aware decision (`create`/`modify`/`ignore`), async worker thread, pin/freeze, observability (`/debug/llm`, `/api/v1/llm/*`); absorbs F40/F14 (2026-10-14)
+- [x] F65 hardening — intrinsic `PERMANENT`/`DECIDE_BEFORE_INSERT` gatherer constants (contract v8), coherence key checks, worker `reason`, `PendingPost.error`, transient-retry (attempts cap) + stale-processing reset, exposed-only category constraint (prompt + code), non-thinking transcription/temperature 0/max_tokens/no-fabrication + `llm_max_images`/`llm_stale_processing_seconds` config, heuristic removed, full config documentation (2026-10-14)
 - [x] B01 - SQLModel timezone bug: latest SQLModel enforces tz-aware datetimes but storage is naive-UTC → Docker login/ingest broke. Fixed with explicit `DateTime(timezone=False)` columns on every naive datetime field in `app/models.py` + `uv` lockfile (`uv.lock`, sqlmodel pinned 0.0.46) + Dockerfile switched to `uv sync --frozen --all-extras` (2026-09-22)
+- [x] B02 - llm_worker startup deadlock: `start()` re-acquired a non-reentrant `threading.Lock` via `_set()`, deadlocking the admin app before `app.start()` bound `:8082`; fixed with `threading.RLock()` + regression test (2026-10-14)
+- [x] B03 - Wipe 500: `wipe_db()` deleted `Source` before `PendingPost` (source.id child), tripping `FOREIGN KEY constraint failed`; reordered deletes + regression test (2026-10-14)
+- [x] B04 - Wipe preserves API tokens: `wipe_db()` no longer deletes `ApiToken` (and keeps `User`), only clears `Event`/`PendingPost`/`Source` + `LoginSession`, so an event reset doesn't break API connectivity (2026-10-14)
 - [x] F18.01 - Image GC: orphan prune (live-only referenced; archived-only images deleted) via `python -m app.images prune`, `POST /api/v1/images/prune`, `/debug/images`; plus re-host on restore (`archive.restore()` re-downloads pruned images) (2026-09-22)
+- [x] F18.02 - Skip image re-download: `HostedImage` URL→filename memo (LRU-capped) lets `host_images()` reuse unchanged URLs without re-fetching; elfsight ingest image downloads dropped ~510 → 0 (2026-10-15)
 - [x] F59 - Full event properties + image previews (hosted/external badge) on `/debug/event/{id}` (2026-09-22)
 - [x] F59.01 - Archived = frozen: sieve buckets archived-mapped events into `SieveResult.archived_ids`, skips image hosting + hash/compare, decisionmaker no longer un-archives (SIEVE_CONTRACT v5) (2026-09-22)
 - [x] F58 - Dependency vulnerability scanner: `pip-audit` (`security` extra, in `uv.lock`) — Dockerfile always reports, fails build only via `--build-arg SCAN_FAIL_ON`; `python -m app.audit` wrapper; docs + smoke test (2026-09-23)

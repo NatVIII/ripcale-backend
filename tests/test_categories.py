@@ -7,7 +7,9 @@ from app.services.categories import (
     DEFAULT_CLASS,
     category_class,
     expose,
+    exposed_category_names,
     exposed_classes,
+    normalize_proposed,
     qualify,
     resolve_categories,
     resolve_event_categories,
@@ -258,4 +260,25 @@ def test_debug_categories_show_exposure_and_mapping(tmp_path, monkeypatch, sessi
     assert "→ external:art" in r.text
     assert "✓" in r.text  # an exposed category marker
     assert "internal" in r.text  # an internal category marker
+#endregion
+
+
+#region: F65 (LLM category constraint)
+def test_exposed_category_names(tmp_path, monkeypatch):
+    _configure(tmp_path, monkeypatch, definitions={"external": ["art", "music"]}, exposed=["external"])
+    assert exposed_category_names() == ["art", "music"]
+
+
+def test_normalize_proposed_keeps_only_exposed(tmp_path, monkeypatch):
+    _configure(
+        tmp_path, monkeypatch,
+        definitions={"external": ["art"]},
+        symlinks={"intake:visual-arts": "external:art"},
+        exposed=["external"],
+    )
+    # exposed name kept; symlinked internal name resolved; made-up dropped
+    assert normalize_proposed(["art"]) == ["external:art"]
+    assert normalize_proposed(["visual-arts"]) == ["external:art"]
+    assert normalize_proposed(["madeup", "art"]) == ["external:art"]
+    assert normalize_proposed(["nonsense"]) == []
 #endregion

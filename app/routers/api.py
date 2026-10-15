@@ -106,6 +106,16 @@ def register(app) -> None:
     def api_scheduler(request):
         return _ok(actions.scheduler())
 
+    @app.get(f"{prefix}/llm/status")
+    @_route
+    def api_llm_status(request):
+        return _ok(actions.llm_status())
+
+    @app.get(f"{prefix}/llm/queue")
+    @_route
+    def api_llm_queue(request):
+        return _ok(actions.llm_queue(_q_int(request, "limit", 100)))
+
     @app.get(f"{prefix}/categories")
     @_route
     def api_categories(request):
@@ -161,6 +171,11 @@ def register(app) -> None:
     @_route
     def api_ingest(request):
         return _ok(actions.ingest(dry_run=json_body(request).get("dry_run", True)))
+
+    @app.post(f"{prefix}/llm/process")
+    @_route
+    def api_llm_process(request):
+        return _ok(actions.llm_process_now())
 
     @app.post(f"{prefix}/retag")
     @_route

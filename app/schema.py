@@ -56,6 +56,7 @@ class SourceConfig(BaseModel):
     default_categories: list[str] = Field(default_factory=list)  # sugar for an assign rule
     default_location: str | None = None  # optional fallback for missing/blank locations
     rules: list[CategoryRule] = Field(default_factory=list)  # categorization heuristics (F50)
+    llm_context: str | None = None  # standing guidance fed to the LLM decide stage (F65)
 #endregion
 
 

@@ -49,13 +49,13 @@ Key files:
 - `app/intake.py` — `IntakeSettings` + `load()`/`save()` for the mutable `intake.yaml` (sources, gatherers, category symlinks).
 - `app/logging.py` — `setup_logging()` (console + rotating `data/ripcale.log`, idempotent) + `read_log_tail()` (constant-time backward tail for `/debug/logs`).
 - `app/models.py` — `Source`, `Event`, `User`, `LoginSession`, `ApiToken` (SQLModel).
-- `app/db.py` — `engine`, `init_db()`, `wipe_db()` (delete Event→Source, schema intact), WAL + foreign-key pragmas.
+- `app/db.py` — `engine`, `init_db()`, `wipe_db()` (delete Event/PendingPost→Source + clear sessions; preserve User + ApiToken), WAL + foreign-key pragmas.
 - `app/schema.py` — pipeline contracts (`SourceConfig`, `ScrapedEvent`,
   `ImageRef`, `GathererResult`, `CategoryRule`, `ClassifiedEvent`, `SieveResult`) + `dump_images()`/`load_images()`.
 - `app/identity.py` — `stable_id()`, `content_hash()`.
 - `app/timeutil.py` — `to_utc_naive()`, `parse_iso_utc()`.
 - `app/registry.py` — `load_sources()`, `load_gatherer()`.
-- `app/gatherers/<name>/gatherer.py` — each gatherer exposes `run(source)`. (`elfsight` = JSON widget; `ics` = generic RFC 5545 feed, e.g. a public Google Calendar.)
+- `app/gatherers/<name>/gatherer.py` — each gatherer exposes `run(source)`. (`elfsight` = JSON widget; `ics` = generic RFC 5545 feed, e.g. a public Google Calendar; `hikerapi` = Instagram account via HikerAPI, F21.)
 - `app/categorize/` — `apply()` re-exported from `categorize.py` (config-driven category assignment, before the sieve).
 - `app/sieve/` — `classify()` re-exported from `sieve.py` (change detection; fills `default_location`; `_relevance()` drops events
   outside the expiry window — F13).
@@ -182,6 +182,37 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   (`app/services/vtimezone.py`) so clients keep the local wall-clock time across
   DST; one-off events use UTC `Z`. JSON emits `rrule`/`exdates`/`recurrence_id`
   for the frontend (FullCalendar `rrule` plugin) to expand.
+- **Instagram gatherer (F21)** — `hikerapi` fetches an account's recent posts and
+  maps each to a `ScrapedEvent` (uid=post pk, url, caption→title/description,
+  highest-res images, geotag→location, start_at=post time). **Every** post is
+  enqueued — there is no event/no-event pre-filter; the LLM's `ignore` decision
+  is the sole classifier. `_get()` raises errors that include HikerAPI's response
+  body, so failures in the runner, `/debug/logs`, and `status.json` are
+  diagnosable. `python -m app.gatherers.hikerapi` supports `--save-raw` /
+  `--fixture` / `--verify`.
+- **Permanent gatherers** — a gatherer declares `PERMANENT = True` (a module
+  constant, not config) when its posts are **never "removed at source"** (they
+  only *expire* by date); the archive/stale/decisionmaker stages skip
+  removed-detection for those sources. Instagram uses this because its posts
+  don't disappear from the feed the way a calendar event does.
+- **LLM event pipeline (F65)** — a gatherer declares `DECIDE_BEFORE_INSERT = True`
+  (module constant) so its events **enqueue** into the `PendingPost` queue
+  (`app/services/pending.py`) instead of inserting. A daemon-thread worker
+  (`app/services/llm_worker.py`, gated by `llm_enabled` + `deepseek_key`) resolves
+  each pending post via `app/services/llm.py`: Stage A transcribes the flyer
+  image(s) + caption with `deepseek-flash` (vision, non-thinking), Stage B decides
+  `create`/`modify`/`ignore` (JSON mode, per-source calendar context) with
+  categories constrained to the exposed vocabulary, then applies the result.
+  Accepted events are `pinned=True`. Failures: transient (429/5xx) retry up to
+  `llm_max_attempts`; permanent/malformed mark the post `failed` with an `error`;
+  stuck `processing` posts reset to `pending` after `llm_stale_processing_seconds`.
+  `deepseek` client is `app/services/deepseek.py`. Observability: `/debug/llm`,
+  `/api/v1/llm/status`, `/api/v1/llm/queue`, `POST /api/v1/llm/process`; missing
+  keys/`llm_enabled=false` surface as coherence warnings.
+- **Gatherer capabilities are intrinsic** — `PERMANENT` / `DECIDE_BEFORE_INSERT`
+  are declared as constants on the gatherer module (beside `CONTRACT_VERSION`),
+  read via `registry.gatherer_permanent()` / `gatherer_decide_before_insert()` —
+  not per-source config.
 - **Event listing is future-first, capped by default** — `query_events()` orders by
   `start_at` descending (furthest future first; NULL start sorts last) and caps at
   `DEFAULT_LIMIT` (500) unless a `?limit=` is passed (`None`/`0` = unbounded, used
@@ -249,6 +280,14 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   `POST /api/v1/images/prune`, and `/debug/images`. `archive.restore()` re-hosts
   any pruned local images via `images.rehost_missing_images()` (content-addressed,
   so identical bytes re-land on the same filename) before un-archiving.
+- **Skip re-downloading (F18.02)** — `host_images()` consults a `HostedImage`
+  memo (URL → filename, LRU-capped at `_INDEX_MAX`) so an image whose external
+  URL is unchanged and whose file still exists is **reused without a download**.
+  This eliminates the ~500-image elfsight re-download every ingest; failed
+  downloads (e.g. a 403) are not memoized, so they retry. The memo assumes
+  stable-URL ⇒ stable-content (true for elfsight's hashed CDN URLs; Instagram's
+  signed URLs churn and are simply evicted by LRU). The table survives `wipe_db`
+  (like `data/images/`).
 - **Archived events are frozen (F59.01)** — an incoming event whose stable id maps
   to an archived row is bucketed into `SieveResult.archived_ids` and skipped: no
   image hosting, no `content_hash` comparison, no update, no un-archive.
@@ -260,9 +299,11 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   `admin`, and `ingest` all write the same `{data_dir}/ripcale.log`. Rotation is
   *not* multi-process-safe (a rare race if two processes hit `log_max_bytes`
   simultaneously); disk stays capped at ~`log_max_bytes * (log_backup_count + 1)`.
-- **Wipe is schema-preserving** — `wipe_db()` deletes Event→Source rows only and
-  `wipe_all()` also resets `data/status.json` + `data/last_ingest.json`; the
-  tables survive so the server keeps serving and a later ingest repopulates.
+- **Wipe is schema-preserving** — `wipe_db()` deletes `Event`/`PendingPost`/`Source`
+  rows and clears `LoginSession` (logs you out), but **preserves `User` and
+  `ApiToken`** so wiping events never breaks API connectivity; `wipe_all()` also
+  resets `data/status.json` + `data/last_ingest.json`. The tables survive so the
+  server keeps serving and a later ingest repopulates.
 - **`/debug/tests` runs pytest out-of-process** — `app/services/testrunner.py`
   shells out to `python -m pytest` (same as the CLI), isolated from the server.
   The Docker image installs the `[dev]` extras and ships `tests/` so this works
@@ -321,10 +362,10 @@ see `docs/DEPLOYMENT.md` for the full server setup.
 
 Configuration is split into three places: **system** settings (`config.yaml`, the
 single source of truth, hand-edited and never written by the program), **auth +
-secrets** (`.env` — `admin_username`/`admin_password_hash`/`pepper` + future API
-keys; it does **not** override `config.yaml`), and **intake** data (`intake.yaml`,
-hand-editable *and* program-editable via `app/intake.py`). All are gitignored with
-tracked `*.example` templates.
+secrets** (`.env` — `admin_username`/`admin_password_hash`/`pepper` + `hikerapi_key`/
+`deepseek_key` and future API keys; it does **not** override `config.yaml`), and
+**intake** data (`intake.yaml`, hand-editable *and* program-editable via
+`app/intake.py`). All are gitignored with tracked `*.example` templates.
 
 System fields in `config.yaml`:
 
@@ -349,6 +390,9 @@ System fields in `config.yaml`:
 - `debug_token` — optional fixed CSRF token (auto-generated if empty).
 - `admin_username` / `admin_password_hash` — bootstrap admin login (argon2id hash; generate with `python -m app.auth hash-password`).
 - `pepper` — optional secret keyed (HMAC-SHA256) into every password before hashing (empty = disabled; generate with `python -m app.auth gen-pepper`).
+- `hikerapi_key` — HikerAPI access key for the Instagram gatherer (F21); empty = gatherer raises. Lives in `.env` as `RIPCALE_HIKERAPI_KEY`.
+- `deepseek_key` — DeepSeek API key for the LLM event pipeline (F65); `llm_enabled` gates it. Lives in `.env` as `RIPCALE_DEEPSEEK_KEY`.
+- LLM tunables (F65, in `config.yaml`): `deepseek_model` (default `deepseek-flash`), `llm_enabled`, `llm_interval_seconds`, `llm_max_per_tick`, `llm_context_events`, `llm_max_attempts`, `llm_max_images`, `llm_stale_processing_seconds`.
 
 (API tokens are **per-user**, minted in the DB via `python -m app.auth token create <username>` — not an env var.)
 
@@ -356,7 +400,7 @@ Intake fields in `intake.yaml` (`app/intake.py`):
 
 - `gatherers` — per-gatherer defaults, e.g. `{elfsight: {priority: 5}}` (extensible); `rules` apply to every source of that gatherer.
 - `rules` — top-level (global) categorization rules, applied to every event from every source.
-- `sources` — list of `{name, gatherer, url, is_public, priority, default_categories, default_location, rules}`; an optional source `priority` overrides the gatherer default (fallback 0); optional `default_location` fills missing/blank event locations; `rules` are categorization heuristics (see `docs/CATEGORIZE_CONTRACT.md`).
+- `sources` — list of `{name, gatherer, url, is_public, priority, default_categories, default_location, rules, llm_context}`; an optional source `priority` overrides the gatherer default (fallback 0); optional `default_location` fills missing/blank event locations; `rules` are categorization heuristics (see `docs/CATEGORIZE_CONTRACT.md`); `llm_context` is optional free-text standing guidance fed to the LLM decide stage (F65).
 - `category_symlinks` — `{"class:name": "class:name"}` mapping, resolved at read time by `app/services/categories.resolve_event_categories()` (F26/F51).
 - `category_definitions` — class-first `{class: [names, ...]}`; classes are fully dynamic, unlisted names default to `intake`. Names+classes are slugified to `[a-z0-9-]` at the categorize gate (F46/F51).
 - `exposed_classes` — list of classes (default `["external"]`) whose categories are the "true", publicly-exposed categories. Every other class is internal-only: kept in the DB but hidden from `/events`, `/feed.ics`, and `/api/v1/events` (F17).

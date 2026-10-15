@@ -70,6 +70,17 @@ ingest_startup_delay_minutes: 3
 # Admin login (bootstrap username + argon2id password hash) and the optional
 # pepper live in `.env` (auth/secrets — not defined here). See `.env.example`.
 
+# DeepSeek LLM event pipeline (F65) — turns Instagram posts into calendar events.
+# The API key lives in `.env` (RIPCALE_DEEPSEEK_KEY); these are the tunables.
+# llm_enabled: false             # master on/off for the LLM worker
+# deepseek_model: deepseek-flash # DeepSeek model (vision + JSON output)
+# llm_interval_seconds: 30       # how often the worker wakes to drain the queue
+# llm_max_per_tick: 5            # posts processed per tick (cost guard)
+# llm_context_events: 50         # how much of the source's calendar the decision sees
+# llm_max_attempts: 3            # transient-failure retries before a post is marked failed
+# llm_max_images: 2              # max images sent to the vision model per post
+# llm_stale_processing_seconds: 600  # reset a stuck 'processing' post back to 'pending'
+
 # Intake settings (sources, per-gatherer defaults, category symlinks) live in a
 # SEPARATE file — `intake.yaml` — so the program can edit them (via the admin
 # menu) without touching this hand-edited system config. See `intake.example.yaml`.

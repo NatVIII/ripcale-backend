@@ -234,6 +234,28 @@ def test_restore_rehosts_missing_images(tmp_path, monkeypatch):
         assert images_mod.is_local(img.url) is True
 
 
+def test_archive_permanent_source_never_removed(tmp_path, monkeypatch):
+    from app.services import archive as archive_mod
+
+    engine = _setup(tmp_path, monkeypatch, past_days=90, grace_hours=6)
+    monkeypatch.setattr(archive_mod, "gatherer_permanent", lambda name: name == "hikerapi")
+    with Session(engine) as session:
+        sid = _source(session, NOW)
+        src = session.get(Source, sid)
+        src.gatherer = "hikerapi"
+        session.commit()
+        _add(session, sid, "live", start=NOW + timedelta(days=10), last_seen_at=NOW - timedelta(days=5))
+
+    with Session(engine) as session:
+        result = archive(session, now=NOW, dry_run=False)
+        session.commit()
+
+    assert result["removed"] == 0
+    assert result["expired"] == 0
+    with Session(engine) as session:
+        assert session.get(Event, "live").archived_at is None
+
+
 def test_event_dump_includes_archive_fields(tmp_path):
     from app.services import stats
 

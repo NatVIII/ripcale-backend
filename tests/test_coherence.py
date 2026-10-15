@@ -151,3 +151,22 @@ def test_dashboard_shows_coherence_issue(tmp_path, monkeypatch, session_headers)
     assert "coherence" in r.text
     assert "not valid YAML" in r.text
 #endregion
+
+
+#region: keys (F65)
+def test_missing_keys_warn(tmp_path, monkeypatch):
+    from app.config import settings
+
+    _setup(
+        tmp_path, monkeypatch,
+        "sources:\n  - name: IG\n    gatherer: hikerapi\n    url: https://www.instagram.com/x/\n",
+    )
+    monkeypatch.setattr(settings, "hikerapi_key", "")
+    monkeypatch.setattr(settings, "deepseek_key", "")
+    monkeypatch.setattr(settings, "llm_enabled", False)
+
+    messages = [i["message"] for i in check() if i["scope"] == "config"]
+    assert any("RIPCALE_HIKERAPI_KEY" in m for m in messages)
+    assert any("RIPCALE_DEEPSEEK_KEY" in m for m in messages)
+    assert any("llm_enabled" in m for m in messages)
+#endregion

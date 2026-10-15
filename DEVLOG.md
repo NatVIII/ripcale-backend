@@ -1,3 +1,126 @@
+## 2026-10-15 11:00:00 [AI]
+
+F18.02: skip re-downloading already-hosted images (URL→filename memo).
+
+- Added `HostedImage` table (URL PK → hosted filename, `last_used_at`), a persistent memo consulted by `host_images()`: an image whose external URL is unchanged and whose file still exists is **reused without a download** (sets `source_url`/local `url` only). `host_images()` now takes the caller's `Session`; `store()` is unchanged.
+- LRU cap (`_INDEX_MAX = 1000`): entries are touched on reuse and the least-recently-used are evicted on save, so Instagram's churning signed URLs fall off while stable elfsight URLs stay.
+- Verified live: elfsight image downloads per ingest dropped from ~510 to **0** (the 8 remaining are pre-existing 403/dead images that correctly retry; Instagram's 9 churn as expected).
+- Tests: reuse-without-redownload, re-download when file pruned, LRU eviction. 426 passing.
+
+## 2026-10-14 21:20:00 [AI]
+
+Wipe no longer de-auths API tokens (resets events, keeps connectivity).
+
+- `wipe_db()` now deletes `Event`/`PendingPost`/`Source` and clears `LoginSession` (admin logged out), but **preserves `User` + `ApiToken`** so an event reset doesn't break API keys. Removed the `delete(ApiToken)` (reverses F48.05's "wipe clears credentials").
+- Regression test `test_wipe_preserves_api_tokens_and_clears_sessions`; docs updated. 423 passing.
+
+## 2026-10-14 21:10:00 [AI]
+
+B03: fixed wipe 500 — `wipe_db()` deleted `Source` before `PendingPost` (a source.id child, added in F65), tripping `FOREIGN KEY constraint failed` whenever pending posts existed. Reordered deletes (`PendingPost` before `Source`) + regression test seeding a pending post. 422 passing. Note: wipe preserves the `users` table (credentials) but clears sessions + API tokens, so it logs you out.
+
+## 2026-10-14 21:00:00 [AI]
+
+B02: fixed an `llm_worker` startup deadlock that left the admin web server unbound.
+
+- `llm_worker.start()` acquired `_lock` (a non-reentrant `threading.Lock`) and then called `_set()`, which re-acquires it → the admin process deadlocked before `app.start()`, so `:8082` never bound (public `:8081` was unaffected). Symptom: `localhost:8082` connection reset while the container looked "Up" (the `ingest-scheduler` daemon still ran its ingests).
+- Fix: `_lock = threading.RLock()`. Added `tests/test_llm_worker.py` (watchdog-guarded `start()` deadlock regression + disabled-without-key). 421 passing; verified `Robyn … listening on 0.0.0.0:8082` and `/debug/login` → 200.
+
+## 2026-10-14 20:40:00 [AI]
+
+F65.02 + F21.06: LLM gets the post's publish date; Instagram image churn fixed.
+
+- **F65.02 (publish-date reference)** — the LLM now anchors relative dates to the post's publish time, not the read time. `PendingPost.published_at` (new column + migration) is populated in `enqueue()` from `ScrapedEvent.start_at` (the hikerapi gatherer already maps `1ltaken_at` → `start_at`). `process_one` passes it to `decide()`, which adds "This post was published on …" and instructs the model to interpret "next Monday"/"TONIGHT"/"this week" relative to the publish date. Added `timeutil.local_datetime()` (naive-UTC → display timezone) and fixed the "today" line to use it (was mislabeled UTC). Backfilled `published_at` on unchanged rows.
+- **F21.06 (image churn)** — root cause: `enqueue()` stored/compared `dump_images(event.images)` which includes `source_url`, and Instagram's signed CDN URL changes every fetch, so every ingest marked every post `changed` (→ re-LLM). Fix: store/compare **`url` only** (`dump_images([ImageRef(url=img.url) …])`), which is the stable content-addressed `/images/<sha>.ext`. Verified live: ingest now reports `unchanged 9` after a one-time transition. Remaining minor: `store()` still re-downloads (skips write on same sha) — acceptable; a transient download failure leaves the external URL for one cycle then self-heals.
+- Tests: publish-date prompt/threading/enqueue, url-only unchanged detection, migration. 419 passing.
+
+## 2026-10-14 20:30:00 [AI]
+
+F65.01: per-source LLM context (`llm_context`) + "today" anchor in the decide prompt.
+
+- `SourceConfig.llm_context` (free-text standing guidance) → `Source.llm_context` DB column (migration in `_migrate`), set/updated by `_ensure_source` on every ingest (live tuning knob).
+- `llm.process_one` reads `Source.llm_context` and passes it to `decide(..., context=)`; `decide()` prepends a "Source context (standing guidance…)" block and a "Today's date is … (display_timezone)" line (via `clock_now()`), and relaxes the "only emit stated dates" rule to also admit context-derived dates.
+- Enables e.g. "rides every Monday 6:30 PM ET" to resolve a dateless caption into a concrete `start_at`.
+- Contract: GATHERER_CONTRACT v8→v9 (`llm_context` row + field-set test); three gatherers bumped to v9.
+- Docs: `intake.example.yaml` example, `AGENTS.md` sources list. Tests: context/today prompt injection, `process_one` context threading, intake round-trip, `_ensure_source` persist+update. 413 passing.
+
+## 2026-10-14 20:00:00 [AI]
+
+A→Z pipeline verification + two LLM-pipeline fixes.
+
+- Full end-to-end run against live data (recess4eva via HikerAPI + DeepSeek): gather → enqueue → transcribe → decide → create. 9/9 Instagram posts became pinned events; the LLM left `start_at` null where the caption stated no date (and extracted one where it did).
+- **Fix 1 (empty decide JSON):** `llm.decide()` did not pass `thinking=False`, so DeepSeek's reasoning tokens consumed the `max_tokens` budget and left `content` empty (7/9 posts failed with `Invalid JSON: input_value=''`). Added `thinking=False` to the decide call — matches the non-thinking transcription and temperature-0 intent.
+- **Fix 2 (null fields):** the LLM emitted `"all_day": null` / `"categories": null`, which `EventFields` rejected. Added `mode="before"` validators coercing `None` → `False` / `[]`.
+- Env fix: `.env` had a typo — `RIPECALE_DEEPSEEK_KEY` (missing the `C`) — so the key never loaded and the LLM worker silently disabled. Renamed to `RIPCALE_DEEPSEEK_KEY`.
+- Tests: `test_decide_uses_non_thinking`, `test_decision_tolerates_null_fields`. 408 passing.
+
+## 2026-10-14 19:30:00 [AI]
+
+F21.09: migrate the Instagram gatherer to the current HikerAPI media endpoint.
+
+- HikerAPI retired `/v1/user/medias/chunk` (404 `Entries not found`); `/v1/user/by/username` still resolves the pk. Switched `fetch_medias`/`fetch_raw` to `/g2/user/medias?user_id=<pk>`.
+- `/g2/user/medias` returns `{"response": {"items": [...]}}`; `_media_list` gained a dict branch for `response.items` (v1 `[[medias], cursor]` and flat-list shapes kept as fallbacks).
+- Shape changes: `caption` is an object (`caption.text`) not `caption_text`; images are `image_versions2.candidates` (not `image_versions`); carousels are `carousel_media` (not `resources`); `id` is `"<pk>_<user_id>"`. `to_event` reads the caption object, `_candidates()` + `_image_refs()` handle `image_versions2`/`carousel_media`, and the pk falls back to `id.split("_")[0]`.
+- Timestamp quirk: HikerAPI prefixes long/float scalar fields in the g2 payload (`1l` = long, `1f` = float), so the timestamp is literally `1ltaken_at`. `_taken_at` now reads `taken_at_ts`/`taken_at`/`1ltaken_at`; `verify` checks the same.
+- `__main__.py` `--save-raw` URL match `medias/chunk` → `user/medias` (so `medias.json` still gets written).
+- Tests updated to the g2 shape + new `test_to_event_g2_prefixed`/`caption object`/`id fallback` cases. 406 passing; live `--verify` on recess4eva now reports OK and maps all 9 posts (caption/url/images/`start_at`).
+
+## 2026-10-14 18:00:00 [AI]
+
+F65 hardening: intrinsic gatherer capabilities, LLM restraint, and heuristic removal.
+
+- `permanent` / `decide_before_insert` moved out of `GathererConfig` into gatherer module constants `PERMANENT` / `DECIDE_BEFORE_INSERT` (contract v8); `registry` reads them.
+- Removed the rule-based event heuristic (`heuristic.py`, `event_min_score`) entirely — the LLM's `ignore` decision is the sole event/no-event gate.
+- `deepseek.py`: `DeepSeekPermanent` (401/403/400) vs `DeepSeekTransient` (429/5xx/network); `thinking`/`temperature`/`max_tokens` params.
+- `llm.py`: non-thinking transcription, temperature 0, max_tokens caps, a no-fabrication prompt, and `llm_max_images` image cap; categories constrained to `exposed_category_names()` via `normalize_proposed()` (qualify → symlink → expose).
+- Retry semantics: `PendingPost.attempts` + `llm_max_attempts` (transient → retry → cap → failed); `PendingPost.error` stores failure reason; `pending.reset_stale_processing()` recovers stuck `processing` posts.
+- Inform paths: coherence `_check_keys()` (missing hikerapi/deepseek key, llm disabled), `llm_worker.status()` `reason`, admin startup warning, `/debug/llm` shows `error`.
+- Config: `llm_max_attempts` / `llm_max_images` / `llm_stale_processing_seconds` added; all LLM settings documented in `config.example.yaml`.
+- Tests: categories normalization, transient/permanent failure, stale reset, coherence keys, error-classified client. 402 passing.
+
+## 2026-10-14 12:00:00 [AI]
+
+F65: DeepSeek LLM event pipeline (transcribe → decide → apply), replacing the provisional-event approach for Instagram.
+
+- `app/services/deepseek.py` (new): thin `httpx` client for `api.deepseek.com` (OpenAI-compatible), JSON mode + vision, model `deepseek-flash`, retry on 429/5xx.
+- `app/models.py`: `PendingPost` table (uid, source_id, caption, images, score, status pending/processing/created/modified/ignored/failed, transcription, decision, match_event_id, timestamps).
+- `app/schema.py`: `GathererConfig.decide_before_insert` (contract v6→v7); `app/registry.py`: `gatherer_decide_before_insert()`.
+- `app/services/pending.py` (new): enqueue stage (host images + upsert `PendingPost`; new/changed → pending, unchanged → skip).
+- `app/ingest.py`: forks `_run_locked` — `decide_before_insert` sources enqueue instead of `process_source`.
+- `app/services/llm.py` (new): Stage A `transcribe()` (vision → text, base64 local images), Stage B `decide()` (JSON mode, per-source calendar context), `apply_decision()` (create/modify/ignore → Event, pinned), `process_one()`.
+- `app/services/llm_worker.py` (new): daemon thread (like scheduler), `llm_max_per_tick` cap; started by `app/admin.py`.
+- Config: `deepseek_key`/`deepseek_model`/`llm_enabled`/`llm_interval_seconds`/`llm_max_per_tick`/`llm_context_events`.
+- Observability: `actions.llm_status/llm_queue/llm_process_now`, `GET /api/v1/llm/status|queue`, `POST /api/v1/llm/process`, `/debug/llm`.
+- Absorbs F40 (OCR → transcription) and F14 (decisionmaker heuristics → decision worker); F21.02 (Qwen) superseded.
+- Tests: `test_deepseek.py`, `test_pending.py`, `test_llm.py`; contract v7. 401 passing.
+
+## 2026-09-26 20:00:00 [AI]
+
+F21.04 revision: tune the event heuristic against real Instagram data (recess4eva).
+
+- `app/gatherers/hikerapi/heuristic.py` rewritten from two flat keyword lists into a named-signal model: `time`, `day`, `meet`, `activity` (ride/jaunt/miles/pace/…), `event_word`, `location`, `negative`, with a `time+day` bonus. `score_detail()` exposes the signals; `event_likelihood()` stays as the thin wrapper.
+- Root cause of the first live run: the vocabulary was concert/venue-tuned ("live music"/"tickets"/"DJ") and missed a bike-ride account's core words ("ride"/"jaunt"/"miles"/"meet"/"roll out"), plus "this week"/"this coming Monday" and bare `6:30` times; no geotag so the location bonus never fired.
+- `__main__.py` score table now prints the fired signals per post.
+- Verified against the saved `recess4eva` fixture: 11 events score 0.70–1.00 (kept), the "test run" info post and the "pools closing" announcement score 0.40 (dropped). 390 tests.
+
+## 2026-09-26 19:00:00 [AI]
+
+F21.08: HikerAPI gatherer diagnostics (error transparency + raw capture + verify).
+
+- `app/gatherers/hikerapi/gatherer.py`: `_get()` now raises errors including HikerAPI's response **body** (status + message) instead of a generic httpx error; added `fetch_raw()` (captures status/headers/body for both calls) and `verify(user, medias)` (shape sanity checks, returns warnings).
+- `app/gatherers/hikerapi/__main__.py`: `--save-raw <dir>` (writes manifest/user/medias/headers JSON) and `--verify` (prints shape warnings; works offline with `--fixture`).
+- Tests: `_get` error-body capture, `fetch_raw` capture, `verify` good/bad fixtures. 387 passing.
+
+## 2026-09-26 18:00:00 [AI]
+
+F21 + F21.04: Instagram gatherer (HikerAPI) + event-likelihood heuristic.
+
+- `app/gatherers/hikerapi/` (new): `gatherer.py` (`fetch_medias`/`to_event`/`run`; username→pk→latest media page), `heuristic.py` (`event_likelihood`, rule-based date/time + event-vocabulary + geotag scoring), `__main__.py` (standalone score table with `--save`/`--fixture` offline replay).
+- Provisional events: `uid`=`pk`, `url`=`instagram.com/p/<code>`, caption→title/description, highest-res images (carousel/reel aware), geotag→location, `start_at`=`taken_at`, `raw` includes `_score`. Posts below `event_min_score` (default `0.5`, per-gatherer extra) are dropped; `scored/kept/dropped` logged.
+- Config: `hikerapi_key` setting (`RIPCALE_HIKERAPI_KEY`, `.env`); `app/gatherers/base.py` `fetch_json`/`fetch_text` accept `headers=`.
+- **Permanent gatherers**: `GathererConfig.permanent` (contract v5→v6) — archive/stale/decisionmaker skip removed-at-source detection for permanent sources (Instagram posts never "removed", only expire). `registry.gatherer_permanent()`.
+- Contract v6: doc + both existing gatherers' `CONTRACT_VERSION`; `test_contract_gatherer.py` updated for the new field.
+- Tests: `test_gatherer_hikerapi.py`, `test_hikerapi_heuristic.py`, permanent-source tests in archive/decisionmaker/stale. 383 passing.
+
 ## 2026-09-24 17:00:00 [AI]
 
 F64: recurrence timezone correctness (recurring events no longer drift across DST).

@@ -28,6 +28,9 @@ gatherers:
     #     fields: [title]
     #     regex: "(?i)workshop"
     #     categories: [workshop]
+  # Note: the `hikerapi` gatherer needs no defaults — its posts are permanent and
+  # enqueued for LLM resolution automatically (no config flags required).
+  #   decide_before_insert: true       # enqueue posts for LLM resolution (F65) instead of inserting
 
 sources:
   - name: "Studio Two Three"
@@ -58,6 +61,17 @@ sources:
     gatherer: "ics"
     url: "https://calendar.google.com/calendar/ical/r1funfuomjmgs47jph9faksu32iu7ktb%40import.calendar.google.com/public/basic.ics"
     is_public: true
+
+  # An Instagram account (via HikerAPI). `url` is the profile URL (or bare
+  # username). Requires RIPCALE_HIKERAPI_KEY and RIPCALE_DEEPSEEK_KEY in `.env`;
+  # posts are enqueued and the LLM (F65) turns each into a real calendar event.
+  # - name: "Studio Two Three (Instagram)"
+  #   gatherer: "hikerapi"
+  #   url: "https://www.instagram.com/studiotwothree/"
+  #   is_public: true
+  #   llm_context: >                 # optional — standing guidance for the LLM
+  #     Group rides every Monday at 6:30 PM Eastern unless the post says otherwise.
+  #     Assume an unspecified "ride" is the next Monday at 6:30 PM ET.
 
 # ---------------------------------------------------------------------------
 # Category system

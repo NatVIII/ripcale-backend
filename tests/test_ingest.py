@@ -189,3 +189,23 @@ def test_pinned_event_content_preserved(tmp_path):
         assert e.title == "Original"
         assert e.content_hash == content_hash(original)
         assert e.last_seen_at == src.last_fetched_at
+
+
+def test_ensure_source_persists_and_updates_llm_context(tmp_path, monkeypatch):
+    from app.models import Source
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'llmctx.db'}")
+    SQLModel.metadata.create_all(engine)
+    monkeypatch.setattr(elfsight_gatherer, "fetch_json", lambda url: FIXTURE)
+
+    cfg = SourceConfig(name="S", gatherer="elfsight", url="https://fake/boot/?w=x", llm_context="rides Monday")
+    with Session(engine) as session:
+        process_source(session, cfg, elfsight_gatherer.run)
+        session.commit()
+        assert session.exec(select(Source).where(Source.name == "S")).first().llm_context == "rides Monday"
+
+    cfg2 = cfg.model_copy(update={"llm_context": "rides Tuesday"})
+    with Session(engine) as session:
+        process_source(session, cfg2, elfsight_gatherer.run)
+        session.commit()
+        assert session.exec(select(Source).where(Source.name == "S")).first().llm_context == "rides Tuesday"

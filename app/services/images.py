@@ -14,10 +14,10 @@ import re
 from pathlib import Path
 
 import httpx
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from app.config import settings
-from app.models import Event
+from app.models import Event, HostedImage, utcnow
 from app.schema import ImageRef, ScrapedEvent, load_images
 #endregion
 
@@ -89,24 +89,72 @@ def resolve(filename: str) -> Path | None:
 
 
 #region: pre-sieve rewrite
-def host_images(events: list[ScrapedEvent]) -> None:
+_INDEX_MAX = 1000  # LRU cap on the URL→filename memo (bounds Instagram's churning URLs)
+
+
+def _host_or_store(session: Session, url: str) -> tuple[str | None, bool]:
+    """Return `(local_url, grew)` for `url`, reusing the hosted file when possible.
+
+    Consults the `HostedImage` memo (keyed by URL): if the entry exists and the
+    file is still on disk, reuse it without downloading (touching `last_used_at`
+    for LRU). Otherwise download via `store()`. Returns `(None, False)` when the
+    download fails (the caller leaves the image on its external URL).
+    """
+    row = session.get(HostedImage, url)
+    if row is not None and (_dir() / row.filename).is_file():
+        row.last_used_at = utcnow()
+        return f"/images/{row.filename}", False
+
+    try:
+        local = store(url)
+    except Exception:  # noqa: BLE001 — keep the external URL on failure
+        logger.warning("image store failed for %r", url)
+        return None, False
+
+    filename = local.removeprefix("/images/")
+    if row is not None:
+        row.filename = filename  # file was pruned; re-downloaded
+        row.last_used_at = utcnow()
+        return local, False
+    session.add(HostedImage(url=url, filename=filename))
+    return local, True
+
+
+def _evict_lru(session: Session) -> None:
+    """Drop the least-recently-used memo entries beyond `_INDEX_MAX`."""
+    count = session.exec(select(func.count()).select_from(HostedImage)).one()
+    excess = count - _INDEX_MAX
+    if excess <= 0:
+        return
+    oldest = session.exec(
+        select(HostedImage).order_by(HostedImage.last_used_at).limit(excess)
+    ).all()
+    for row in oldest:
+        session.delete(row)
+
+
+def host_images(session: Session, events: list[ScrapedEvent]) -> None:
     """Rewrite each event's image URLs to stable local paths (pre-sieve).
 
     A download failure leaves the image on its original external URL (graceful),
-    so a broken image never aborts the ingest.
+    so a broken image never aborts the ingest. A URL that was already hosted
+    (and whose file still exists) is reused without re-downloading.
     """
+    grew = False
     for event in events:
         for img in event.images:
             if img.url.startswith("/images/"):
                 continue  # already hosted
             original = img.url
-            try:
-                local = store(original)
-            except Exception:  # noqa: BLE001 — keep the external URL on failure
-                logger.warning("image store failed for %r", original)
-                continue
+            local, new = _host_or_store(session, original)
+            if local is None:
+                continue  # download failed — leave the external URL
+            if new:
+                grew = True
             img.source_url = original
             img.url = local
+    if grew:
+        _evict_lru(session)
 #endregion
 
 

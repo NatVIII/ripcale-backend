@@ -42,6 +42,7 @@ class Source(SQLModel, table=True):
     is_public: bool = False
     default_categories: str = ""  # comma-separated tags applied to every event
     enabled: bool = True
+    llm_context: str | None = None  # standing guidance for the LLM decide stage (F65)
     last_fetched_at: datetime | None = Field(default=None, sa_column=_dt())
     created_at: datetime = Field(default_factory=utcnow, sa_column=_dt())
 #endregion
@@ -109,4 +110,47 @@ class Event(SQLModel, table=True):
     pinned: bool = False  # content freeze: source updates are ignored (F22.03)
     created_at: datetime = Field(default_factory=utcnow, sa_column=_dt())
     updated_at: datetime = Field(default_factory=utcnow, sa_column=_dt())
+#endregion
+
+
+#region: pending post (F65)
+class PendingPost(SQLModel, table=True):
+    """A raw Instagram post awaiting LLM resolution (F65).
+
+    LLM decide-before-insert sources enqueue posts here instead of the Event
+    table; a background worker transcribes + decides `create`/`modify`/`ignore`
+    and only then writes the Event row. `uid` is the source post id (stable).
+    """
+
+    uid: str = Field(primary_key=True)
+    source_id: int = Field(foreign_key="source.id", index=True)
+    url: str | None = None
+    caption: str | None = None
+    images: str = Field(default="[]")  # JSON array of ImageRef (hosted /images/...)
+    published_at: datetime | None = Field(default=None, sa_column=_dt())  # post publish time (gatherer start_at; F65.02)
+    status: str = "pending"  # pending | processing | created | modified | ignored | failed
+    attempts: int = 0  # transient-failure retry count (F65)
+    transcription: str | None = None
+    decision: str | None = None  # JSON of the last Decision
+    match_event_id: str | None = None  # Event created/modified by this post
+    error: str | None = None  # why this post failed (F65)
+    created_at: datetime = Field(default_factory=utcnow, sa_column=_dt())
+    updated_at: datetime = Field(default_factory=utcnow, sa_column=_dt())
+    processed_at: datetime | None = Field(default=None, sa_column=_dt())
+#endregion
+
+
+#region: hosted image (F18.02)
+class HostedImage(SQLModel, table=True):
+    """URL → hosted-filename memo so re-ingests skip re-downloading (F18.02).
+
+    Keyed by the external image URL (stable for elfsight's content-hashed CDN
+    URLs; churning for Instagram's signed URLs). `last_used_at` drives LRU
+    eviction so the ephemeral Instagram entries fall off while the stable ones
+    (reused every ingest) are retained.
+    """
+
+    url: str = Field(primary_key=True)
+    filename: str                       # /images/<sha>.<ext> basename
+    last_used_at: datetime = Field(default_factory=utcnow, sa_column=_dt(index=True))
 #endregion
