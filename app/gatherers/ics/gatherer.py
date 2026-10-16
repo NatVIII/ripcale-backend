@@ -5,7 +5,7 @@ into the shared `ScrapedEvent` shape. Generic over any RFC 5545 source — no
 Google-specific assumptions.
 """
 # Contract: Gatherer v8 (docs/GATHERER_CONTRACT.md)
-CONTRACT_VERSION = 9
+CONTRACT_VERSION = 10
 PERMANENT = False               # events can be removed at the source
 DECIDE_BEFORE_INSERT = False    # normal sieve → decisionmaker path
 

@@ -2,7 +2,7 @@
 #region: imports
 from datetime import datetime
 
-from app.services.recurrence import last_occurrence, normalize_rrule
+from app.services.recurrence import last_occurrence, normalize_rrule, occurrences
 #endregion
 
 
@@ -78,6 +78,31 @@ def test_normalize_rrule_no_until_passthrough():
 def test_normalize_rrule_idempotent():
     once = normalize_rrule("FREQ=WEEKLY;UNTIL=2024-12-30T04:59:59Z")
     assert normalize_rrule(once) == once
+#endregion
+
+
+#region: occurrences (F66.03)
+def test_occurrences_weekly_utc():
+    start = datetime(2026, 10, 19, 22, 30)  # a Monday, naive UTC
+    assert occurrences("FREQ=WEEKLY;BYDAY=MO", start, None, count=3) == [
+        datetime(2026, 10, 19, 22, 30),
+        datetime(2026, 10, 26, 22, 30),
+        datetime(2026, 11, 2, 22, 30),
+    ]
+
+
+def test_occurrences_preserve_local_time_across_dst():
+    # 18:30 EDT = 22:30 UTC; after DST ends (2026-11-01) it becomes 18:30 EST = 23:30 UTC
+    start = datetime(2026, 10, 26, 22, 30)
+    occs = occurrences("FREQ=WEEKLY;BYDAY=MO", start, "America/New_York", count=2)
+    assert occs[0] == datetime(2026, 10, 26, 22, 30)
+    assert occs[1] == datetime(2026, 11, 2, 23, 30)
+
+
+def test_occurrences_invalid_rule_returns_empty():
+    assert occurrences("garbage", datetime(2026, 10, 19, 22, 30), None) == []
+    assert occurrences(None, datetime(2026, 10, 19, 22, 30), None) == []
+    assert occurrences("FREQ=WEEKLY", None, None) == []
 #endregion
 
 

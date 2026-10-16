@@ -11,7 +11,7 @@ from sqlalchemy import event, func
 from sqlmodel import Session, SQLModel, create_engine, delete, select
 
 from app.config import settings
-from app.models import Event, LoginSession, PendingPost, Source
+from app.models import Approval, Event, LoginSession, PendingPost, Source
 #endregion
 
 
@@ -67,6 +67,8 @@ def _migrate() -> None:
             conn.exec_driver_sql("ALTER TABLE event ADD COLUMN archived_reason VARCHAR")
         if "pinned" not in columns:
             conn.exec_driver_sql("ALTER TABLE event ADD COLUMN pinned BOOLEAN NOT NULL DEFAULT 0")
+        if "placeholder" not in columns:
+            conn.exec_driver_sql("ALTER TABLE event ADD COLUMN placeholder BOOLEAN NOT NULL DEFAULT 0")
         conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_event_archived_at ON event (archived_at)")
 
         has_source = conn.exec_driver_sql(
@@ -103,6 +105,7 @@ def wipe_db() -> tuple[int, int]:
         session.exec(delete(PendingPost))  # child of Source (F65) — delete before its parent
         session.exec(delete(Source))
         session.exec(delete(LoginSession))
+        session.exec(delete(Approval))  # proposals reference sources by name — clear on wipe
         session.commit()
     return events, sources
 #endregion

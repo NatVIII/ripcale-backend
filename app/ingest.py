@@ -29,6 +29,7 @@ from app.schema import CategoryRule, GathererResult, SieveResult, SourceConfig
 from app.services import lock
 from app.services.images import host_images
 from app.services.pending import enqueue as enqueue_posts
+from app.services.placeholders import materialize as materialize_placeholders
 from app.services.status import record_run, record_status
 from app.services.archive import archive as archive_service
 from app.sieve import classify
@@ -208,6 +209,9 @@ def _run_locked(dry_run: bool = False) -> tuple[list[SieveResult], list[dict]]:
                             "removed": report["removed"] if report else None,
                         }
                     )
+                if cfg.recurrences and not dry_run:
+                    source = _ensure_source(session, cfg)
+                    materialize_placeholders(session, source, cfg)
             except Exception as exc:
                 logger.exception("source %r failed", cfg.name)
                 session.rollback()

@@ -1,6 +1,6 @@
 # Gatherer Contract
 
-Version: 9
+Version: 10
 
 The contract between a **Gatherer** (a gatherer in `app/gatherers/*/gatherer.py`)
 and the rest of the pipeline (**Sieve → Decisionmaker → storage → API/ICS**).
@@ -37,6 +37,7 @@ Every source uses the same fields:
 | `default_location` | Optional fallback applied to events whose `location` is missing/blank. |
 | `rules` | Categorization heuristics applied to every event from this source (see `docs/CATEGORIZE_CONTRACT.md`). |
 | `llm_context` | Optional free-text standing guidance fed to the LLM decide stage (F65) — e.g. "rides every Monday at 6:30 PM ET". Not read by gatherers. |
+| `recurrences` | Optional list of `RecurrenceConfig` (`{title, rrule, start_at, timezone?, location?, description?}`) — declarative recurring-placeholder series materialized by the pipeline (F66). Not read by gatherers. |
 
 ### Per-gatherer defaults (`GathererConfig`)
 

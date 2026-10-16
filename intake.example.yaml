@@ -72,6 +72,12 @@ sources:
   #   llm_context: >                 # optional — standing guidance for the LLM
   #     Group rides every Monday at 6:30 PM Eastern unless the post says otherwise.
   #     Assume an unspecified "ride" is the next Monday at 6:30 PM ET.
+  #   recurrences:                    # optional — declarative recurring placeholder
+  #     - title: "Recess4Eva Group Ride"  # series (F66): materialized as a recurring
+  #       rrule: "FREQ=WEEKLY;BYDAY=MO"   # placeholder event, overwritten per-occurrence
+  #       start_at: "2026-10-19T18:30:00-04:00"  # by the LLM when real details come out
+  #       timezone: "America/New_York"
+  #       # location / description: optional
 
 # ---------------------------------------------------------------------------
 # Category system

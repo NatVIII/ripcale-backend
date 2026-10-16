@@ -1,3 +1,49 @@
+## 2026-10-15 16:00:00 [AI]
+
+F66.06: live-tested the recurrence pipeline against Recess4Eva (Mondays 6pm ET) and fixed what broke.
+
+- Added a real `recurrences:` declaration for Recess4Eva; the placeholder master materialized and the LLM overrode each weekly ride correctly.
+- Fixed three bugs surfaced by the live run: (1) `apply_decision`'s `create` path now overwrites an existing event with the same `stable_id` (was `UNIQUE constraint failed` on re-process); (2) a `modify` targeting a recurring master without `recurrence_id` is rejected instead of mutating the master; (3) `occurrences()` gained a `since` arg and `current_events()` now anchors each series' shown occurrences to the **post's publish date** (was "now"), which is what let the LLM map each ride to its correct Monday.
+- Prompt: "copy recurrence_id verbatim … choose the occurrence matching the post's date"; `_is_occurrence` widened to 400 occurrences.
+- Result: 8/9 posts became occurrence overrides sharing the master's `uid` (correct Monday + real title); the 9th (a non-weekly camping trip) became a separate event. 454 passing.
+
+## 2026-10-15 15:00:00 [AI]
+
+F66.05: recurrence enforcement — the LLM is constrained to actual occurrences.
+
+- `app/services/recurrence.py::occurrences()` expands a rule's next N DTSTARTs (naive UTC, DST-aware via the series' IANA zone).
+- `current_events()` now includes each recurring series' concrete `occurrences` (next 6), and the prompt instructs the LLM to copy `recurrence_id` **verbatim** from that list.
+- `apply_decision` validates: a `modify`/`delete` `recurrence_id` that isn't a real occurrence of the master is rejected (`post.status="failed"` with a clear error) instead of writing a broken override/exdate.
+- Removed F66.04 (Telegram bot) — will be one large chop later (F36). Tests: weekly expansion + DST preservation + rejection. 452 passing.
+
+## 2026-10-15 14:00:00 [AI]
+
+F66.03: LLM recurrence decisions (propose/override/cancel) wired into the approval loop.
+
+- Decision vocabulary expanded to `create | modify | delete | ignore | add_recurrence | remove_recurrence`; `EventFields` unchanged, `Decision` gains `recurrence` (RecurrenceFields) + `recurrence_id` (occurrence DTSTART).
+- `apply_decision`: `delete` archives an event (`archived_reason="cancelled"`) or appends an `exdate` for one occurrence; `modify`+`recurrence_id` creates/updates an occurrence override sharing the master's `uid`; `add_recurrence`/`remove_recurrence` validate and enqueue an `Approval` proposal (`post.status="proposed"`).
+- `current_events()` now returns `rrule`/`recurrence_id`/`placeholder`; new `current_recurrences()` feeds the LLM the declared series; prompt teaches all six actions + RFC 5545 `rrule` examples.
+- Approve→apply: `placeholders.py` registers `recurrence_add`/`recurrence_remove` appliers that mutate `intake.yaml` (via the `IntakeSettings` model) and re-materialize.
+- Tests: delete/override/exdate/proposal/reject-invalid/current-recurrences + applier end-to-end. 447 passing.
+
+## 2026-10-15 13:00:00 [AI]
+
+F66.02: declarative recurring placeholders (schedule-derived events).
+
+- `RecurrenceConfig` (`{title, rrule, start_at, timezone?, location?, description?}`) + `SourceConfig.recurrences` (contract v9→v10); documented in `intake.example.yaml`.
+- `app/services/placeholders.py::materialize(session, source, cfg)` upserts a pinned, recurring placeholder `Event` (`placeholder=True`, `rrule`, synthetic `uid = sha256(source+title+rrule+start_at)`) per declaration, **un-archives** on re-declare, and **soft-archives** a master + its occurrence overrides when a declaration is removed ("nix the line → nix the series").
+- `Event.placeholder` column (migration) + exposed as `extendedProps.placeholder` in `serializers.to_fullcalendar`.
+- Wired into `ingest._run_locked()` (runs for any source with `recurrences`, after the normal/enqueue step). Tests: create/idempotent/archive/un-archive/uid-stability + migration + contract. 437 passing.
+
+## 2026-10-15 12:00:00 [AI]
+
+F66.01: approval queue (generic, API-first) for LLM-proposed changes.
+
+- `Approval` model (id, kind, source_name, payload JSON, reason, status pending/approved/rejected, timestamps) + `app/services/approvals.py` (`create`/`list_approvals`/`approve`/`reject`) with a `kind → applier` registry so `approve` dispatches to kind-specific apply logic (recurrences register in F66.03).
+- API-first surfaces: `GET /api/v1/approvals` (+ `?status=`), `POST /api/v1/approvals/:id/approve|reject`, and a `/debug/approvals` page (IP+CSRF) — the same endpoints a Telegram bot (F66.04) will drive.
+- `approve` runs the applier in the same transaction as the status change (rolls back to `pending` on failure); `wipe_db` clears proposals.
+- Tests: create/list/filter, dispatch, rollback-on-error, idempotence, debug-route. 432 passing.
+
 ## 2026-10-15 11:00:00 [AI]
 
 F18.02: skip re-downloading already-hosted images (URL→filename memo).

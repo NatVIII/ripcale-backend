@@ -6,7 +6,7 @@ posts are enqueued (not inserted) and the LLM decides create/modify/ignore. The
 gatherer's capabilities are declared here (not in config).
 """
 # Contract: Gatherer v8 (docs/GATHERER_CONTRACT.md)
-CONTRACT_VERSION = 9
+CONTRACT_VERSION = 10
 PERMANENT = True                # posts never "removed at source", only expire
 DECIDE_BEFORE_INSERT = True     # enqueue posts for LLM resolution (F65)
 

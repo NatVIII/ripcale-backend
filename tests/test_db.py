@@ -71,6 +71,7 @@ def test_migrate_adds_archived_columns(tmp_path, monkeypatch):
     assert "archived_at" in columns
     assert "archived_reason" in columns
     assert "pinned" in columns
+    assert "placeholder" in columns
 
     # idempotent — running again is a no-op
     db_mod._migrate()
@@ -79,6 +80,7 @@ def test_migrate_adds_archived_columns(tmp_path, monkeypatch):
     assert "archived_at" in columns
     assert "archived_reason" in columns
     assert "pinned" in columns
+    assert "placeholder" in columns
 
 
 def test_migrate_adds_published_at(tmp_path, monkeypatch):

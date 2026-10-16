@@ -23,6 +23,7 @@ from app.registry import load_gatherer, load_sources
 from app.schema import CategoryRule, ImageRef, SourceConfig, dump_exdates, dump_images
 from app.serializers import to_fullcalendar
 from app.services import stats
+from app.services import approvals
 from app.services import archive as archive_mod
 from app.services.archive import DEFAULT_ARCHIVE_LIMIT
 from app.services.coherence import check as coherence_check
@@ -353,6 +354,22 @@ def wipe_confirm(challenge: str) -> dict:
     result = wipe_all()
     _pending_wipes.pop(challenge, None)
     return result
+
+
+def approvals_list(status: str | None = None) -> list:
+    return approvals.list_approvals(status=status)
+
+
+def approval_approve(approval_id: str | None) -> bool:
+    if not approvals.approve((approval_id or "").strip()):
+        raise ActionError("approval not found or not pending", 404)
+    return True
+
+
+def approval_reject(approval_id: str | None) -> bool:
+    if not approvals.reject((approval_id or "").strip()):
+        raise ActionError("approval not found or not pending", 404)
+    return True
 
 
 def tests_list() -> list:

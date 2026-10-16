@@ -6,7 +6,7 @@ resolves the eventType/location ID lookups, and maps each event into a
 `ScrapedEvent`.
 """
 # Contract: Gatherer v8 (docs/GATHERER_CONTRACT.md)
-CONTRACT_VERSION = 9
+CONTRACT_VERSION = 10
 PERMANENT = False               # events can be removed at the source
 DECIDE_BEFORE_INSERT = False    # normal sieve → decisionmaker path
 

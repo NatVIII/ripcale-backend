@@ -48,7 +48,7 @@ Key files:
 - `app/config.py` — `Settings` (system `config.yaml` + `.env`; `config.yaml` > env > dotenv > defaults; `.env` = auth/secrets only).
 - `app/intake.py` — `IntakeSettings` + `load()`/`save()` for the mutable `intake.yaml` (sources, gatherers, category symlinks).
 - `app/logging.py` — `setup_logging()` (console + rotating `data/ripcale.log`, idempotent) + `read_log_tail()` (constant-time backward tail for `/debug/logs`).
-- `app/models.py` — `Source`, `Event`, `User`, `LoginSession`, `ApiToken` (SQLModel).
+- `app/models.py` — `Source`, `Event`, `User`, `LoginSession`, `ApiToken`, `PendingPost`, `HostedImage`, `Approval` (SQLModel).
 - `app/db.py` — `engine`, `init_db()`, `wipe_db()` (delete Event/PendingPost→Source + clear sessions; preserve User + ApiToken), WAL + foreign-key pragmas.
 - `app/schema.py` — pipeline contracts (`SourceConfig`, `ScrapedEvent`,
   `ImageRef`, `GathererResult`, `CategoryRule`, `ClassifiedEvent`, `SieveResult`) + `dump_images()`/`load_images()`.
@@ -201,14 +201,37 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   (`app/services/llm_worker.py`, gated by `llm_enabled` + `deepseek_key`) resolves
   each pending post via `app/services/llm.py`: Stage A transcribes the flyer
   image(s) + caption with `deepseek-flash` (vision, non-thinking), Stage B decides
-  `create`/`modify`/`ignore` (JSON mode, per-source calendar context) with
-  categories constrained to the exposed vocabulary, then applies the result.
+  `create`/`modify`/`delete`/`ignore`/`add_recurrence`/`remove_recurrence` (JSON
+  mode, per-source calendar context + declared recurrences) with categories
+  constrained to the exposed vocabulary, then applies the result.
   Accepted events are `pinned=True`. Failures: transient (429/5xx) retry up to
   `llm_max_attempts`; permanent/malformed mark the post `failed` with an `error`;
   stuck `processing` posts reset to `pending` after `llm_stale_processing_seconds`.
   `deepseek` client is `app/services/deepseek.py`. Observability: `/debug/llm`,
   `/api/v1/llm/status`, `/api/v1/llm/queue`, `POST /api/v1/llm/process`; missing
   keys/`llm_enabled=false` surface as coherence warnings.
+- **Approval queue (F66)** — human-reviewed, LLM-proposed changes flow through a
+  generic `Approval` table + `app/services/approvals.py` (`create`/`list`/
+  `approve`/`reject`; `approve` dispatches to a `kind → applier` registry). It's
+  API-first: `GET /api/v1/approvals`, `POST /api/v1/approvals/:id/approve|reject`,
+  plus `/debug/approvals` — so the same loop can later be driven by a Telegram
+  bot (F66.04) via the JSON API. Proposals are cleared by `wipe_db`.
+- **Declarative recurring placeholders (F66.02)** — `sources[].recurrences`
+  (`RecurrenceConfig`: title/rrule/start_at/timezone/location/description) is
+  the source of truth for schedule-driven events. `app/services/placeholders.py::
+  materialize()` (wired into ingest) upserts a pinned `placeholder=True` recurring
+  master per declaration, un-archives on re-declare, and soft-archives a master +
+  its overrides when the line is removed. `placeholder` is exposed in the event
+  JSON for the frontend.
+- **LLM recurrence decisions (F66.03 + F66.05)** — the LLM can `delete` (archive an
+  event, or `exdate` one occurrence) and `modify` a specific occurrence of a recurring
+  master via `recurrence_id` (creating an override that shares the master's `uid`).
+  `add_recurrence`/`remove_recurrence` are **proposals**: `apply_decision` enqueues
+  an `Approval`; on approval, `placeholders.py` appliers mutate `intake.yaml` and
+  re-materialize. Enforcement (F66.05): `current_events()` feeds each series'
+  concrete `occurrences` and the LLM must copy `recurrence_id` verbatim; a
+  `recurrence_id` that isn't a real occurrence is rejected (post fails) rather than
+  writing a broken override.
 - **Gatherer capabilities are intrinsic** — `PERMANENT` / `DECIDE_BEFORE_INSERT`
   are declared as constants on the gatherer module (beside `CONTRACT_VERSION`),
   read via `registry.gatherer_permanent()` / `gatherer_decide_before_insert()` —

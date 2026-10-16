@@ -155,6 +155,11 @@ def register(app) -> None:
     def api_coherence(request):
         return _ok(actions.coherence())
 
+    @app.get(f"{prefix}/approvals")
+    @_route
+    def api_approvals(request):
+        return _ok(actions.approvals_list(_q(request, "status")))
+
     @app.get(f"{prefix}/logs")
     @_route
     def api_logs(request):
@@ -198,6 +203,18 @@ def register(app) -> None:
     def api_archived_restore(request):
         event_id = request.path_params.get("id", None)
         return _ok({"restored": actions.restore(event_id)})
+
+    @app.post(f"{prefix}/approvals/:id/approve")
+    @_route
+    def api_approvals_approve(request):
+        approval_id = request.path_params.get("id", None)
+        return _ok({"approved": actions.approval_approve(approval_id)})
+
+    @app.post(f"{prefix}/approvals/:id/reject")
+    @_route
+    def api_approvals_reject(request):
+        approval_id = request.path_params.get("id", None)
+        return _ok({"rejected": actions.approval_reject(approval_id)})
 
     @app.post(f"{prefix}/events/:id/pin")
     @_route

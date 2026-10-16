@@ -108,6 +108,7 @@ class Event(SQLModel, table=True):
     archived_at: datetime | None = Field(default=None, sa_column=_dt(index=True))  # soft-deleted (F22)
     archived_reason: str | None = None  # "expired" | "removed" (F22.01)
     pinned: bool = False  # content freeze: source updates are ignored (F22.03)
+    placeholder: bool = False  # schedule-derived tentative event awaiting real details (F66)
     created_at: datetime = Field(default_factory=utcnow, sa_column=_dt())
     updated_at: datetime = Field(default_factory=utcnow, sa_column=_dt())
 #endregion
@@ -153,4 +154,25 @@ class HostedImage(SQLModel, table=True):
     url: str = Field(primary_key=True)
     filename: str                       # /images/<sha>.<ext> basename
     last_used_at: datetime = Field(default_factory=utcnow, sa_column=_dt(index=True))
+#endregion
+
+
+#region: approval (F66)
+class Approval(SQLModel, table=True):
+    """A pending LLM-proposed change awaiting human approval (F66).
+
+    Generic and API-first: the same approve/reject loop is driven by a debug
+    page today and (later) a Telegram bot via the JSON API. `kind` selects the
+    apply behaviour on approval; `payload` holds the proposed change as JSON.
+    """
+
+    id: str = Field(primary_key=True)
+    kind: str = Field(index=True)            # e.g. "recurrence_add" | "recurrence_remove"
+    source_name: str = ""                    # the source this proposal targets
+    payload: str = Field(default="{}")       # JSON of the proposed change
+    reason: str = ""                         # LLM's justification
+    status: str = Field(default="pending", index=True)  # pending | approved | rejected
+    created_at: datetime = Field(default_factory=utcnow, sa_column=_dt())
+    updated_at: datetime = Field(default_factory=utcnow, sa_column=_dt())
+    resolved_at: datetime | None = Field(default=None, sa_column=_dt())
 #endregion

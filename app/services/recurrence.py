@@ -10,6 +10,8 @@ from datetime import date, datetime, time, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from dateutil.rrule import rrulestr
+
+from app.timeutil import to_utc_naive
 #endregion
 
 
@@ -120,4 +122,37 @@ def last_occurrence(rrule_str: str | None, start_at: datetime | None) -> datetim
     if isinstance(last, date):  # all-day UNTIL may come back as a date
         return datetime.combine(last, time.min)
     return None
+#endregion
+
+
+#region: occurrence expansion
+def occurrences(rrule_str: str | None, start_at: datetime | None, timezone_name: str | None, count: int = 200, since: datetime | None = None) -> list[datetime]:
+    """Return up to `count` occurrence DTSTARTs (naive UTC) for a recurring rule.
+
+    `start_at` is the naive-UTC first occurrence; `timezone_name` is the IANA zone
+    the rule is interpreted in (wall-clock recurrence). `since` (naive UTC) skips
+    occurrences earlier than it. Returns `[]` on any parse/expansion failure.
+    """
+    if not rrule_str or start_at is None:
+        return []
+    tz = timezone.utc
+    if timezone_name:
+        try:
+            tz = ZoneInfo(timezone_name)
+        except (ZoneInfoNotFoundError, ValueError):
+            tz = timezone.utc
+    try:
+        dtstart = start_at.replace(tzinfo=timezone.utc).astimezone(tz)
+        rule = rrulestr(_normalize_until(rrule_str), dtstart=dtstart)
+        out: list[datetime] = []
+        for occ in rule:
+            utc = to_utc_naive(occ)
+            if since is not None and utc < since:
+                continue
+            out.append(utc)
+            if len(out) >= count:
+                break
+        return out
+    except Exception:  # noqa: BLE001 — unparseable/bogus rule → no occurrences
+        return []
 #endregion

@@ -45,6 +45,19 @@ class CategoryRule(BaseModel):
 
 
 #region: source config
+class RecurrenceConfig(BaseModel):
+    """A declarative recurring-placeholder series (F66): the source of truth for
+    schedule-driven events, editable by a person or (via approval) the LLM.
+    """
+
+    title: str
+    rrule: str                  # RFC 5545 RRULE value (e.g. "FREQ=WEEKLY;BYDAY=MO")
+    start_at: str               # ISO 8601 first occurrence (with offset/Z, or naive + timezone)
+    timezone: str | None = None  # IANA zone
+    location: str | None = None
+    description: str | None = None
+
+
 class SourceConfig(BaseModel):
     """One configured source (parsed from `intake.yaml`)."""
 
@@ -57,6 +70,7 @@ class SourceConfig(BaseModel):
     default_location: str | None = None  # optional fallback for missing/blank locations
     rules: list[CategoryRule] = Field(default_factory=list)  # categorization heuristics (F50)
     llm_context: str | None = None  # standing guidance fed to the LLM decide stage (F65)
+    recurrences: list[RecurrenceConfig] = Field(default_factory=list)  # placeholder series (F66)
 #endregion
 
 
