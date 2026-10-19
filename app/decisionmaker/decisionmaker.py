@@ -9,10 +9,13 @@ priority) will live.
 CONTRACT_VERSION = 1
 
 #region: imports
+import json
+from uuid import uuid4
+
 from sqlalchemy import or_
 from sqlmodel import Session, select
 
-from app.models import Event, Source, utcnow
+from app.models import Event, EventConflict, Source, utcnow
 from app.registry import gatherer_permanent
 from app.schema import ClassifiedEvent, SieveResult, dump_exdates, dump_images
 from app.services.clock import now as clock_now
@@ -47,6 +50,23 @@ def _new_event(source_id: int, classified: ClassifiedEvent, run_ts) -> Event:
         content_hash=classified.content_hash,
         last_seen_at=run_ts,
     )
+
+
+def _upsert_conflict(session: Session, event_id: str, classified: ClassifiedEvent) -> None:
+    """Create (or refresh) the pending conflict row for a pinned-but-changed event (F68)."""
+    incoming = json.dumps(classified.event.model_dump(mode="json", exclude={"raw"}))
+    changed = json.dumps(classified.changed_fields)
+    row = session.exec(
+        select(EventConflict).where(EventConflict.event_id == event_id, EventConflict.status == "pending")
+    ).first()
+    if row is None:
+        session.add(
+            EventConflict(id=uuid4().hex, event_id=event_id, incoming=incoming, changed_fields=changed)
+        )
+    else:
+        row.incoming = incoming
+        row.changed_fields = changed
+        row.updated_at = utcnow()
 
 
 def _apply_update(existing: Event, classified: ClassifiedEvent, run_ts) -> None:
@@ -101,6 +121,13 @@ def apply(session: Session, source: Source, sieved: SieveResult) -> dict:
         rows = session.exec(select(Event).where(Event.id.in_(sieved.unchanged_ids))).all()
         for row in rows:
             row.last_seen_at = run_ts
+
+    # Pinned-but-changed events become conflicts (F68) — stamp + persist for review.
+    for classified in sieved.conflicts:
+        stored = session.get(Event, classified.id)
+        if stored is not None:
+            stored.last_seen_at = run_ts
+            _upsert_conflict(session, stored.id, classified)
 
     # Mark the source as fetched at this run's timestamp (shared with last_seen_at).
     source.last_fetched_at = run_ts

@@ -4,7 +4,7 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from app.models import Event, Source
 from app.serializers import to_fullcalendar
-from app.services.events import DEFAULT_LIMIT, get_event, query_events
+from app.services.events import DEFAULT_LIMIT, get_event, query_events, redirect_links
 from app.timeutil import parse_iso_utc
 
 
@@ -200,6 +200,49 @@ def test_get_event_hides_archived(tmp_path):
     with Session(engine) as session:
         assert get_event(session, "live") is not None
         assert get_event(session, "dead") is None
+
+
+def test_query_events_excludes_redirects(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'redir.db'}")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        src = Source(name="S", url="https://x")
+        session.add(src)
+        session.commit()
+        session.refresh(src)
+        session.add(_make_event(id="winner", source_id=src.id, title="Winner"))
+        session.add(_make_event(id="loser", source_id=src.id, title="Loser", redirect_to_id="winner"))
+        session.commit()
+
+    with Session(engine) as session:
+        assert {e.id for e in query_events(session)} == {"winner", "loser"}
+        assert {e.id for e in query_events(session, exclude_redirects=True)} == {"winner"}
+
+
+def test_redirect_links(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'links.db'}")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        src = Source(name="S", url="https://x")
+        session.add(src)
+        session.commit()
+        session.refresh(src)
+        session.add(_make_event(id="winner", source_id=src.id, title="Winner"))
+        session.add(_make_event(id="l1", source_id=src.id, title="L1", url="https://l1", redirect_to_id="winner"))
+        session.add(_make_event(id="l2", source_id=src.id, title="L2", url="https://l2", redirect_to_id="winner"))
+        session.commit()
+
+        winner = session.get(Event, "winner")
+        links = redirect_links(session, [winner])
+
+    assert {l["url"] for l in links["winner"]} == {"https://l1", "https://l2"}
+    assert all(l["source"] == "S" for l in links["winner"])
+
+
+def test_to_fullcalendar_redirect_to():
+    e = _make_event(redirect_to_id="other")
+    out = to_fullcalendar(e)
+    assert out["extendedProps"]["redirect_to"] == "other"
 
 
 def test_events_serves_server_time_header(tmp_path, monkeypatch):

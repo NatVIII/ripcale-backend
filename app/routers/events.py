@@ -12,7 +12,7 @@ from sqlmodel import Session
 from app.db import engine
 from app.serializers import to_fullcalendar
 from app.services.clock import now as clock_now
-from app.services.events import DEFAULT_LIMIT, get_event, query_events, source_names
+from app.services.events import DEFAULT_LIMIT, get_event, query_events, redirect_links, source_names
 from app.timeutil import parse_iso_utc
 #endregion
 
@@ -59,9 +59,15 @@ def register(app) -> None:
         category = _unquote(q.get("category", None))
         limit = _int_or(q.get("limit", None), DEFAULT_LIMIT)
         with Session(engine) as session:
-            events = query_events(session, start, end, category, limit)
+            events = query_events(session, start, end, category, limit, exclude_redirects=True)
             names = source_names(session, events)
-            payload = [to_fullcalendar(e, names.get(e.source_id)) for e in events]
+            links = redirect_links(session, events)
+            payload = []
+            for event in events:
+                fc = to_fullcalendar(event, names.get(event.source_id))
+                if links.get(event.id):
+                    fc["extendedProps"]["alternate_links"] = links[event.id]
+                payload.append(fc)
         return _json(payload)
 
     @app.get("/events/:id")

@@ -27,13 +27,19 @@ def query_events(
     end: datetime | None = None,
     category: str | None = None,
     limit: int | None = DEFAULT_LIMIT,
+    *,
+    exclude_redirects: bool = False,
 ) -> list[Event]:
     """List events, optionally filtered by date overlap, category, and limit.
 
     Ordered by `start_at` descending (furthest in the future first); events with
-    a NULL `start_at` sort last. `limit=None`/`0` means no limit.
+    a NULL `start_at` sort last. `limit=None`/`0` means no limit. When
+    `exclude_redirects` is set, redirect-losers (`redirect_to_id` set) are
+    omitted so consumers see only canonical events (F67).
     """
     stmt = select(Event).where(Event.archived_at.is_(None))
+    if exclude_redirects:
+        stmt = stmt.where(Event.redirect_to_id.is_(None))
     if start is not None:
         stmt = stmt.where(func.coalesce(Event.end_at, Event.start_at) >= start)
     if end is not None:
@@ -46,6 +52,21 @@ def query_events(
     if limit:
         events = events[:limit]
     return events
+
+
+def redirect_links(session: Session, events: list[Event]) -> dict[str, list[dict]]:
+    """Map winner event id → [{url, source}] for redirect-losers pointing at it (F67)."""
+    winner_ids = [e.id for e in events]
+    if not winner_ids:
+        return {}
+    losers = session.exec(select(Event).where(Event.redirect_to_id.in_(winner_ids))).all()
+    names = source_names(session, losers)
+    result: dict[str, list[dict]] = {}
+    for loser in losers:
+        result.setdefault(loser.redirect_to_id, []).append(
+            {"url": loser.url, "source": names.get(loser.source_id)}
+        )
+    return result
 
 
 def get_event(session: Session, event_id: str) -> Event | None:

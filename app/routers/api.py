@@ -116,6 +116,11 @@ def register(app) -> None:
     def api_llm_queue(request):
         return _ok(actions.llm_queue(_q_int(request, "limit", 100)))
 
+    @app.get(f"{prefix}/overseer/status")
+    @_route
+    def api_overseer_status(request):
+        return _ok(actions.overseer_status())
+
     @app.get(f"{prefix}/categories")
     @_route
     def api_categories(request):
@@ -160,6 +165,11 @@ def register(app) -> None:
     def api_approvals(request):
         return _ok(actions.approvals_list(_q(request, "status")))
 
+    @app.get(f"{prefix}/conflicts")
+    @_route
+    def api_conflicts(request):
+        return _ok(actions.conflicts_list(_q(request, "status")))
+
     @app.get(f"{prefix}/logs")
     @_route
     def api_logs(request):
@@ -181,6 +191,11 @@ def register(app) -> None:
     @_route
     def api_llm_process(request):
         return _ok(actions.llm_process_now())
+
+    @app.post(f"{prefix}/overseer/run")
+    @_route
+    def api_overseer_run(request):
+        return _ok(actions.overseer_run())
 
     @app.post(f"{prefix}/retag")
     @_route
@@ -215,6 +230,13 @@ def register(app) -> None:
     def api_approvals_reject(request):
         approval_id = request.path_params.get("id", None)
         return _ok({"rejected": actions.approval_reject(approval_id)})
+
+    @app.post(f"{prefix}/conflicts/:id/resolve")
+    @_route
+    def api_conflicts_resolve(request):
+        conflict_id = request.path_params.get("id", None)
+        action = (json_body(request).get("action") or "").strip()
+        return _ok({"resolved": actions.conflict_resolve(conflict_id, action)})
 
     @app.post(f"{prefix}/events/:id/pin")
     @_route

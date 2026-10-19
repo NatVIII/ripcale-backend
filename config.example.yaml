@@ -81,6 +81,13 @@ ingest_startup_delay_minutes: 3
 # llm_max_images: 2              # max images sent to the vision model per post
 # llm_stale_processing_seconds: 600  # reset a stuck 'processing' post back to 'pending'
 
+# Overseer (F67) — cross-source duplicate/conflict detection worker.
+# overseer_enabled: false        # master on/off for the overseer worker
+# overseer_interval_seconds: 300 # how often the worker scans for candidates
+# overseer_max_per_tick: 5       # candidate pairs per tick (cost guard)
+# overseer_window_days: 14       # how far ahead to scan (events starting within this many days)
+# overseer_similarity_threshold: 0.5  # normalized-title similarity floor (0.0–1.0)
+
 # Intake settings (sources, per-gatherer defaults, category symlinks) live in a
 # SEPARATE file — `intake.yaml` — so the program can edit them (via the admin
 # menu) without touching this hand-edited system config. See `intake.example.yaml`.

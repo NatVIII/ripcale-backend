@@ -139,6 +139,7 @@ class SieveResult(BaseModel):
     unchanged: int = 0
     unchanged_ids: list[str] = Field(default_factory=list)  # ids of unchanged events (for last_seen_at)
     archived_ids: list[str] = Field(default_factory=list)  # ids of archived events (skipped; F59.01)
+    conflicts: list[ClassifiedEvent] = Field(default_factory=list)  # pinned events whose source changed (F68)
     dropped: int = 0  # events removed by the relevance/expiry filter (F13)
 #endregion
 

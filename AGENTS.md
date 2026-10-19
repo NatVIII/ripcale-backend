@@ -216,6 +216,23 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   API-first: `GET /api/v1/approvals`, `POST /api/v1/approvals/:id/approve|reject`,
   plus `/debug/approvals` — so the same loop can later be driven by a Telegram
   bot (F66.04) via the JSON API. Proposals are cleared by `wipe_db`.
+- **Overseer (F67)** — a background worker (`app/services/overseer_worker.py`,
+  gated by `overseer_enabled` + `deepseek_key`) scans for cross-source duplicate
+  candidates (`app/services/overseer.py::find_candidate_pairs` — time-proximate,
+  title-similar, different sources, pairwise only) and `decide_pair()` asks
+  `deepseek-flash` `{same, canonical_id, enrich, reason}` (validated: winner
+  coerced into the pair, enrich keys limited to title/description/location/url/
+  timezone). `same` decisions become `event_merge` approval proposals (deduped);
+  on approve the winner is enriched (gaps only) + pinned and the loser is
+  redirected (`redirect_to_id`). The public read path (`/events`, `/feed.ics`)
+  excludes redirect-losers and attaches `alternate_links` to winners. Observability:
+  `GET /api/v1/overseer/status`, `POST /api/v1/overseer/run`, `/debug/overseer`.
+- **Pinned-change conflicts (F68)** — a `pinned` event whose source content
+  changed is no longer silently ignored: the sieve buckets it into
+  `SieveResult.conflicts` (Sieve v6) and the decisionmaker persists an
+  `EventConflict`. A human resolves each via `ignore` / `apply` / `syncretize`
+  (`deepseek-flash` merge) at `/debug/conflicts` or `POST /api/v1/conflicts/:id/resolve`.
+  Gatherer-agnostic.
 - **Declarative recurring placeholders (F66.02)** — `sources[].recurrences`
   (`RecurrenceConfig`: title/rrule/start_at/timezone/location/description) is
   the source of truth for schedule-driven events. `app/services/placeholders.py::
@@ -416,6 +433,7 @@ System fields in `config.yaml`:
 - `hikerapi_key` — HikerAPI access key for the Instagram gatherer (F21); empty = gatherer raises. Lives in `.env` as `RIPCALE_HIKERAPI_KEY`.
 - `deepseek_key` — DeepSeek API key for the LLM event pipeline (F65); `llm_enabled` gates it. Lives in `.env` as `RIPCALE_DEEPSEEK_KEY`.
 - LLM tunables (F65, in `config.yaml`): `deepseek_model` (default `deepseek-flash`), `llm_enabled`, `llm_interval_seconds`, `llm_max_per_tick`, `llm_context_events`, `llm_max_attempts`, `llm_max_images`, `llm_stale_processing_seconds`.
+- Overseer tunables (F67, in `config.yaml`): `overseer_enabled`, `overseer_interval_seconds`, `overseer_max_per_tick`, `overseer_window_days`, `overseer_similarity_threshold`.
 
 (API tokens are **per-user**, minted in the DB via `python -m app.auth token create <username>` — not an env var.)
 

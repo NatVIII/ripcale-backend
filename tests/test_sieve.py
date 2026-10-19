@@ -248,8 +248,8 @@ def test_relevance_disabled_is_pass_through(tmp_path, monkeypatch):
 #endregion
 
 
-#region: pin (F22.03)
-def test_pinned_event_stays_unchanged(tmp_path):
+#region: pin (F22.03) + conflict (F68)
+def test_pinned_event_source_change_becomes_conflict(tmp_path):
     engine, source_id = _setup(tmp_path)
     cfg = SourceConfig(name="Test", gatherer="elfsight", url="https://x")
 
@@ -266,8 +266,9 @@ def test_pinned_event_stays_unchanged(tmp_path):
     with Session(engine) as session:
         sieved = classify(session, incoming, now=NOW)
 
-    assert sieved.unchanged == 1
-    assert len(sieved.updated) == 0
+    assert sieved.unchanged == 0
+    assert len(sieved.conflicts) == 1
+    assert sieved.conflicts[0].changed_fields == ["title"]
     assert sieved.unchanged_ids == [stable_id("Test", make_scraped("u1", "One"))]
 #endregion
 

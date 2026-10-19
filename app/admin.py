@@ -20,11 +20,13 @@ from app.routers import api as api_router
 from app.routers import approvals as approvals_router
 from app.routers import archive as archive_router
 from app.routers import auth as auth_router
+from app.routers import conflicts as conflicts_router
 from app.routers import debug as debug_router
 from app.routers import event as event_router
 from app.routers import images as images_router
 from app.routers import images_admin as images_admin_router
 from app.routers import ingest as ingest_router
+from app.routers import overseer as overseer_router
 from app.routers import pipeline as pipeline_router
 from app.routers import retag as retag_router
 from app.routers import tests as tests_router
@@ -76,6 +78,8 @@ tests_router.register(app)     # /debug/tests
 retag_router.register(app)     # /debug/retag
 archive_router.register(app)   # /debug/archive, /debug/archived
 approvals_router.register(app)  # /debug/approvals (F66)
+overseer_router.register(app)   # /debug/overseer (F67)
+conflicts_router.register(app)  # /debug/conflicts (F68)
 event_router.register(app)     # /debug/event/{id}
 images_router.register(app)    # /images/{filename} (image previews on /debug/event)
 images_admin_router.register(app)  # /debug/images (orphan prune)
@@ -90,6 +94,7 @@ def main() -> None:
     from app.services.auth import ensure_admin_user
     from app.services.scheduler import start as start_scheduler
     from app.services.llm_worker import start as start_llm_worker
+    from app.services.overseer_worker import start as start_overseer_worker
 
     if not settings.admin_password_hash:
         logger.warning("admin_password_hash is not set — no admin user; login is unavailable")
@@ -97,6 +102,7 @@ def main() -> None:
         logger.info("created admin user %r", settings.admin_username)
     start_scheduler()
     start_llm_worker()
+    start_overseer_worker()
     _warn_llm_misconfigured()
     # Inside Docker the published port DNATs to the container's eth0, so the
     # app must bind 0.0.0.0; the host publish (127.0.0.1:8082) still restricts

@@ -126,6 +126,13 @@ class Settings(BaseSettings):
     llm_max_images: int = 2
     llm_stale_processing_seconds: int = 600
 
+    # Overseer (F67): cross-source duplicate/conflict detection.
+    overseer_enabled: bool = False
+    overseer_interval_seconds: int = 300
+    overseer_max_per_tick: int = 5
+    overseer_window_days: int = 14        # how far ahead to scan for candidates
+    overseer_similarity_threshold: float = 0.5  # normalized-title similarity floor
+
     @classmethod
     def settings_customise_sources(
         cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings

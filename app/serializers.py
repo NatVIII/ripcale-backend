@@ -36,6 +36,7 @@ def to_fullcalendar(event: Event, source_name: str | None = None) -> dict:
         "exdates": [dt.isoformat() for dt in load_exdates(event.exdates)],
         "recurrence_id": event.recurrence_id.isoformat() if event.recurrence_id else None,
         "placeholder": event.placeholder,
+        "redirect_to": event.redirect_to_id,
     }
     if source_name:
         props["source"] = source_name

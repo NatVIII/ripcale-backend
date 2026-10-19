@@ -33,7 +33,7 @@ def register(app) -> None:
         raw_tag = q.get("tag", None)
         tag = unquote_plus(raw_tag) if raw_tag else None
         with Session(engine) as session:
-            events = query_events(session, category=tag, limit=None)
+            events = query_events(session, category=tag, limit=None, exclude_redirects=True)
             names = source_names(session, events)
             body = events_to_ics(events, names)
         return _ics(body)

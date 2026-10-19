@@ -176,3 +176,23 @@ class Approval(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utcnow, sa_column=_dt())
     resolved_at: datetime | None = Field(default=None, sa_column=_dt())
 #endregion
+
+
+#region: event conflict (F68)
+class EventConflict(SQLModel, table=True):
+    """A pinned event whose source content changed (F68): awaiting a human choice.
+
+    Stores a snapshot of the incoming source content so the human can `ignore`
+    it, `apply` it wholesale, or have a cheap LLM `syncretize` it with the pinned
+    content. Gatherer-agnostic — any pinned event whose source changes.
+    """
+
+    id: str = Field(primary_key=True)
+    event_id: str = Field(index=True)           # the pinned Event
+    incoming: str = Field(default="{}")         # JSON of the incoming ScrapedEvent (excl. raw)
+    changed_fields: str = Field(default="[]")   # JSON list of changed field names
+    status: str = Field(default="pending", index=True)  # pending | ignored | applied | merged
+    created_at: datetime = Field(default_factory=utcnow, sa_column=_dt())
+    updated_at: datetime = Field(default_factory=utcnow, sa_column=_dt())
+    resolved_at: datetime | None = Field(default=None, sa_column=_dt())
+#endregion

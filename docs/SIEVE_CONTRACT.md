@@ -1,6 +1,6 @@
 # Sieve Contract
 
-Version: 5
+Version: 6
 
 The contract between the **Sieve** (`app/sieve/sieve.py`) and the rest of the
 pipeline (Gatherer → Categorize → Sieve → Decisionmaker → storage). This document
@@ -36,6 +36,7 @@ writes.
 | `unchanged` | `int` | Count of events identical to their stored row. |
 | `unchanged_ids` | `list[str]` | Ids of unchanged events (so `apply()` can stamp `last_seen_at`). |
 | `archived_ids` | `list[str]` | Ids of events whose stored row is archived (skipped; F59.01). |
+| `conflicts` | `list[ClassifiedEvent]` | Pinned events whose source content changed (F68) — the incoming event + changed fields, for human review (ignore/apply/syncretize). |
 | `dropped` | `int` | Events removed by the relevance/expiry filter (F13). |
 
 ### `ClassifiedEvent`
@@ -69,6 +70,10 @@ For each incoming event the sieve:
    - **updated** — the stored `Event` exists but has a different `content_hash`;
      `changed_fields` is the subset of mutable fields that differ.
    - **unchanged** — the stored `Event` has the same `content_hash`.
+   - **conflict** (F68) — the stored `Event` is `pinned` and its `content_hash`
+     differs from the incoming one; the event is bucketed into `conflicts` (and
+     still stamped `last_seen_at`), so a human can ignore/apply/syncretize the
+     source change. `changed_fields` is the subset that differs.
 
 ## Mutable fields (`changed_fields`)
 

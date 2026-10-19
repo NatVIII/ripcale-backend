@@ -20,8 +20,8 @@ from app.services.clock import now as clock_now
 
 
 #region: contract
-# Contract: Sieve v5 (docs/SIEVE_CONTRACT.md)
-CONTRACT_VERSION = 5
+# Contract: Sieve v6 (docs/SIEVE_CONTRACT.md)
+CONTRACT_VERSION = 6
 #endregion
 
 
@@ -120,6 +120,7 @@ def classify(session: Session, result: GathererResult, *, now=None) -> SieveResu
     unchanged = 0
     unchanged_ids: list[str] = []
     archived_ids: list[str] = []
+    conflicts: list[ClassifiedEvent] = []
 
     for event, event_id in zip(events, ids):
         old = existing.get(event_id)
@@ -129,9 +130,21 @@ def classify(session: Session, result: GathererResult, *, now=None) -> SieveResu
             # Archived = frozen (F59.01): skip hash/compare, never update or un-archive.
             archived_ids.append(event_id)
         elif old.pinned:
-            # Pinned = content frozen: never report a source change (F22.03).
-            unchanged += 1
-            unchanged_ids.append(event_id)
+            # Pinned = content frozen, but a source change surfaces as a conflict (F68).
+            digest = content_hash(event)
+            if old.content_hash != digest:
+                conflicts.append(
+                    ClassifiedEvent(
+                        id=event_id,
+                        content_hash=digest,
+                        event=event,
+                        changed_fields=_changed_fields(event, old),
+                    )
+                )
+                unchanged_ids.append(event_id)  # still "seen" (not removed-at-source)
+            else:
+                unchanged += 1
+                unchanged_ids.append(event_id)
         else:
             digest = content_hash(event)
             if old.content_hash != digest:
@@ -154,6 +167,7 @@ def classify(session: Session, result: GathererResult, *, now=None) -> SieveResu
         unchanged=unchanged,
         unchanged_ids=unchanged_ids,
         archived_ids=archived_ids,
+        conflicts=conflicts,
         dropped=dropped,
     )
 #endregion

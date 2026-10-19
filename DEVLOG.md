@@ -1,3 +1,44 @@
+## 2026-10-15 19:00:00 [AI]
+
+F68: pinned-change reconciliation (ignore / apply / syncretize).
+
+- The sieve now buckets a **pinned** event whose incoming `content_hash` differs into `SieveResult.conflicts` (Sieve contract v5→v6), still stamping `last_seen_at`; the decisionmaker persists an `EventConflict` (event id + incoming snapshot JSON + changed fields, deduped per pending event).
+- `app/services/conflicts.py`: `list_conflicts` + `resolve(id, action)` — `ignore` (keep pinned), `apply` (overwrite pinned with the incoming content, stay pinned), `syncretize` (`deepseek-flash` merges new facts into the pinned content via `update_event`).
+- Surfaces: `GET /api/v1/conflicts` + `POST /api/v1/conflicts/:id/resolve`, `/debug/conflicts` (three buttons per row), dashboard link. Gatherer-agnostic.
+- Tests: list/ignore/apply/syncretize/invalid + sieve conflict detection + pinned-unchanged. 483 passing.
+
+## 2026-10-15 18:30:00 [AI]
+
+F67.04: overseer observability.
+
+- `GET /api/v1/overseer/status` + `POST /api/v1/overseer/run` (actions `overseer_status`/`overseer_run`), a `/debug/overseer` page (status + run-now + pending `event_merge` proposals, linking to `/debug/approvals`), and a dashboard link. 476 passing. F67 (overseer cross-source dedup) is now complete.
+
+## 2026-10-15 18:00:00 [AI]
+
+F67.03: overseer elevate/redirect + read-path redirect resolution.
+
+- `same=True` decisions → `event_merge` `Approval` proposals (`overseer.propose_merge`, deduped by pending canonical/loser pair); the worker proposes them each tick.
+- Approve applier (`_apply_event_merge`): enrich the winner (only **missing** fields, from title/description/location/url/timezone), pin it, and set the loser's `redirect_to_id`.
+- Read path: `query_events(..., exclude_redirects=True)` hides redirect-losers; `redirect_links()` maps winners → `[{url, source}]`; `/events` now excludes losers and attaches `alternate_links`, `/feed.ics` excludes losers, and `to_fullcalendar` exposes `redirect_to`.
+- Tests: propose/dedupe, end-to-end approve (enrich+pin+redirect), gaps-only enrichment, exclude_redirects, redirect_links, serializer redirect_to. 474 passing.
+
+## 2026-10-15 17:30:00 [AI]
+
+F67.02: overseer pairwise DeepSeek decision.
+
+- `overseer.decide_pair(a, b)` snapshots both events (+ `completeness_score`, source names) and asks `deepseek-flash` (JSON, non-thinking) for `{same, canonical_id, enrich, reason}`; `_validate_decision` coerces `canonical_id` into the pair (falls back to the more complete event) and drops non-enrichable `enrich` keys (title/description/location/url/timezone/categories).
+- `overseer_worker.run_once()` now runs the decision per candidate pair (capped by `overseer_max_per_tick`), tracks a `decisions` count, and is gated on `deepseek_key`; F67.03 will turn `same=True` into approval proposals.
+- Tests: parse/coerce/filter/clear + worker key-gating. 468 passing.
+
+## 2026-10-15 17:00:00 [AI]
+
+F67.01: overseer detection — cross-source duplicate candidates.
+
+- `app/services/overseer.py`: `find_candidate_pairs()` returns cross-source, time-proximate (±12h), title-similar (normalized fuzzy ≥ threshold) event **pairs** (never N-way), excluding placeholders/redirected/archived; `title_similarity()` + `completeness_score()` (populated fields + description length + image count) seed the F67.02 LLM call.
+- `app/services/overseer_worker.py`: daemon (mirrors `llm_worker`) gated by `overseer_enabled`; `run_once()` caps pairs at `overseer_max_per_tick`. Started from `app/admin.py`.
+- Config tunables (`config.py` + `config.example.yaml`): `overseer_enabled`, `overseer_interval_seconds`, `overseer_max_per_tick`, `overseer_window_days`, `overseer_similarity_threshold`.
+- Tests: similarity/completeness, cross-source pairing, same-source/dissimilar/distant-time exclusions, placeholder/redirect/archived exclusions, worker smoke + disabled. 463 passing.
+
 ## 2026-10-15 16:00:00 [AI]
 
 F66.06: live-tested the recurrence pipeline against Recess4Eva (Mondays 6pm ET) and fixed what broke.

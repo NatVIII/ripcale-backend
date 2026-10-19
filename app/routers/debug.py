@@ -164,6 +164,8 @@ def register(app) -> None:
             + "<p><a href='/debug/archive'>archive (gc)</a> · <a href='/debug/archived'>archived events</a></p>"
             + "<p><a href='/debug/images'>images (gc)</a></p>"
             + "<p><a href='/debug/llm'>llm queue</a></p>"
+            + "<p><a href='/debug/overseer'>overseer (duplicates)</a></p>"
+            + "<p><a href='/debug/conflicts'>conflicts (pinned changes)</a></p>"
             + "<h2>danger zone</h2>"
             + "<p><a href='/debug/wipe'>wipe database</a></p>"
         )

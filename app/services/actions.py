@@ -130,6 +130,36 @@ def llm_process_now() -> dict:
     return run_once()
 
 
+def overseer_status() -> dict:
+    """Overseer worker state (F67)."""
+    from app.services.overseer_worker import status
+
+    return status()
+
+
+def overseer_run() -> dict:
+    """Run one overseer scan (find candidates + decide + propose merges)."""
+    from app.services.overseer_worker import run_once
+
+    return run_once()
+
+
+def conflicts_list(status: str | None = None) -> list:
+    """Pending (or filtered) pinned-event change conflicts (F68)."""
+    from app.services.conflicts import list_conflicts
+
+    return list_conflicts(status=status)
+
+
+def conflict_resolve(conflict_id: str | None, action: str) -> bool:
+    """Resolve a conflict via ignore/apply/syncretize (F68)."""
+    from app.services.conflicts import resolve
+
+    if not resolve((conflict_id or "").strip(), action):
+        raise ActionError("conflict not found, not pending, or bad action", 404)
+    return True
+
+
 def logs(n: int = LOG_TAIL_LINES) -> str:
     return read_log_tail(n)
 
