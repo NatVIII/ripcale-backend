@@ -88,6 +88,70 @@ crontab -e
 */5 * * * * /opt/ripcale-backend/deploy/deploy.sh >> /opt/ripcale-backend/deploy/deploy.log 2>&1
 ```
 
+## TLS & reverse-proxy (trust boundary)
+
+ripcale serves **plain HTTP only** and never terminates TLS or holds a
+certificate. HTTPS is the job of an external reverse proxy (nginx, Caddy, …)
+sitting in front of the public listener.
+
+Two hosts, two jobs:
+
+- **`api.rva.rip`** — the ripcale public API/data (`/events`, `/feed.ics`).
+- **`rva.rip`** — the actual website (the FullCalendar frontend) that *consumes*
+  `api.rva.rip`.
+
+Two listeners, one rule:
+
+- `public` → `0.0.0.0:8081` — read-only; this is the **only** thing you expose
+  (front it as `api.rva.rip`).
+- `admin` → `127.0.0.1:8082` — loopback-only; **never** route it through the
+  proxy.
+
+> Anything that can reach `:8081` sees public, read-only data. Anything that can
+> reach `:8082` has full admin power. The proxy fronts `:8081`; the admin
+> listener never leaves the host.
+
+### nginx example
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name api.rva.rip;
+    ssl_certificate     /etc/letsencrypt/live/api.rva.rip/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.rva.rip/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8081;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+(Caddy equivalent: `api.rva.rip { reverse_proxy 127.0.0.1:8081 }`.)
+
+### Config to set
+
+- **`public_base_url: "https://api.rva.rip"`** (`config.yaml`) — the ICS feed
+  absolutizes local `/images/...` URLs with this (`app/services/ics.py`). If it's
+  unset, ICS image links fall back to the original `source_url`, i.e. the
+  *source's* CDN rather than your host. Set it to your API origin.
+- **`cors_origins: "https://rva.rip"`** — allow the website (`rva.rip`) to read
+  the API (`api.rva.rip`); default `*` allows any origin.
+
+### Admin access (private)
+
+Don't expose `:8082`. Reach it over an SSH tunnel:
+
+```sh
+ssh -L 8082:127.0.0.1:8082 deploy@YOUR_SERVER
+# then browse http://127.0.0.1:8082/debug
+```
+
+(`debug_allowed_cidrs` can grant access to additional trusted IPs, but the
+loopback/tunnel default is the safest.)
+
 ## Day-to-day
 
 - **Push and forget** — your commit goes live within ~5 minutes.
@@ -119,4 +183,5 @@ git checkout dev     # or: git fetch && git switch dev
 - **No rebuild happening** — confirm `git rev-parse HEAD` changes on the server
   after a push, and check `journalctl -u ripcale-deploy`.
 - **Ports / access** — the admin app is loopback-only (`127.0.0.1:8082`); reach
-  it over SSH tunnel if you're not on the box.
+  it over SSH tunnel if you're not on the box. See "TLS & reverse-proxy" for the
+  full trust boundary.

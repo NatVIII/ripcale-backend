@@ -52,7 +52,7 @@ ingest_startup_delay_minutes: 3
 
 # Public base URL (F18): used to absolutize local /images/... URLs in the ICS
 # feed. Empty = ICS falls back to the original source URL.
-# public_base_url: "https://rva.rip"
+# public_base_url: "https://api.rva.rip"
 
 # Rotating log file (shared by all entrypoints; viewed at /debug/logs).
 # Relative paths resolve against data_dir; absolute paths are used as-is.

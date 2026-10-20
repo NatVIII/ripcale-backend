@@ -1,3 +1,9 @@
+## 2026-10-15 20:30:00 [AI]
+
+F63: documented the TLS/reverse-proxy trust boundary in `docs/DEPLOYMENT.md`.
+
+- New "TLS & reverse-proxy (trust boundary)" section in `docs/DEPLOYMENT.md`: ripcale serves plain HTTP; the proxy terminates HTTPS in front of `:8081` (nginx example + Caddy one-liner), `public_base_url` for ICS image absolutization, `cors_origins` for the frontend, and the admin listener (`:8082`) stays loopback/SSH-tunnel-only. Cross-linked from the "Ports / access" troubleshooting bullet. Hosts split: the API is `api.rva.rip`, the website is `rva.rip` (updated `config*.yaml` `public_base_url` examples).
+
 ## 2026-10-15 20:00:00 [AI]
 
 F61: URL scrubbing — secret feed URLs no longer leak into logs/status.

@@ -114,7 +114,7 @@ run is guarded by a lockfile at `data/ingest.lock`; if a run is already in
 progress (or a previous one crashed less than one interval ago), the new run
 skips — the lock is considered stale after one interval. `debug_now` (an ISO
 timestamp) freezes the backend "now" for debugging/time-travel. `public_base_url`
-(e.g. `https://rva.rip`) absolutizes the local image URLs in the ICS feed.
+(e.g. `https://api.rva.rip`) absolutizes the local image URLs in the ICS feed.
 
 The admin login is configured via `.env`: `RIPCALE_ADMIN_USERNAME`,
 `RIPCALE_ADMIN_PASSWORD_HASH`, and `RIPCALE_PEPPER`. (API tokens are per-user,
