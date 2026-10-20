@@ -1,3 +1,11 @@
+## 2026-10-15 20:00:00 [AI]
+
+F61: URL scrubbing — secret feed URLs no longer leak into logs/status.
+
+- `app/logging.py`: `sanitize()` (redacts `http(s)://…` → `[redacted-url]`) + a `SanitizingFormatter` (redacts the message **and** the traceback), now used by `setup_logging()` for both handlers.
+- Boundary sanitize: `app/ingest.py` `_run_locked` and the four pipeline handlers in `app/services/actions.py` sanitize `str(exc)` before `record_status()`/`last_ingest` summaries.
+- Tests: sanitize/formatter (message + traceback) + an ingest-boundary scrub test asserting `status.json`/summaries are redacted. 489 passing.
+
 ## 2026-10-15 19:00:00 [AI]
 
 F68: pinned-change reconciliation (ignore / apply / syncretize).

@@ -18,7 +18,7 @@ from app.categorize import resolve_rules
 from app.db import engine
 from app.ingest import process_source, run_report
 from app.intake import load as load_intake
-from app.logging import LOG_TAIL_LINES, read_log_tail
+from app.logging import LOG_TAIL_LINES, read_log_tail, sanitize
 from app.registry import load_gatherer, load_sources
 from app.schema import CategoryRule, ImageRef, SourceConfig, dump_exdates, dump_images
 from app.serializers import to_fullcalendar
@@ -417,7 +417,7 @@ def gather(cfg: SourceConfig) -> dict:
     try:
         result = load_gatherer(cfg.gatherer)(cfg)
     except Exception as exc:
-        record_status(cfg.name, "error", message=str(exc))
+        record_status(cfg.name, "error", message=sanitize(str(exc)))
         raise
     record_run(cfg.name, len(result.events))
     return result.model_dump(mode="json")
@@ -429,7 +429,7 @@ def sieve(cfg: SourceConfig) -> dict:
         with Session(engine) as session:
             sieved, _ = process_source(session, cfg, run_fn, dry_run=True)
     except Exception as exc:
-        record_status(cfg.name, "error", message=str(exc))
+        record_status(cfg.name, "error", message=sanitize(str(exc)))
         raise
     record_run(cfg.name, len(sieved.new) + len(sieved.updated) + sieved.unchanged)
     return sieved.model_dump(mode="json")
@@ -443,7 +443,7 @@ def decide(cfg: SourceConfig, dry_run: bool = True) -> dict:
             if not dry_run:
                 session.commit()
     except Exception as exc:
-        record_status(cfg.name, "error", message=str(exc))
+        record_status(cfg.name, "error", message=sanitize(str(exc)))
         raise
     record_run(cfg.name, len(sieved.new) + len(sieved.updated) + sieved.unchanged)
     return {"dry_run": dry_run, "report": report, "sieved": sieved.model_dump(mode="json")}
@@ -467,7 +467,7 @@ def categorize(cfg: SourceConfig, rules: list[CategoryRule] | None, include_conf
             sieved, report = process_source(session, cfg, run_fn, dry_run=False, rules=resolved)
             session.commit()
     except Exception as exc:
-        record_status(cfg.name, "error", message=str(exc))
+        record_status(cfg.name, "error", message=sanitize(str(exc)))
         raise
     record_run(cfg.name, len(sieved.new) + len(sieved.updated) + sieved.unchanged)
     return {"dry_run": False, "report": report, "sieved": sieved.model_dump(mode="json")}

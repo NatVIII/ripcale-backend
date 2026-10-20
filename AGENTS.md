@@ -339,6 +339,9 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   `admin`, and `ingest` all write the same `{data_dir}/ripcale.log`. Rotation is
   *not* multi-process-safe (a rare race if two processes hit `log_max_bytes`
   simultaneously); disk stays capped at ~`log_max_bytes * (log_backup_count + 1)`.
+  Every record is passed through a `SanitizingFormatter` that redacts URLs (F61),
+  so secret feed URLs never reach the log; `sanitize()` is also applied at the
+  ingest/actions error boundary before `status.json`/`last_ingest.json`.
 - **Wipe is schema-preserving** — `wipe_db()` deletes `Event`/`PendingPost`/`Source`
   rows and clears `LoginSession` (logs you out), but **preserves `User` and
   `ApiToken`** so wiping events never breaks API connectivity; `wipe_all()` also

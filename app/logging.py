@@ -12,6 +12,7 @@ never slurping the whole file).
 #region: imports
 import logging
 import os
+import re
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -21,6 +22,29 @@ from app.config import settings
 
 #region: defaults
 LOG_TAIL_LINES = 200  # lines shown by /debug/logs (single source of truth)
+#endregion
+
+
+#region: URL scrubbing (F61)
+_URL_RE = re.compile(r"https?://[^\s'\"><]+")
+
+
+def sanitize(text) -> str:
+    """Redact URLs from `text` so secret feed URLs never persist to logs/status.
+
+    Non-strings pass through unchanged; `http(s)://…` tokens (up to the next
+    whitespace/quote/angle-bracket) become `[redacted-url]`.
+    """
+    if not isinstance(text, str):
+        return text
+    return _URL_RE.sub("[redacted-url]", text)
+
+
+class SanitizingFormatter(logging.Formatter):
+    """A Formatter that redacts URLs from every record's message AND traceback."""
+
+    def format(self, record):
+        return sanitize(super().format(record))
 #endregion
 
 
@@ -95,7 +119,7 @@ def setup_logging() -> None:
     """Configure the root logger: INFO console + rotating file (idempotent)."""
     root = logging.getLogger()
     root.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    formatter = SanitizingFormatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
 
     # Console stream — only if we don't already have one of our own. Key on the
     # exact type (not isinstance) so RotatingFileHandler (a StreamHandler

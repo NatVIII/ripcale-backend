@@ -22,7 +22,7 @@ from app.config import settings
 from app.db import engine, init_db
 from app.decisionmaker import apply
 from app.identity import stable_id
-from app.logging import setup_logging
+from app.logging import sanitize, setup_logging
 from app.models import Event, Source, utcnow
 from app.registry import gatherer_decide_before_insert, load_gatherer, load_sources
 from app.schema import CategoryRule, GathererResult, SieveResult, SourceConfig
@@ -215,8 +215,9 @@ def _run_locked(dry_run: bool = False) -> tuple[list[SieveResult], list[dict]]:
             except Exception as exc:
                 logger.exception("source %r failed", cfg.name)
                 session.rollback()
-                record_status(cfg.name, "error", message=str(exc))
-                summaries.append({"name": cfg.name, "status": "error", "message": str(exc)})
+                scrubbed = sanitize(str(exc))
+                record_status(cfg.name, "error", message=scrubbed)
+                summaries.append({"name": cfg.name, "status": "error", "message": scrubbed})
                 continue
             if not dry_run:
                 session.commit()
