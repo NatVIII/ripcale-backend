@@ -92,6 +92,9 @@ class Settings(BaseSettings):
 
     # -- http -------------------------------------------------------------
     cors_origins: str = "*"
+    # SSRF guard (F60): outbound fetches are pinned to validated, globally-routable
+    # IPs. Disable only to reach a private/self-hosted feed.
+    ssrf_guard_enabled: bool = True
 
     # -- debug / admin access ---------------------------------------------
     # Comma-separated IPv4 CIDRs allowed to hit /debug* endpoints.

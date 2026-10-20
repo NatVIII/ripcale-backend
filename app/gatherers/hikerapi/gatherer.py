@@ -20,6 +20,7 @@ import httpx
 
 from app.config import settings
 from app.schema import GathererResult, ImageRef, ScrapedEvent, SourceConfig
+from app.services.ssrf import get as safe_get
 #endregion
 
 
@@ -61,7 +62,7 @@ def _get(url: str, params: dict[str, Any] | None = None, capture: list[dict] | N
     """GET a HikerAPI endpoint; on error, raise a clear message including the body."""
     headers = {"x-access-key": settings.hikerapi_key}
     try:
-        resp = httpx.get(url, headers=headers, params=params, follow_redirects=True, timeout=TIMEOUT)
+        resp = safe_get(url, headers=headers, params=params, timeout=TIMEOUT)
         resp.raise_for_status()
     except httpx.HTTPStatusError as exc:
         body = _json_or_text(exc.response)

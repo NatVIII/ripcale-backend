@@ -260,6 +260,13 @@ see `docs/DEPLOYMENT.md` for the full server setup.
 - **Source URLs are never exposed by the API.** Private/secret sources live in
   `intake.yaml` (gitignored); `intake.example.yaml` is the tracked template and
   ships one real *public* source (Studio Two Three) as starter data.
+- **Outbound fetches are SSRF-guarded (F60)** — `app/services/ssrf.py` resolves +
+  validates each host (blocklist + `ipaddress.is_global`) and pins the connection
+  to the validated IP (preserving `Host` + SNI), defeating DNS rebinding.
+  `_resolve_global` **prefers IPv4 over IPv6** (a host may advertise a broken IPv6
+  that sorts first in `getaddrinfo`). Gatherer fetches (`base.py`), `images.store()`,
+  and `hikerapi._get` go through `ssrf.get()`; `ssrf_guard_enabled` (default on) is
+  the escape hatch. `deepseek` is a fixed trusted endpoint and is not routed through it.
 - **Robyn router cannot express `:param.suffix`** — `/feed/:tag.ics` becomes a
   single param literally named `tag.ics`; hence `/feed.ics?tag=` and `/events/{id}/ics`.
 - **Robyn leaves form bodies in `request.body`, not `request.form_data`** — use
@@ -429,6 +436,7 @@ System fields in `config.yaml`:
 - `log_max_bytes` — rotate once the file reaches this size (default `1000000`).
 - `log_backup_count` — rotated backups to keep (default `3`).
 - `cors_origins` — CORS origin list (default `*`).
+- `ssrf_guard_enabled` — SSRF guard (F60): outbound fetches are pinned to validated, globally-routable IPs (default `true`; disable only for a private/self-hosted feed).
 - `debug_allowed_cidrs` — extra IPv4 CIDRs for the admin endpoints (loopback always allowed).
 - `debug_token` — optional fixed CSRF token (auto-generated if empty).
 - `admin_username` / `admin_password_hash` — bootstrap admin login (argon2id hash; generate with `python -m app.auth hash-password`).

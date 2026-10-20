@@ -1,3 +1,20 @@
+## 2026-10-20 17:20:00 [AI]
+
+F60 follow-up: SSRF guard hardening + live smoke test.
+
+- `_resolve_global` now **prefers IPv4 over IPv6**: it collects *all* globally-routable addresses and returns the first IPv4 (else the first IPv6), so a host advertising a broken/unreachable IPv6 that sorts first in `getaddrinfo` no longer causes a pinned-fetch failure.
+- Tests: `prefers_ipv4_over_ipv6` (IPv6 listed first → pins IPv4) + `falls_back_to_ipv6` (IPv6-only host). 501 passing.
+- Live smoke test (guard on, no DB writes): `ssrf.get("https://example.com/")` resolved to `172.66.147.243` (Cloudflare IPv4), TLS handshake with SNI preserved, `200` + "Example Domain" body — confirms real DNS → validation → pinned-TLS works end-to-end.
+
+## 2026-10-15 21:00:00 [AI]
+
+F60: SSRF guard — outbound fetches are pinned to validated, globally-routable IPs.
+
+- `app/services/ssrf.py`: `SSRFBlocked`, `_resolve_global` (blocklist + `ipaddress.is_global`), and a `PinnedTransport` (an `httpx.BaseTransport`) that resolves+validates each host, rewrites the URL to the validated IP, and preserves the original `Host` header + `sni_hostname` extension — so **DNS rebinding is defeated**, not just mitigated.
+- `ssrf.get()`: a guarded `httpx.Client` (redirect cap 5, no keepalive) when `ssrf_guard_enabled` is on, else plain `httpx.get` (the escape hatch). Default **on**.
+- Routed through it: `gatherers/base.py` (fetch_json/fetch_text), `images.store()`, `hikerapi._get`. `deepseek.py` left alone (fixed trusted endpoint).
+- Tests: policy + resolution + pinning (Host/SNI preserved) + ip-literal blocks + guard-off + `store` blocks metadata. Conftest disables the guard so fake-host tests still stub `httpx.get`. 499 passing.
+
 ## 2026-10-15 20:30:00 [AI]
 
 F63: documented the TLS/reverse-proxy trust boundary in `docs/DEPLOYMENT.md`.

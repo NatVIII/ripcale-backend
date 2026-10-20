@@ -18,6 +18,9 @@ admin_port: 8082
 
 data_dir: data
 cors_origins: "*"
+# ssrf_guard_enabled: true        # SSRF guard (F60): outbound fetches are pinned to
+#                                 # validated, globally-routable IPs. Set false only to
+#                                 # reach a private/self-hosted feed.
 # database_url: sqlite:///data/ripcale.db
 
 # Relevance/expiry window (F13): drop incoming events outside this window at

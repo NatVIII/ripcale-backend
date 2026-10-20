@@ -32,6 +32,12 @@ def _fake_http(monkeypatch):
 
     monkeypatch.setattr("httpx.get", fake_get)
 
+    # Disable the SSRF guard in tests (F60): fake hostnames can't resolve, and
+    # the guard-off path routes through the stubbed `httpx.get` above.
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "ssrf_guard_enabled", False)
+
 
 @pytest.fixture
 def session_headers(tmp_path, monkeypatch):

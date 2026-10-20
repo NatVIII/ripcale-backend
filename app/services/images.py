@@ -13,12 +13,12 @@ import os
 import re
 from pathlib import Path
 
-import httpx
 from sqlmodel import Session, func, select
 
 from app.config import settings
 from app.models import Event, HostedImage, utcnow
 from app.schema import ImageRef, ScrapedEvent, load_images
+from app.services.ssrf import get as safe_get
 #endregion
 
 
@@ -63,7 +63,7 @@ def _ext(content_type: str | None, url: str) -> str:
 #region: store / serve
 def store(url: str) -> str:
     """Download `url`, store content-addressed, and return the local `/images/...` path."""
-    resp = httpx.get(url, follow_redirects=True, timeout=TIMEOUT)
+    resp = safe_get(url, timeout=TIMEOUT)
     resp.raise_for_status()
 
     sha = hashlib.sha256(resp.content).hexdigest()
