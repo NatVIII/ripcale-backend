@@ -121,3 +121,49 @@ def test_list_backups(tmp_path, monkeypatch):
     assert rows[0]["size"] == 3
     assert "created_at" in rows[0]
 #endregion
+
+
+#region: restore
+def test_restore_roundtrip(tmp_path, monkeypatch):
+    _configure(tmp_path, monkeypatch)
+    _make_db(tmp_path)          # t.v = 'hello'
+    _write_intake(tmp_path)     # "sources: []\n"
+
+    result = backup.backup_now()
+    assert result["created"] is True
+    filename = result["filename"]
+
+    # Mutate the live DB + intake, then restore should revert both.
+    conn = sqlite3.connect(tmp_path / "ripcale.db")
+    conn.execute("UPDATE t SET v='changed'")
+    conn.commit()
+    conn.close()
+    (tmp_path / "intake.yaml").write_text("sources:\n  - name: changed\n")
+
+    restored = backup.restore(filename)
+    assert restored["restored"] is True
+    assert restored["restart_recommended"] is True
+    assert restored["safety_backup"] is not None
+
+    conn = sqlite3.connect(tmp_path / "ripcale.db")
+    row = conn.execute("SELECT v FROM t").fetchone()
+    conn.close()
+    assert row == ("hello",)
+    assert (tmp_path / "intake.yaml").read_text() == "sources: []\n"
+
+
+def test_restore_rejects_invalid_name(tmp_path, monkeypatch):
+    _configure(tmp_path, monkeypatch)
+    _make_db(tmp_path)
+    assert backup.restore("../etc/passwd")["restored"] is False
+    assert backup.restore("not-a-backup.txt")["restored"] is False
+    assert backup.restore("")["restored"] is False
+
+
+def test_restore_missing_archive(tmp_path, monkeypatch):
+    _configure(tmp_path, monkeypatch)
+    _make_db(tmp_path)
+    result = backup.restore("ripcale-20260101-000000.tar.gz")
+    assert result["restored"] is False
+    assert "not found" in result["reason"]
+#endregion

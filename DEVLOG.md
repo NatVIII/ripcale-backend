@@ -1,3 +1,12 @@
+## 2026-10-20 18:45:00 [AI]
+
+F23.02: backup restore (reverse online-backup into the live DB).
+
+- `app/services/backup.py::restore()`: validates the archive name (anti path-traversal), takes a **safety-net snapshot**, holds the ingest lock, extracts the archive, then `snapshot.backup(live)` (the online-backup API in reverse — WAL-safe) + `PRAGMA wal_checkpoint(TRUNCATE)`, restores `intake.yaml`, and `engine.dispose()`s pooled connections. A writability check + `sqlite3.Error` handling return clean reasons instead of a 500.
+- Timestamp hardened to microsecond precision (`%Y%m%d-%H%M%S-%f`) so a backup and its immediately-following safety-net never collide.
+- Surfaces: `POST /api/v1/backups/restore` (confirm-gated), `/debug/backups/restore` two-step page, CLI `python -m app.backup restore <name> --yes`.
+- Tests: 3 new restore tests (roundtrip revert, invalid name, missing archive). 511 passing.
+
 ## 2026-10-20 18:15:00 [AI]
 
 F23: in-app scheduled backups (tar.gz snapshot of the DB + intake.yaml).

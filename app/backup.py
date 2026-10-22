@@ -1,8 +1,9 @@
-"""Backup CLI — `python -m app.backup [--list | --prune]`.
+"""Backup CLI — `python -m app.backup [--list | --prune | restore <name> --yes]`.
 
 Writes a snapshot by default (tar.gz of the SQLite DB + intake.yaml); `--list`
-shows existing snapshots + worker status; `--prune` applies retention only.
-Thin wrapper over `app.services.actions`.
+shows existing snapshots + worker status; `--prune` applies retention only;
+`restore <name> --yes` restores a snapshot (safety-net backup first). Thin
+wrapper over `app.services.actions`.
 """
 #region: imports
 import argparse
@@ -13,13 +14,27 @@ from app.services import actions
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Backup the SQLite DB + intake.yaml (tar.gz)")
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--list", action="store_true", help="list existing backups")
-    group.add_argument("--prune", action="store_true", help="apply retention only (no new snapshot)")
+    parser = argparse.ArgumentParser(description="Backup/restore the SQLite DB + intake.yaml (tar.gz)")
+    parser.add_argument("--list", action="store_true", help="list existing backups")
+    parser.add_argument("--prune", action="store_true", help="apply retention only (no new snapshot)")
+    sub = parser.add_subparsers(dest="command")
+    restore_parser = sub.add_parser("restore", help="restore a snapshot (overwrites the live DB)")
+    restore_parser.add_argument("filename")
+    restore_parser.add_argument("--yes", action="store_true", help="confirm the destructive restore")
     args = parser.parse_args()
 
     setup_logging()
+
+    if args.command == "restore":
+        if not args.yes:
+            print(f"refusing to restore without --yes (would overwrite the live DB): {args.filename}")
+            return
+        result = actions.backup_restore(args.filename, confirm=True)
+        print(
+            f"restored: {result['filename']} "
+            f"(safety backup: {result.get('safety_backup') or '—'}; restart recommended)"
+        )
+        return
 
     if args.list:
         data = actions.backups_status()

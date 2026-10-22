@@ -290,7 +290,14 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   never pause ingest or hold the ingest lock) plus a copy of `intake.yaml`, written
   as `backup_dir/ripcale-<UTC-ts>.tar.gz` (atomic temp+rename). Retention
   (`backup_count`, default 7) keeps the newest archives. A `backup_worker` daemon
-  (admin app) runs on `backup_interval_hours`. Restore is F23.02 (not yet built).
+  (admin app) runs on `backup_interval_hours`.
+- **Backup restore (F23.02)** — `backup.restore()` reverse-restores an archive into
+  the live DB (online-backup API) + `intake.yaml`, guarded by: a filename sanity
+  check, a writability check, a **safety-net snapshot first**, and the ingest lock
+  held for the duration; it `engine.dispose()`s pooled connections and returns
+  `restart_recommended` (the *public* process's pool can't be reset from here).
+  Restore assumes a same-schema snapshot (a restart re-runs migrations). Images
+  (`data/images/`) are **not** in the backup.
 - **Category assignment happens in the categorize stage** (`default_categories`
   is sugar for an `assign` rule, plus `sources[].rules`), and **`default_location`
   is filled in the sieve** — both before hashing, so they participate in change

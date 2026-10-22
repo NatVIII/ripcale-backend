@@ -212,6 +212,12 @@ def register(app) -> None:
     def api_backup_prune(request):
         return _ok(actions.backup_prune())
 
+    @app.post(f"{prefix}/backups/restore")
+    @_route
+    def api_backup_restore(request):
+        data = json_body(request)
+        return _ok(actions.backup_restore(data.get("filename"), bool(data.get("confirm"))))
+
     @app.post(f"{prefix}/retag")
     @_route
     def api_retag(request):

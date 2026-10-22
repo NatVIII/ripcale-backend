@@ -127,6 +127,9 @@ minted in the DB with `app.auth token create`, not an env var.)
 
 `./data/` holds only generated data (the SQLite DB, logs, status) and is safe to wipe.
 
+Backups (`backup_dir`, `backup_interval_hours`, `backup_count`) are on by
+default — see [Backups & restore](#backups--restore).
+
 ### Admin login
 
 The admin app requires a session login. One-time setup:
@@ -175,6 +178,15 @@ Every entrypoint, with its intended use. (Run from the repo root inside the venv
 .venv/bin/python -m app.images prune --commit  # orphan image GC — dry-run by default
 ```
 
+### Backups
+
+```sh
+docker compose exec admin python -m app.backup                      # snapshot now
+docker compose exec admin python -m app.backup --list               # list snapshots + worker status
+docker compose exec admin python -m app.backup --prune              # apply retention
+docker compose exec admin python -m app.backup restore <name> --yes # restore (see "Backups & restore")
+```
+
 ### Inspect data (reads the DB directly; no IP gate applies)
 
 ```sh
@@ -204,6 +216,54 @@ Every entrypoint, with its intended use. (Run from the repo root inside the venv
 .venv/bin/python -m pytest          # run the test suite
 docker compose up --build           # public + admin services
 ```
+
+## Backups & restore
+
+ripcale snapshots the SQLite DB and `intake.yaml` to a timestamped `tar.gz`,
+using SQLite's online-backup API (a consistent copy even while the app is
+writing). A background worker in the admin app takes one automatically; you can
+also trigger (or restore) one manually.
+
+### Enable it (`config.yaml`)
+
+Backups are **on by default** — no config changes needed:
+
+```yaml
+backup_dir: backups          # where snapshots land; relative → data/backups, absolute OK, "" disables
+backup_interval_hours: 24    # automatic cadence; 0/null = manual only
+backup_count: 7              # keep the N most-recent snapshots (0 = keep all)
+```
+
+Each snapshot is `data/backups/ripcale-<UTC-timestamp>.tar.gz` containing
+`ripcale.db` + `intake.yaml`. Set `backup_dir: ""` (or `backup_interval_hours: 0`)
+to disable.
+
+### Manual commands
+
+```sh
+docker compose exec admin python -m app.backup                      # snapshot now
+docker compose exec admin python -m app.backup --list               # list snapshots + worker status
+docker compose exec admin python -m app.backup --prune              # apply retention (delete oldest beyond backup_count)
+docker compose exec admin python -m app.backup restore <name> --yes # restore a snapshot
+```
+
+Native (non-Docker) equivalent: `.venv/bin/python -m app.backup …`.
+
+### Restore
+
+Restore **overwrites the live DB and `intake.yaml`** with the snapshot; a
+safety-net snapshot is taken automatically first, and `--yes` is required.
+Images (`data/images/`) are **not** in the backup — restored events may reference
+missing images until the next ingest re-hosts them.
+
+After a restore, restart so the running services reconnect to the restored DB:
+
+```sh
+docker compose restart   # or: docker compose up -d
+```
+
+Backups can also be managed from the browser at `/debug/backups` or the JSON API
+(`GET /api/v1/backups`, `POST /api/v1/backups/{run,prune,restore}`).
 
 ## Ingest
 

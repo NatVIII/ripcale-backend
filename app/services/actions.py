@@ -167,6 +167,22 @@ def backup_prune() -> dict:
     return {"pruned": removed, "backups": backup.list_backups()}
 
 
+def backup_restore(filename: str | None, confirm: bool = False) -> dict:
+    """Restore a snapshot into the live DB + intake.yaml (F23.02).
+
+    `confirm` must be truthy (destructive). A safety-net snapshot is taken by the
+    service before overwriting.
+    """
+    if not confirm:
+        raise ActionError("confirmation required (pass confirm: true)")
+    from app.services import backup
+
+    result = backup.restore((filename or "").strip())
+    if not result.get("restored"):
+        raise ActionError(result.get("reason", "restore failed"), 404)
+    return result
+
+
 def conflicts_list(status: str | None = None) -> list:
     """Pending (or filtered) pinned-event change conflicts (F68)."""
     from app.services.conflicts import list_conflicts
