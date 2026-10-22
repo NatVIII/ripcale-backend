@@ -50,3 +50,19 @@ def test_elfsight_resolves_types_and_locations(monkeypatch):
     pigs = by_title["Beautiful Pigs, Forced Resonance, and the Perry Menestres Big Band"]
     assert pigs.categories == ["Community Events"]
     assert pigs.location == "Studio Two Three"
+
+
+def test_elfsight_run_source_down_raises_source_issue(monkeypatch):
+    import httpx
+    import pytest
+
+    import app.gatherers.base as base
+    from app.gatherers.errors import SourceIssue
+
+    def boom(url, **kwargs):
+        raise httpx.ConnectError("connection refused")
+
+    monkeypatch.setattr(base, "safe_get", boom)
+
+    with pytest.raises(SourceIssue):
+        elfsight_gatherer.run(_cfg())

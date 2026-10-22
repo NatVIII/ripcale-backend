@@ -1,3 +1,11 @@
+## 2026-10-20 19:45:00 [AI]
+
+F37.01: graceful gatherer failure on source unavailability (generalizes F21.07).
+
+- `app/gatherers/base.py::fetch_json`/`fetch_text` now classify a **down/unreachable** source (network `httpx.RequestError` + HTTP `httpx.HTTPStatusError`) as `SourceIssue` → ingest records `warning`; **unparseable** content (invalid JSON/ICS, wrong shape) stays a hard per-source `error` (already isolated by `_run_locked`'s per-source try/except). `SSRFBlocked` stays hard. This one change covers elfsight + ics (both fetch through `base`).
+- No change to `ingest.py` (already maps `SourceIssue` → warning) or the `ics`/`elfsight` parsers.
+- Tests: `test_gatherer_base.py` (7 fetch-helper cases) + `run()` down-source cases in `test_elfsight.py`/`test_gatherer_ics.py` + a batch-severity test (down → warning, garbage → error, good → ok). 534 passing.
+
 ## 2026-10-20 19:15:00 [AI]
 
 F21.07: HikerAPI error/rate handling — graceful per-source status.

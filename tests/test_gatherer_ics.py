@@ -61,6 +61,22 @@ def _by_uid(result):
     return {e.uid: e for e in result.events}
 
 
+def test_ics_run_source_down_raises_source_issue(monkeypatch):
+    import httpx
+    import pytest
+
+    import app.gatherers.base as base
+    from app.gatherers.errors import SourceIssue
+
+    def boom(url, **kwargs):
+        raise httpx.ConnectError("connection refused")
+
+    monkeypatch.setattr(base, "safe_get", boom)
+
+    with pytest.raises(SourceIssue):
+        gatherer.run(SourceConfig(name="Test", gatherer="ics", url="https://x/feed.ics"))
+
+
 def test_ics_parses_utc_and_tzid(monkeypatch):
     by = _by_uid(_run(monkeypatch))
 

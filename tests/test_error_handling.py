@@ -74,6 +74,46 @@ def test_ingest_source_issue_is_warning(tmp_path, monkeypatch):
     assert "private" in summaries[0]["message"]
 
 
+def test_ingest_down_and_garbage_severities(tmp_path, monkeypatch):
+    import app.ingest as ingest_mod
+    from app.gatherers.errors import SourceIssue
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'ingest_sev.db'}")
+    SQLModel.metadata.create_all(engine)
+    monkeypatch.setattr(ingest_mod, "engine", engine)
+    monkeypatch.setattr(ingest_mod, "init_db", lambda: None)
+    monkeypatch.setattr("app.services.status.settings.data_dir", str(tmp_path))
+
+    good = SourceConfig(name="Good", gatherer="elfsight", url="https://x")
+    down = SourceConfig(name="Down", gatherer="broken-down", url="https://x")
+    garbage = SourceConfig(name="Garbage", gatherer="broken-garbage", url="https://x")
+    monkeypatch.setattr(ingest_mod, "load_sources", lambda: [down, garbage, good])
+
+    captured = {}
+    monkeypatch.setattr(ingest_mod, "_write_last_ingest", lambda summaries, archived=None: captured.setdefault("summaries", summaries))
+
+    def good_run(cfg):
+        return GathererResult(source=cfg, events=[ScrapedEvent(uid="u1", title="Event")])
+
+    def down_run(cfg):
+        raise SourceIssue("source unreachable")
+
+    def garbage_run(cfg):
+        raise ValueError("unparseable JSON")
+
+    def loader(name):
+        return {"elfsight": good_run, "broken-down": down_run, "broken-garbage": garbage_run}[name]
+
+    monkeypatch.setattr(ingest_mod, "load_gatherer", loader)
+
+    ingest_mod.run(dry_run=False)
+
+    summaries = {s["name"]: s for s in captured["summaries"]}
+    assert summaries["Good"]["status"] == "ok"
+    assert summaries["Down"]["status"] == "warning"
+    assert summaries["Garbage"]["status"] == "error"
+
+
 def test_ingest_scrubs_urls_from_error_messages(tmp_path, monkeypatch):
     import app.ingest as ingest_mod
     from app.services.status import read_status
