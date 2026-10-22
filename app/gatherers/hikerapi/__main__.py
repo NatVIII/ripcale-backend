@@ -19,6 +19,7 @@ from pathlib import Path
 from app.registry import load_sources
 from app.schema import GathererResult, SourceConfig
 
+from app.gatherers.errors import SourceIssue
 from app.gatherers.hikerapi.gatherer import (
     _media_list,
     fetch_medias,
@@ -87,14 +88,18 @@ def main() -> None:
         return
 
     for source in _sources(args):
-        if args.save_raw:
-            captured = fetch_raw(source)
-            _write_raw(args.save_raw, captured)
-            user = next((c["body"] for c in captured if "user/by/username" in c["url"]), None)
-            medias = _media_list(next((c["body"] for c in captured if "user/medias" in c["url"]), []))
-        else:
-            medias = fetch_medias(source)
-            user = None
+        try:
+            if args.save_raw:
+                captured = fetch_raw(source)
+                _write_raw(args.save_raw, captured)
+                user = next((c["body"] for c in captured if "user/by/username" in c["url"]), None)
+                medias = _media_list(next((c["body"] for c in captured if "user/medias" in c["url"]), []))
+            else:
+                medias = fetch_medias(source)
+                user = None
+        except SourceIssue as exc:
+            print(f"skipped {source.name}: {exc}")
+            continue
 
         if args.verify:
             _print_verify(user, medias)

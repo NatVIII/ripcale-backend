@@ -13,12 +13,14 @@ DECIDE_BEFORE_INSERT = True     # enqueue posts for LLM resolution (F65)
 #region: imports
 import logging
 import re
+import time
 from datetime import datetime, timezone
 from typing import Any
 
 import httpx
 
 from app.config import settings
+from app.gatherers.errors import SourceIssue
 from app.schema import GathererResult, ImageRef, ScrapedEvent, SourceConfig
 from app.services.ssrf import get as safe_get
 #endregion
@@ -29,6 +31,11 @@ logger = logging.getLogger(__name__)
 #region: constants
 BASE_URL = "https://api.hikerapi.com"
 TIMEOUT = 30.0
+
+# Retry/backoff for transient failures (429 / 5xx / network) — F21.07.
+_MAX_ATTEMPTS = 3
+_BACKOFF_BASE = 1.0    # seconds, first retry
+_BACKOFF_CAP = 30.0    # seconds, ceiling on a single wait (also caps Retry-After)
 
 _USERNAME_RE = re.compile(r"instagram\.com/([^/?#]+)")
 #endregion
@@ -58,30 +65,67 @@ def _json_or_text(resp: httpx.Response) -> Any:
         return resp.text
 
 
-def _get(url: str, params: dict[str, Any] | None = None, capture: list[dict] | None = None) -> Any:
-    """GET a HikerAPI endpoint; on error, raise a clear message including the body."""
-    headers = {"x-access-key": settings.hikerapi_key}
-    try:
-        resp = safe_get(url, headers=headers, params=params, timeout=TIMEOUT)
-        resp.raise_for_status()
-    except httpx.HTTPStatusError as exc:
-        body = _json_or_text(exc.response)
-        if capture is not None:
-            capture.append(
-                {"url": url, "status": exc.response.status_code, "headers": dict(exc.response.headers), "body": body}
-            )
-        raise RuntimeError(f"HikerAPI {exc.response.status_code} for {url}: {_truncate(str(body))}") from exc
-    except httpx.RequestError as exc:
-        if capture is not None:
-            capture.append({"url": url, "status": None, "headers": {}, "body": str(exc)})
-        raise RuntimeError(f"HikerAPI request failed ({type(exc).__name__}): {exc}") from exc
-
-    body = resp.json()
+def _capture(capture: list[dict] | None, url: str, status: int | None, headers: dict, body: Any) -> None:
     if capture is not None:
-        capture.append(
-            {"url": url, "status": resp.status_code, "headers": dict(resp.headers), "body": body}
-        )
-    return body
+        capture.append({"url": url, "status": status, "headers": headers, "body": body})
+
+
+def _backoff_sleep(attempt: int, retry_after: str | None = None) -> None:
+    """Sleep between retries: exponential backoff, honoring a `Retry-After` header."""
+    delay = _BACKOFF_BASE * (2 ** (attempt - 1))
+    if retry_after:
+        try:
+            delay = max(delay, float(retry_after))
+        except (TypeError, ValueError):
+            pass
+    time.sleep(min(delay, _BACKOFF_CAP))
+
+
+def _get(url: str, params: dict[str, Any] | None = None, capture: list[dict] | None = None) -> Any:
+    """GET a HikerAPI endpoint, classifying failures (F21.07).
+
+    - `403`/`404` → `SourceIssue` (private/unknown account) — soft, no retry.
+    - `429`/`5xx`/network → retried up to `_MAX_ATTEMPTS` with backoff.
+    - other `4xx` (bad key/request) → hard `RuntimeError`.
+    """
+    headers = {"x-access-key": settings.hikerapi_key}
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
+        try:
+            resp = safe_get(url, headers=headers, params=params, timeout=TIMEOUT)
+        except httpx.RequestError as exc:
+            _capture(capture, url, None, {}, str(exc))
+            if attempt >= _MAX_ATTEMPTS:
+                raise RuntimeError(f"HikerAPI request failed ({type(exc).__name__}): {exc}") from exc
+            _backoff_sleep(attempt)
+            continue
+
+        status = resp.status_code
+        if status == 429 or status >= 500:
+            _capture(capture, url, status, dict(resp.headers), _json_or_text(resp))
+            if attempt >= _MAX_ATTEMPTS:
+                raise RuntimeError(
+                    f"HikerAPI {status} for {url} (retried {_MAX_ATTEMPTS} times): {_truncate(str(_json_or_text(resp)))}"
+                )
+            _backoff_sleep(attempt, resp.headers.get("Retry-After"))
+            continue
+
+        if status in (403, 404):
+            body = _json_or_text(resp)
+            _capture(capture, url, status, dict(resp.headers), body)
+            raise SourceIssue(f"HikerAPI {status} for {url}: account private or not found ({_truncate(str(body))})")
+
+        try:
+            resp.raise_for_status()  # remaining 4xx (400/401/…) -> hard error
+        except httpx.HTTPStatusError as exc:
+            body = _json_or_text(exc.response)
+            _capture(capture, url, exc.response.status_code, dict(exc.response.headers), body)
+            raise RuntimeError(f"HikerAPI {exc.response.status_code} for {url}: {_truncate(str(body))}") from exc
+
+        body = resp.json()
+        _capture(capture, url, status, dict(resp.headers), body)
+        return body
+
+    raise RuntimeError(f"HikerAPI {url}: gave up after {_MAX_ATTEMPTS} attempts")
 
 
 def _media_list(payload: Any) -> list[dict]:

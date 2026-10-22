@@ -21,6 +21,7 @@ from app.categorize import apply as categorize
 from app.config import settings
 from app.db import engine, init_db
 from app.decisionmaker import apply
+from app.gatherers.errors import SourceIssue
 from app.identity import stable_id
 from app.logging import sanitize, setup_logging
 from app.models import Event, Source, utcnow
@@ -212,6 +213,13 @@ def _run_locked(dry_run: bool = False) -> tuple[list[SieveResult], list[dict]]:
                 if cfg.recurrences and not dry_run:
                     source = _ensure_source(session, cfg)
                     materialize_placeholders(session, source, cfg)
+            except SourceIssue as exc:
+                logger.warning("source %r skipped: %s", cfg.name, exc)
+                session.rollback()
+                scrubbed = sanitize(str(exc))
+                record_status(cfg.name, "warning", message=scrubbed)
+                summaries.append({"name": cfg.name, "status": "warning", "message": scrubbed})
+                continue
             except Exception as exc:
                 logger.exception("source %r failed", cfg.name)
                 session.rollback()

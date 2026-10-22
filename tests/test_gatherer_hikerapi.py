@@ -2,7 +2,11 @@
 #region: imports
 from datetime import datetime, timezone
 
+import httpx
+import pytest
+
 import app.gatherers.hikerapi.gatherer as gatherer
+from app.gatherers.errors import SourceIssue
 from app.schema import SourceConfig
 #endregion
 
@@ -139,33 +143,183 @@ def test_run_requires_key(monkeypatch):
         gatherer.fetch_medias(SOURCE)
 
 
-def test_get_error_includes_body(monkeypatch):
-    import httpx
-    import pytest
+class _Resp:
+    """Minimal httpx.Response stand-in for exercising `_get`'s status handling."""
 
-    class _Resp:
-        status_code = 403
-        headers = {}
-        text = '{"error": "private account"}'
+    def __init__(self, status_code, body=None, headers=None):
+        self.status_code = status_code
+        self.headers = headers or {}
+        self._body = body
 
-        def json(self):
-            return {"error": "private account"}
+    def json(self):
+        if isinstance(self._body, dict):
+            return self._body
+        raise ValueError("not json")
 
-    class _Raise:
-        def raise_for_status(self):
+    @property
+    def text(self):
+        return self._body if isinstance(self._body, str) else ""
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
             raise httpx.HTTPStatusError(
-                "403 Forbidden",
+                f"{self.status_code} error",
                 request=httpx.Request("GET", "https://x"),
-                response=_Resp(),
+                response=self,
             )
 
-    monkeypatch.setattr(gatherer.httpx, "get", lambda *a, **k: _Raise())
 
-    with pytest.raises(RuntimeError) as exc:
+def _patch_safe_get(monkeypatch, responses, calls=None):
+    """Return successive responses from `safe_get`; record the call count."""
+    iterator = iter(responses)
+
+    def fake_get(url, **kwargs):
+        if calls is not None:
+            calls.append(url)
+        return next(iterator)
+
+    monkeypatch.setattr(gatherer, "safe_get", fake_get)
+    monkeypatch.setattr(gatherer.settings, "hikerapi_key", "test-key")
+
+
+def test_backoff_sleep_exponential(monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(gatherer.time, "sleep", lambda s: sleeps.append(s))
+    gatherer._backoff_sleep(1)
+    gatherer._backoff_sleep(2)
+    gatherer._backoff_sleep(3)
+    assert sleeps == [1.0, 2.0, 4.0]
+
+
+def test_backoff_sleep_honors_retry_after(monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(gatherer.time, "sleep", lambda s: sleeps.append(s))
+    gatherer._backoff_sleep(1, "10")
+    assert sleeps == [10.0]
+
+
+def test_backoff_sleep_ignores_bad_retry_after(monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(gatherer.time, "sleep", lambda s: sleeps.append(s))
+    gatherer._backoff_sleep(1, "abc")
+    assert sleeps == [1.0]
+
+
+def test_backoff_sleep_caps(monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(gatherer.time, "sleep", lambda s: sleeps.append(s))
+    gatherer._backoff_sleep(1, "999")
+    assert sleeps == [gatherer._BACKOFF_CAP]
+
+
+def test_get_403_raises_source_issue(monkeypatch):
+    _patch_safe_get(monkeypatch, [_Resp(403, {"error": "private account"})])
+
+    with pytest.raises(SourceIssue) as exc:
         gatherer._get("https://api.hikerapi.com/v1/user/by/username")
 
     assert "403" in str(exc.value)
     assert "private account" in str(exc.value)
+
+
+def test_get_404_raises_source_issue(monkeypatch):
+    _patch_safe_get(monkeypatch, [_Resp(404, {"error": "user not found"})])
+
+    with pytest.raises(SourceIssue) as exc:
+        gatherer._get("https://api.hikerapi.com/v1/user/by/username")
+
+    assert "404" in str(exc.value)
+    assert "not found" in str(exc.value)
+
+
+def test_get_429_retries_then_succeeds(monkeypatch):
+    calls = []
+    _patch_safe_get(monkeypatch, [_Resp(429, "rate limited", {"Retry-After": "0"}), _Resp(200, {"ok": True})], calls)
+    sleeps = []
+    monkeypatch.setattr(gatherer, "_backoff_sleep", lambda attempt, retry_after=None: sleeps.append((attempt, retry_after)))
+
+    result = gatherer._get("https://api.hikerapi.com/x")
+
+    assert result == {"ok": True}
+    assert len(calls) == 2
+    assert sleeps == [(1, "0")]  # Retry-After passed through
+
+
+def test_get_429_exhausts_retries(monkeypatch):
+    calls = []
+    _patch_safe_get(monkeypatch, [_Resp(429, "rate limited")] * 3, calls)
+    sleeps = []
+    monkeypatch.setattr(gatherer, "_backoff_sleep", lambda attempt, retry_after=None: sleeps.append(attempt))
+
+    with pytest.raises(RuntimeError) as exc:
+        gatherer._get("https://api.hikerapi.com/x")
+
+    assert "429" in str(exc.value)
+    assert "retried" in str(exc.value)
+    assert len(calls) == 3          # exactly _MAX_ATTEMPTS calls
+    assert sleeps == [1, 2]         # backoff after the first two attempts
+
+
+def test_get_5xx_retries(monkeypatch):
+    calls = []
+    _patch_safe_get(monkeypatch, [_Resp(503, "down"), _Resp(200, {"ok": True})], calls)
+    monkeypatch.setattr(gatherer, "_backoff_sleep", lambda *a, **k: None)
+
+    assert gatherer._get("https://api.hikerapi.com/x") == {"ok": True}
+    assert len(calls) == 2
+
+
+def test_get_401_is_hard_error_no_retry(monkeypatch):
+    calls = []
+    _patch_safe_get(monkeypatch, [_Resp(401, {"error": "invalid key"})], calls)
+
+    def _no_retry(*a, **k):
+        raise AssertionError("401 must not be retried")
+
+    monkeypatch.setattr(gatherer, "_backoff_sleep", _no_retry)
+
+    with pytest.raises(RuntimeError) as exc:
+        gatherer._get("https://api.hikerapi.com/x")
+
+    assert "401" in str(exc.value)
+    assert len(calls) == 1
+
+
+def test_get_network_error_retries(monkeypatch):
+    monkeypatch.setattr(gatherer.settings, "hikerapi_key", "test-key")
+    calls = {"n": 0}
+
+    def fake_get(url, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise httpx.ConnectError("boom")
+        return _Resp(200, {"ok": True})
+
+    monkeypatch.setattr(gatherer, "safe_get", fake_get)
+    monkeypatch.setattr(gatherer, "_backoff_sleep", lambda *a, **k: None)
+
+    assert gatherer._get("https://api.hikerapi.com/x") == {"ok": True}
+    assert calls["n"] == 2
+
+
+def test_get_403_captures_before_raising(monkeypatch):
+    _patch_safe_get(monkeypatch, [_Resp(403, {"error": "private"}, {"X-Rate": "1"})])
+    capture = []
+
+    with pytest.raises(SourceIssue):
+        gatherer._get("https://api.hikerapi.com/v1/user/by/username", capture=capture)
+
+    assert len(capture) == 1
+    assert capture[0]["status"] == 403
+    assert capture[0]["body"] == {"error": "private"}
+    assert capture[0]["headers"] == {"X-Rate": "1"}
+
+
+def test_run_raises_source_issue_on_403(monkeypatch):
+    _patch_safe_get(monkeypatch, [_Resp(403, {"error": "private account"})])
+
+    with pytest.raises(SourceIssue):
+        gatherer.run(SOURCE)
 
 
 def test_fetch_raw_captures_responses(monkeypatch):

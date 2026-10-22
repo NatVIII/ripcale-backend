@@ -1,3 +1,13 @@
+## 2026-10-20 19:15:00 [AI]
+
+F21.07: HikerAPI error/rate handling — graceful per-source status.
+
+- `app/gatherers/errors.py` (new): `SourceIssue` — the soft-failure signal a gatherer raises when the *source* is problematic (private/deleted account), distinct from a code/config bug.
+- `app/gatherers/hikerapi/gatherer.py::_get()` now classifies statuses: `403`/`404` → `SourceIssue` (no retry); `429`/`5xx`/network → retried up to `_MAX_ATTEMPTS` (3) with exponential backoff honoring `Retry-After` (capped at `_BACKOFF_CAP` 30s); `401`/`400`/other 4xx → hard `RuntimeError`. Added `_capture()` + `_backoff_sleep()` helpers.
+- `app/ingest.py`: `except SourceIssue` records `warning` (yellow) instead of `error` (red).
+- `app/gatherers/hikerapi/__main__.py`: prints `skipped …` on `SourceIssue` instead of a traceback.
+- Tests: gatherer status classification (403/404/401) + retry (429/5xx/network, Retry-After passthrough, exact attempt count) + `_backoff_sleep` (exponential, Retry-After, non-numeric fallback, cap) + error-capture + `run()` propagation, plus an ingest-level `SourceIssue → warning` test. 524 passing.
+
 ## 2026-10-20 18:45:00 [AI]
 
 F23.02: backup restore (reverse online-backup into the live DB).

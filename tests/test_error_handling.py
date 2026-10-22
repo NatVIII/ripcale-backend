@@ -45,6 +45,35 @@ def test_ingest_continues_after_source_failure(tmp_path, monkeypatch):
     assert good_entry["status"] == "ok"
 
 
+def test_ingest_source_issue_is_warning(tmp_path, monkeypatch):
+    import app.ingest as ingest_mod
+    from app.gatherers.errors import SourceIssue
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'ingest_soft.db'}")
+    SQLModel.metadata.create_all(engine)
+    monkeypatch.setattr(ingest_mod, "engine", engine)
+    monkeypatch.setattr(ingest_mod, "init_db", lambda: None)
+    monkeypatch.setattr("app.services.status.settings.data_dir", str(tmp_path))
+
+    soft = SourceConfig(name="Private", gatherer="broken", url="https://x")
+    monkeypatch.setattr(ingest_mod, "load_sources", lambda: [soft])
+
+    captured = {}
+    monkeypatch.setattr(ingest_mod, "_write_last_ingest", lambda summaries, archived=None: captured.setdefault("summaries", summaries))
+
+    def soft_run(cfg):
+        raise SourceIssue("account private or not found")
+
+    monkeypatch.setattr(ingest_mod, "load_gatherer", lambda name: soft_run)
+
+    ingest_mod.run(dry_run=False)
+
+    summaries = captured["summaries"]
+    assert len(summaries) == 1
+    assert summaries[0]["status"] == "warning"
+    assert "private" in summaries[0]["message"]
+
+
 def test_ingest_scrubs_urls_from_error_messages(tmp_path, monkeypatch):
     import app.ingest as ingest_mod
     from app.services.status import read_status

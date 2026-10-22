@@ -313,6 +313,12 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   source (with a rollback) and continues; the pipeline playground returns a
   clear error page. Logging is via `logging.getLogger(__name__)` (configured by
   `setup_logging()`).
+- **Soft failures vs hard errors (F21.07)** — a gatherer raises `SourceIssue`
+  (`app/gatherers/errors.py`) for a *source* problem (private/deleted/empty) vs
+  any other exception for a code/config bug. `ingest` maps `SourceIssue` →
+  `warning` (yellow) and everything else → `error` (red) in `status.json`. The
+  hikerapi gatherer classifies HTTP status in `_get()`: `403`/`404` → `SourceIssue`,
+  `429`/`5xx`/network → retried with backoff, other `4xx` → hard error.
 - **Run status is agnostic** — every source run (batch ingest *and* the pipeline
   playground) records its outcome to `data/status.json` (`ok`/`warning`/`error`);
   `/debug` derives 🟢/🟡/🔴/⚪ lights from it, rolled up per gatherer by highest
