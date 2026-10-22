@@ -20,6 +20,7 @@ from app.routers import api as api_router
 from app.routers import approvals as approvals_router
 from app.routers import archive as archive_router
 from app.routers import auth as auth_router
+from app.routers import backup as backup_router
 from app.routers import conflicts as conflicts_router
 from app.routers import debug as debug_router
 from app.routers import event as event_router
@@ -77,6 +78,7 @@ ingest_router.register(app)    # /debug/ingest
 tests_router.register(app)     # /debug/tests
 retag_router.register(app)     # /debug/retag
 archive_router.register(app)   # /debug/archive, /debug/archived
+backup_router.register(app)    # /debug/backups (F23)
 approvals_router.register(app)  # /debug/approvals (F66)
 overseer_router.register(app)   # /debug/overseer (F67)
 conflicts_router.register(app)  # /debug/conflicts (F68)
@@ -95,6 +97,7 @@ def main() -> None:
     from app.services.scheduler import start as start_scheduler
     from app.services.llm_worker import start as start_llm_worker
     from app.services.overseer_worker import start as start_overseer_worker
+    from app.services.backup_worker import start as start_backup_worker
 
     if not settings.admin_password_hash:
         logger.warning("admin_password_hash is not set — no admin user; login is unavailable")
@@ -103,6 +106,7 @@ def main() -> None:
     start_scheduler()
     start_llm_worker()
     start_overseer_worker()
+    start_backup_worker()
     _warn_llm_misconfigured()
     # Inside Docker the published port DNATs to the container's eth0, so the
     # app must bind 0.0.0.0; the host publish (127.0.0.1:8082) still restricts

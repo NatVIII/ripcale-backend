@@ -121,6 +121,11 @@ def register(app) -> None:
     def api_overseer_status(request):
         return _ok(actions.overseer_status())
 
+    @app.get(f"{prefix}/backups")
+    @_route
+    def api_backups(request):
+        return _ok(actions.backups_status())
+
     @app.get(f"{prefix}/categories")
     @_route
     def api_categories(request):
@@ -196,6 +201,16 @@ def register(app) -> None:
     @_route
     def api_overseer_run(request):
         return _ok(actions.overseer_run())
+
+    @app.post(f"{prefix}/backups/run")
+    @_route
+    def api_backup_run(request):
+        return _ok(actions.backup_run())
+
+    @app.post(f"{prefix}/backups/prune")
+    @_route
+    def api_backup_prune(request):
+        return _ok(actions.backup_prune())
 
     @app.post(f"{prefix}/retag")
     @_route

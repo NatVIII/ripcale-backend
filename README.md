@@ -39,6 +39,11 @@ cp .env.example .env
 docker compose up --build
 ```
 
+The container runs **non-root** (LinuxServer.io-style `PUID`/`PGID`, default
+`1000`) and manages `data/` ownership itself, so the SQLite DB and logs stay
+owned by your user. If your uid isn't `1000`, match it with
+`PUID=$(id -u) PGID=$(id -g) docker compose up -d`.
+
 If you run into errors, they're likely due to security issues found by osc. Please refer to 
 
 For automated deployments to a server based on new releases, please reference [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)

@@ -279,6 +279,18 @@ see `docs/DEPLOYMENT.md` for the full server setup.
 - **Docker port publishing DNATs to the container's eth0** — a `127.0.0.1` bind
   is unreachable through a published port. `app/admin.py` binds `0.0.0.0` when
   `in_docker()`; the host publish `127.0.0.1:8082:8082` keeps it loopback-only.
+- **Non-root container (F62)** — the image has **no `USER`**; `docker-entrypoint.sh`
+  runs as root, chowns the writable mounts (`/app/data`, `intake.yaml`), then drops
+  to `PUID`/`PGID` (LinuxServer.io-style env, default `1000`) via `setpriv` before
+  `exec`ing the app. `docker-compose.yml` sets `PUID=${PUID:-1000}`/`PGID=${PGID:-1000}`
+  and `deploy/deploy.sh` resolves the real uid; `data/` ownership is self-healing
+  (no manual chown).
+- **Backups (F23)** — `app/services/backup.py::backup_now()` snapshots the SQLite DB
+  via the **online-backup API** (`sqlite3.Connection.backup`, consistent under WAL —
+  never pause ingest or hold the ingest lock) plus a copy of `intake.yaml`, written
+  as `backup_dir/ripcale-<UTC-ts>.tar.gz` (atomic temp+rename). Retention
+  (`backup_count`, default 7) keeps the newest archives. A `backup_worker` daemon
+  (admin app) runs on `backup_interval_hours`. Restore is F23.02 (not yet built).
 - **Category assignment happens in the categorize stage** (`default_categories`
   is sugar for an `assign` rule, plus `sources[].rules`), and **`default_location`
   is filled in the sieve** — both before hashing, so they participate in change
@@ -445,6 +457,7 @@ System fields in `config.yaml`:
 - `deepseek_key` — DeepSeek API key for the LLM event pipeline (F65); `llm_enabled` gates it. Lives in `.env` as `RIPCALE_DEEPSEEK_KEY`.
 - LLM tunables (F65, in `config.yaml`): `deepseek_model` (default `deepseek-flash`), `llm_enabled`, `llm_interval_seconds`, `llm_max_per_tick`, `llm_context_events`, `llm_max_attempts`, `llm_max_images`, `llm_stale_processing_seconds`.
 - Overseer tunables (F67, in `config.yaml`): `overseer_enabled`, `overseer_interval_seconds`, `overseer_max_per_tick`, `overseer_window_days`, `overseer_similarity_threshold`.
+- Backup tunables (F23, in `config.yaml`): `backup_dir` (default `backups`, relative→`data_dir`; empty disables), `backup_interval_hours` (default `24`; `0`/`null` = manual only), `backup_count` (default `7`; `0` = keep all).
 
 (API tokens are **per-user**, minted in the DB via `python -m app.auth token create <username>` — not an env var.)
 

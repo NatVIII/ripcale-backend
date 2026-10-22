@@ -20,7 +20,7 @@ after="$(git rev-parse HEAD)"
 
 if [ "$before" != "$after" ]; then
     echo "[deploy] new commit detected ($before -> $after); rebuilding"
-    docker compose up -d --build
+    PUID="$(id -u)" PGID="$(id -g)" docker compose up -d --build
 else
     echo "[deploy] up to date ($after)"
 fi

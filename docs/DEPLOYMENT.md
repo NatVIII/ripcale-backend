@@ -54,6 +54,24 @@ you push  →  (≤5 min)  →  server pulls  →  rebuilds only if HEAD moved
      (GitHub → Settings → Deploy keys) and configure it on the server, or use a
      fine-grained PAT via a credential helper.
 
+## File ownership (non-root container)
+
+The container runs as a **non-root** user (LinuxServer.io-style `PUID`/`PGID`,
+default `1000`). At boot the image's `docker-entrypoint.sh` starts as root,
+`chown`s the bind-mounted `data/` (and `intake.yaml`) to `PUID:PGID`, then drops
+privileges before the app process starts — so the app itself never runs as root.
+
+- You keep direct read/write access to `data/` and `intake.yaml` because they're
+  owned by `PUID:PGID`, which is normally *your* uid.
+- **No manual chown is needed** — the entrypoint self-heals ownership on every
+  boot, so a `data/` that was previously created root-owned (by an older
+  root-running image) migrates automatically on first start.
+- If your uid isn't `1000`, tell the container to match it:
+  ```sh
+  PUID=$(id -u) PGID=$(id -g) docker compose up -d
+  ```
+  `deploy/deploy.sh` already does this for the scheduled deploy path.
+
 ## Enable the timer
 
 Copy the bundled systemd units and start them:

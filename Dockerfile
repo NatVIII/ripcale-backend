@@ -30,6 +30,12 @@ RUN python -m app.audit --lockfile uv.lock --config osv-scanner.toml \
 
 RUN cat scripts/bannerBuildWin.txt
 
+# Non-root runtime (F62): no USER directive — the entrypoint runs as root to
+# chown the bind-mounted data/, then drops to PUID/PGID before the app starts.
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 EXPOSE 8081
 
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["python", "-m", "app.public"]

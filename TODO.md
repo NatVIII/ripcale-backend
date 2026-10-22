@@ -11,7 +11,7 @@ Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tic
 - [ ] F21.07 - HikerAPI error/rate handling: private/unknown accounts (403/404) → warn/skip not permanent error; 429 backoff; graceful per-source status.
 - [ ] F40 - Superseded by F65 (LLM event pipeline: DeepSeek transcription + decision).
 - [ ] F55 - Gatherer: Libcal Integration with Richmond Public Library System
-- [ ] F23 - Backup mechanism: in-app scheduled snapshots of the SQLite DB to a configurable location (e.g. a `backup_dir` config field), with a retention policy. Part of the internal workings (not an external cron).
+- [ ] F23.02 - Backup restore: restore a snapshot (tar.gz → live DB + intake.yaml) via CLI/debug, with a "restart the app after" warning. Deferred from F23 (backups + retention shipped first).
 - [ ] F36 - Implement decisionmaking page and logic. I want a telegram bot to be able to help me be notified of possible event conflicts and help choose in the future, so this should be done via some kind of API communication or something so that the same interface. We can't implement the telegram bot yet, so let's make the interface via code and then make a debug page that allows for this to take place. (Telegram bot = one large chop later; the approval loop is already API-first via `/api/v1/approvals/*`.)
 - [ ] F56 - More Debug Tools and Settings for Testing and Bug Reproduction
   - [ ] F56.02 - Create a list of other debug configurations that may help down the road for ensuring everything works as expected
@@ -23,7 +23,6 @@ Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tic
 - [ ] F57 - Implement "Highlight" Feature to Events. 
   - [ ] F57.01 - First part of "Highlight" feature, a `purpose` (null by default, meaning not highlighted) which is a short string. If this can be interpreted and included in the JSON in a way that allows FullCalendar to apply standard css based on this value to the event preview on the calendar; even better!
   - [ ] F57.02 - Second part of "Highlight" feature, a `message` (even if the `purpose` is null, this is still passed, and the frontend can still display it). This includes a little message which can explain why a given event was highlighted.
-- [ ] F62 - Non-root Docker user: add `USER` + non-root account to the Dockerfile; document host-side `data/` ownership in `docs/DEPLOYMENT.md`.
 - [ ] F16 - `/sources` public endpoint (deferred)
 
 ## In Progress
@@ -123,6 +122,8 @@ Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tic
 - [x] F61 - URL scrubbing: `sanitize()` + `SanitizingFormatter` (redacts URLs from every log message + traceback) + boundary sanitize in `ingest.py`/`actions.py` so secret feed URLs never reach `status.json`/`last_ingest.json`/logs (2026-10-15)
 - [x] F63 - TLS/reverse-proxy trust boundary documented in `docs/DEPLOYMENT.md` (nginx example, `public_base_url`, `cors_origins`, admin SSH-tunnel-only) (2026-10-15)
 - [x] F60 - SSRF guard: `app/services/ssrf.py` (`SSRFBlocked`, `_resolve_global` (is_global + CIDR blocklist), `PinnedTransport` (DNS-rebinding-proof: connect to the validated IP while preserving Host + SNI), shared `httpx.Client` with redirect cap + no keepalive); `ssrf_guard_enabled` config (default on); applied in `base.py`/`images.store`/`hikerapi._get` (2026-10-15)
+- [x] F62 - Non-root Docker container: `docker-entrypoint.sh` (root → chown writable mounts → drop to `PUID`/`PGID` via `setpriv`), `ENTRYPOINT` wired in the Dockerfile, `PUID`/`PGID` env in `docker-compose.yml`, `deploy.sh` resolves the real uid, ownership documented in `docs/DEPLOYMENT.md` + `README.md` (2026-10-20)
+- [x] F23 - Backup mechanism: in-app scheduled tar.gz snapshots (`ripcale.db` via sqlite3 online-backup + `intake.yaml`) to `backup_dir` (default `backups`), `backup_interval_hours` (24) + `backup_count` (7) retention, `app/services/backup.py` + `backup_worker.py`, CLI (`python -m app.backup`), `GET /api/v1/backups` + `POST /api/v1/backups/{run,prune}`, `/debug/backups` (2026-10-20)
 - [x] F21.06 - Image churn fixed: `enqueue()` stores/compares `url` only (drops ephemeral `source_url`), so signed-CDN churn no longer marks posts changed (2026-10-14)
 - [x] F65 - DeepSeek LLM event pipeline: `PendingPost` queue + enqueue stage, `deepseek-flash` vision transcription → calendar-aware decision (`create`/`modify`/`ignore`), async worker thread, pin/freeze, observability (`/debug/llm`, `/api/v1/llm/*`); absorbs F40/F14 (2026-10-14)
 - [x] F65 hardening — intrinsic `PERMANENT`/`DECIDE_BEFORE_INSERT` gatherer constants (contract v8), coherence key checks, worker `reason`, `PendingPost.error`, transient-retry (attempts cap) + stale-processing reset, exposed-only category constraint (prompt + code), non-thinking transcription/temperature 0/max_tokens/no-fabrication + `llm_max_images`/`llm_stale_processing_seconds` config, heuristic removed, full config documentation (2026-10-14)

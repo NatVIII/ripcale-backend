@@ -144,6 +144,29 @@ def overseer_run() -> dict:
     return run_once()
 
 
+def backups_status() -> dict:
+    """Backup worker state + snapshot list (F23)."""
+    from app.services import backup
+    from app.services.backup_worker import status
+
+    return {"worker": status(), "backups": backup.list_backups()}
+
+
+def backup_run() -> dict:
+    """Write one DB + intake.yaml snapshot now (F23)."""
+    from app.services.backup_worker import run_once
+
+    return run_once()
+
+
+def backup_prune() -> dict:
+    """Apply retention now (F23)."""
+    from app.services import backup
+
+    removed = backup.prune()
+    return {"pruned": removed, "backups": backup.list_backups()}
+
+
 def conflicts_list(status: str | None = None) -> list:
     """Pending (or filtered) pinned-event change conflicts (F68)."""
     from app.services.conflicts import list_conflicts

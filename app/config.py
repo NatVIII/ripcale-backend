@@ -46,6 +46,15 @@ class Settings(BaseSettings):
     # from this system config so the program can edit it (see app/intake.py).
     intake_file: str = "intake.yaml"
 
+    # Backups (F23): snapshots of the SQLite DB + intake.yaml as a tar.gz.
+    # `backup_dir` is resolved against `data_dir` when relative (absolute paths
+    # used as-is). Empty disables backups entirely.
+    backup_dir: str = "backups"
+    # How often the backup worker runs (hours); 0/None = scheduled backups off.
+    backup_interval_hours: int = 24
+    # Retention: keep the N most-recent snapshots (0 = keep all).
+    backup_count: int = 7
+
     # Relevance window (F13): drop incoming events outside this window at ingest.
     # `expire_past_days` drops events that fully ended more than N days ago
     # (recurring series only once their last occurrence has passed); `None`

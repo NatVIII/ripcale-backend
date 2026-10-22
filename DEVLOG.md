@@ -1,3 +1,24 @@
+## 2026-10-20 18:15:00 [AI]
+
+F23: in-app scheduled backups (tar.gz snapshot of the DB + intake.yaml).
+
+- `app/services/backup.py`: `backup_now()` takes a **consistent** SQLite snapshot via the online-backup API (`sqlite3.Connection.backup`, WAL-safe — no ingest pause), copies `intake.yaml`, and writes `ripcale-<UTC-ts>.tar.gz` atomically; `list_backups()` + `prune()` enforce `backup_count` retention.
+- `app/services/backup_worker.py`: daemon (admin app) that runs a snapshot every `backup_interval_hours`, mirroring the overseer/llm workers; `start()`/`status()`/`run_once()`.
+- Config (`config.py` + `config.example.yaml`): `backup_dir` (default `backups`, relative→`data_dir`; empty disables), `backup_interval_hours` (24), `backup_count` (7).
+- Surfaces: CLI `python -m app.backup [--list|--prune]`, `GET /api/v1/backups` + `POST /api/v1/backups/{run,prune}`, `/debug/backups` page (list + run-now + prune + worker status).
+- Restore deferred to F23.02. Tests: 7 new (`tests/test_backup.py`); 508 passing.
+
+## 2026-10-20 17:45:00 [AI]
+
+F62: non-root Docker container (LinuxServer.io-style `PUID`/`PGID`).
+
+- `docker-entrypoint.sh`: runs as root (the image has no `USER`), ensures a `PUID`/`PGID` user/group exist, `chown`s the writable mounts (`/app/data` + `intake.yaml`), then `setpriv --reuid --regid --clear-groups` drops privileges and `exec`s the app — so the app process never runs as root and a legacy root-owned `data/` self-heals on boot (no manual chown).
+- `Dockerfile`: `COPY` + `chmod +x` the entrypoint + `ENTRYPOINT` (keeps `CMD ["python", "-m", "app.public"]`); no `USER` directive by design.
+- `docker-compose.yml`: `environment: [PUID=${PUID:-1000}, PGID=${PGID:-1000}]` on both services (compose `command:` unchanged — it becomes the entrypoint's `$@`).
+- `deploy/deploy.sh`: `PUID="$(id -u)" PGID="$(id -g)" docker compose up -d --build` so the systemd path resolves the real uid (systemd's env has no `$PUID`).
+- Docs: `docs/DEPLOYMENT.md` "File ownership (non-root container)" section + `README.md` quick-start note.
+- Dependency: bumped `certifi` `2026.7.22 → 2026.10.19` (transitive) to clear a critical `PYSEC-2026-4320`/`GHSA-6q48-6c7w-9gw2` finding that was blocking the image build's audit gate. Verified: entrypoint drops to arbitrary `PUID`/`PGID` (1000 and 1234 tested) and self-heals a root-owned `data/`; 501 tests pass.
+
 ## 2026-10-20 17:20:00 [AI]
 
 F60 follow-up: SSRF guard hardening + live smoke test.

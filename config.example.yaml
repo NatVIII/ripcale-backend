@@ -57,6 +57,12 @@ ingest_startup_delay_minutes: 3
 # feed. Empty = ICS falls back to the original source URL.
 # public_base_url: "https://api.rva.rip"
 
+# Backups (F23): in-app scheduled snapshots of the SQLite DB + intake.yaml as a
+# tar.gz (sqlite3 online-backup API — consistent under WAL, no ingest pause).
+# backup_dir: backups            # relative -> {data_dir}/backups; absolute as-is; empty disables
+# backup_interval_hours: 24      # scheduled cadence; 0/null = manual only
+# backup_count: 7                # keep the N most-recent snapshots (0 = keep all)
+
 # Rotating log file (shared by all entrypoints; viewed at /debug/logs).
 # Relative paths resolve against data_dir; absolute paths are used as-is.
 # log_file: ripcale.log            # default: {data_dir}/ripcale.log
