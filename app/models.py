@@ -43,6 +43,7 @@ class Source(SQLModel, table=True):
     default_categories: str = ""  # comma-separated tags applied to every event
     enabled: bool = True
     llm_context: str | None = None  # standing guidance for the LLM decide stage (F65)
+    probe_state: str | None = None  # opaque change-probe watermark, owned by the gatherer (F21.05)
     last_fetched_at: datetime | None = Field(default=None, sa_column=_dt())
     created_at: datetime = Field(default_factory=utcnow, sa_column=_dt())
 #endregion

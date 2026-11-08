@@ -322,6 +322,16 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   JSON/ICS, wrong shape) stays a hard `error`. The hikerapi gatherer classifies
   HTTP status in `_get()`: `403`/`404` → `SourceIssue`, `429`/`5xx`/network →
   retried with backoff, other `4xx` → hard error.
+- **Change-probe (F21.05)** — a gatherer can declare `CHANGE_PROBE = True` +
+  `probe(source, previous_state) -> {changed, state}` (read via
+  `registry.gatherer_change_probe()`/`load_probe()`). The optional watermark lives
+  in the opaque JSON column `Source.probe_state` (gatherer-owned — ingest never
+  interprets it), so other gatherers can adopt the same short-circuit with their
+  own state (etag, etc.) and **no shared-schema changes**. On an unchanged probe,
+  `ingest._probe_and_enqueue` skips the full `run()` + enqueue and just re-stamps
+  `last_fetched_at` (status `ok`). hikerapi's state is `{user_pk, newest_code}`
+  (cached `pk` skips the profile call; `code` is a precise change token), and
+  `fetch_medias` follows `next_page_id` up to `_MAX_PAGES`.
 - **Run status is agnostic** — every source run (batch ingest *and* the pipeline
   playground) records its outcome to `data/status.json` (`ok`/`warning`/`error`);
   `/debug` derives 🟢/🟡/🔴/⚪ lights from it, rolled up per gatherer by highest

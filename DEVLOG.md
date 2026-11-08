@@ -1,3 +1,21 @@
+## 2026-10-20 20:40:00 [AI]
+
+F21.05 observability: surface the change-probe watermark.
+
+- `stats.sources()` now includes `probe_state` (the parsed, opaque JSON watermark) — additive, so it appears in `/debug/sources`, `/api/v1/sources`, and `python -m app.debug sources`.
+- The `/debug` dashboard's per-source table gains a `probe` column (the newest post `code`, `—` when the gatherer has no probe).
+- Verified on the dev DB: `Recess4Eva` (hikerapi) shows `{"user_pk": "12031962527", "newest_code": "Deul3Z4v9hA"}`; `Studio Two Three` (elfsight) shows `null`. 542 passing.
+
+## 2026-10-20 20:30:00 [AI]
+
+F21.05: Instagram cost-saving change-probe + deeper pagination.
+
+- `app/gatherers/hikerapi/gatherer.py`: `CHANGE_PROBE = True` capability + `probe(source, previous_state)` — fetches only the first media page, compares the newest post `code` to the cached state, returns `{changed, state}`. `fetch_medias` now follows `next_page_id` (up to `_MAX_PAGES = 3`, 9/page) and accepts a cached `pk` to skip the profile call. Refactored `_resolve_pk`/`_fetch_page`/`_require_key` helpers.
+- **Generic watermark**: `Source.probe_state` (opaque JSON, gatherer-owned) + migration; the hikerapi state is `{user_pk, newest_code}` but ingest never interprets it — so any gatherer can adopt `CHANGE_PROBE` + `probe()` with its own state (etag, etc.) and zero shared-schema changes.
+- `app/registry.py`: `gatherer_change_probe()` + `load_probe()`.
+- `app/ingest.py`: `_probe_and_enqueue()` — unchanged probe → re-stamp `last_fetched_at` + persist state, reported `"ok"` (not the `record_run(0)`→`warning` path); changed → full `run()` + enqueue + persist state.
+- Verified live against `recess4eva`: probe round-trips `changed: True → False`; paginated fetch returns 27 posts (3 pages). Tests: 8 new. 542 passing.
+
 ## 2026-10-20 19:45:00 [AI]
 
 F37.01: graceful gatherer failure on source unavailability (generalizes F21.07).

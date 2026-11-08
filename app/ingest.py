@@ -25,9 +25,16 @@ from app.gatherers.errors import SourceIssue
 from app.identity import stable_id
 from app.logging import sanitize, setup_logging
 from app.models import Event, Source, utcnow
-from app.registry import gatherer_decide_before_insert, load_gatherer, load_sources
+from app.registry import (
+    gatherer_change_probe,
+    gatherer_decide_before_insert,
+    load_gatherer,
+    load_probe,
+    load_sources,
+)
 from app.schema import CategoryRule, GathererResult, SieveResult, SourceConfig
 from app.services import lock
+from app.services.clock import now as clock_now
 from app.services.images import host_images
 from app.services.pending import enqueue as enqueue_posts
 from app.services.placeholders import materialize as materialize_placeholders
@@ -117,7 +124,46 @@ def _enqueue_source(
     return enqueue_posts(session, source, result, dry_run=dry_run)
 
 
+def _probe_and_enqueue(
+    session: Session,
+    cfg: SourceConfig,
+    run_fn: Callable[[SourceConfig], GathererResult],
+    probe_fn: Callable,
+    *,
+    dry_run: bool = False,
+) -> dict:
+    """Change-probe path (F21.05): short-circuit unchanged runs, else full enqueue.
+
+    `probe_state` is an opaque JSON blob owned by the gatherer (here: the cached
+    `user_pk` + newest post `code`), so ingest never interprets it. On an
+    unchanged probe we only re-stamp `last_fetched_at`; otherwise we run the full
+    gather + enqueue and store the new state.
+    """
+    source = _ensure_source(session, cfg)
+    previous = None
+    if source.probe_state:
+        try:
+            previous = json.loads(source.probe_state)
+        except (TypeError, ValueError):
+            previous = None
+
+    probe = probe_fn(cfg, previous)
+    if not probe["changed"] and not dry_run:
+        source.last_fetched_at = clock_now()
+        source.probe_state = json.dumps(probe["state"])
+        return {"probed": True, "skipped_unchanged": True, "enqueued": 0, "changed": 0, "unchanged": 0}
+
+    result = run_fn(cfg)
+    summary = enqueue_posts(session, source, result, dry_run=dry_run)
+    if not dry_run:
+        source.probe_state = json.dumps(probe["state"])
+    return {**summary, "probed": True, "skipped_unchanged": False}
+
+
 def _print_enqueue(name: str, summary: dict) -> None:
+    if summary.get("skipped_unchanged"):
+        print(f"{name}: unchanged (probe — no new posts)")
+        return
     print(
         f"{name}: enqueued {summary['enqueued']}, changed {summary['changed']}, "
         f"unchanged {summary['unchanged']}"
@@ -177,14 +223,24 @@ def _run_locked(dry_run: bool = False) -> tuple[list[SieveResult], list[dict]]:
             try:
                 run_fn = load_gatherer(cfg.gatherer)
                 if gatherer_decide_before_insert(cfg.gatherer):
-                    summary = _enqueue_source(session, cfg, run_fn, dry_run=dry_run)
-                    total = summary["enqueued"] + summary["changed"] + summary["unchanged"]
-                    record_run(cfg.name, total)
+                    probe_fn = load_probe(cfg.gatherer) if gatherer_change_probe(cfg.gatherer) else None
+                    if probe_fn is not None:
+                        summary = _probe_and_enqueue(session, cfg, run_fn, probe_fn, dry_run=dry_run)
+                    else:
+                        summary = _enqueue_source(session, cfg, run_fn, dry_run=dry_run)
+
+                    if summary.get("skipped_unchanged"):
+                        record_status(cfg.name, "ok", message="unchanged (no new posts)")
+                    else:
+                        total = summary["enqueued"] + summary["changed"] + summary["unchanged"]
+                        record_run(cfg.name, total)
                     _print_enqueue(cfg.name, summary)
                     summaries.append(
                         {
                             "name": cfg.name,
                             "status": "ok",
+                            "probed": summary.get("probed", False),
+                            "skipped_unchanged": summary.get("skipped_unchanged", False),
                             "enqueued": summary["enqueued"],
                             "changed": summary["changed"],
                             "unchanged": summary["unchanged"],

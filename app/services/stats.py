@@ -73,6 +73,16 @@ def overview(session: Session) -> dict:
 
 
 #region: sources
+def _probe_state(source: Source) -> dict | None:
+    """Parse the opaque change-probe watermark for display (F21.05 observability)."""
+    if not source.probe_state:
+        return None
+    try:
+        return json.loads(source.probe_state)
+    except (TypeError, ValueError):
+        return None
+
+
 def sources(session: Session) -> list[dict]:
     """Non-secret per-source summary (never the URL)."""
     out = []
@@ -89,6 +99,7 @@ def sources(session: Session) -> list[dict]:
                 if source.last_fetched_at
                 else None,
                 "event_count": count,
+                "probe_state": _probe_state(source),
             }
         )
     return out

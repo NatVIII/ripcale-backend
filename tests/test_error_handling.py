@@ -154,3 +154,73 @@ def test_available_gatherers_skips_broken(monkeypatch):
     monkeypatch.setattr(pipeline_mod.importlib, "import_module", lambda name: (_ for _ in ()).throw(ImportError("nope")))
 
     assert pipeline_mod._available_gatherers() == []
+
+
+#region: change-probe enqueue (F21.05)
+def _probe_setup(tmp_path):
+    from sqlmodel import SQLModel, create_engine, Session
+
+    from app.models import Source
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'probe.db'}")
+    SQLModel.metadata.create_all(engine)
+    cfg = SourceConfig(name="IG", gatherer="hikerapi", url="https://instagram.com/x")
+    session = Session(engine)
+    source = Source(
+        name="IG", url=cfg.url, gatherer="hikerapi",
+        probe_state='{"user_pk": "123", "newest_code": "AAA"}',
+    )
+    session.add(source)
+    session.commit()
+    return session, source, cfg
+
+
+def test_probe_and_enqueue_short_circuits_when_unchanged(tmp_path):
+    import app.ingest as ingest_mod
+
+    session, source, cfg = _probe_setup(tmp_path)
+    try:
+        def run_fn(c):
+            raise AssertionError("run_fn must not run on an unchanged probe")
+
+        def probe_fn(c, prev):
+            assert prev == {"user_pk": "123", "newest_code": "AAA"}
+            return {"changed": False, "state": {"user_pk": "123", "newest_code": "AAA"}}
+
+        summary = ingest_mod._probe_and_enqueue(session, cfg, run_fn, probe_fn, dry_run=False)
+
+        assert summary["skipped_unchanged"] is True
+        assert summary["enqueued"] == 0
+        session.commit()  # _run_locked commits per source; mimic it before refresh
+        session.refresh(source)
+        assert source.last_fetched_at is not None
+        assert source.probe_state == '{"user_pk": "123", "newest_code": "AAA"}'
+    finally:
+        session.close()
+
+
+def test_probe_and_enqueue_runs_when_changed(tmp_path):
+    import app.ingest as ingest_mod
+
+    session, source, cfg = _probe_setup(tmp_path)
+    try:
+        called = {}
+
+        def run_fn(c):
+            called["run"] = True
+            return GathererResult(source=c, events=[ScrapedEvent(uid="u1", title="Event")])
+
+        def probe_fn(c, prev):
+            return {"changed": True, "state": {"user_pk": "123", "newest_code": "BBB"}}
+
+        summary = ingest_mod._probe_and_enqueue(session, cfg, run_fn, probe_fn, dry_run=False)
+
+        assert called.get("run") is True
+        assert summary["skipped_unchanged"] is False
+        assert summary["enqueued"] == 1
+        session.commit()
+        session.refresh(source)
+        assert source.probe_state == '{"user_pk": "123", "newest_code": "BBB"}'
+    finally:
+        session.close()
+#endregion

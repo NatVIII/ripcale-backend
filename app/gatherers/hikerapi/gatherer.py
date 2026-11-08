@@ -9,6 +9,7 @@ gatherer's capabilities are declared here (not in config).
 CONTRACT_VERSION = 10
 PERMANENT = True                # posts never "removed at source", only expire
 DECIDE_BEFORE_INSERT = True     # enqueue posts for LLM resolution (F65)
+CHANGE_PROBE = True             # cheap "did anything change?" probe (F21.05)
 
 #region: imports
 import logging
@@ -36,6 +37,9 @@ TIMEOUT = 30.0
 _MAX_ATTEMPTS = 3
 _BACKOFF_BASE = 1.0    # seconds, first retry
 _BACKOFF_CAP = 30.0    # seconds, ceiling on a single wait (also caps Retry-After)
+
+# Deeper pagination (F21.05): at most this many media pages per fetch (9 posts/page).
+_MAX_PAGES = 3
 
 _USERNAME_RE = re.compile(r"instagram\.com/([^/?#]+)")
 #endregion
@@ -247,10 +251,14 @@ def to_event(media: dict) -> ScrapedEvent:
 
 
 #region: fetch + run
-def fetch_medias(source: SourceConfig) -> list[dict]:
-    """Fetch the account's recent posts (latest page)."""
+def _require_key() -> None:
     if not settings.hikerapi_key:
         raise ValueError("RIPCALE_HIKERAPI_KEY is not set — cannot fetch Instagram")
+
+
+def _resolve_pk(source: SourceConfig) -> str:
+    """Resolve the account's numeric pk via the profile endpoint."""
+    _require_key()
     username = _username_from_url(source.url)
     if not username:
         raise ValueError(f"cannot parse an Instagram username from {source.url!r}")
@@ -258,7 +266,50 @@ def fetch_medias(source: SourceConfig) -> list[dict]:
     pk = user.get("pk")
     if pk is None:
         raise ValueError(f"no 'pk' in HikerAPI user response for {username!r}")
-    return _media_list(_get(f"{BASE_URL}/g2/user/medias", {"user_id": str(pk)}))
+    return str(pk)
+
+
+def _fetch_page(pk: str, next_page_id: str | None = None) -> dict:
+    params: dict[str, str] = {"user_id": str(pk)}
+    if next_page_id:
+        params["next_page_id"] = next_page_id
+    return _get(f"{BASE_URL}/g2/user/medias", params)
+
+
+def fetch_medias(source: SourceConfig, pk: str | None = None) -> list[dict]:
+    """Fetch the account's recent posts, following `next_page_id` (F21.05).
+
+    `pk` (the stable account id) avoids a profile call when already cached.
+    """
+    _require_key()
+    pk = pk or _resolve_pk(source)
+    medias: list[dict] = []
+    next_page_id: str | None = None
+    for _ in range(_MAX_PAGES):
+        payload = _fetch_page(pk, next_page_id)
+        medias.extend(_media_list(payload))
+        next_page_id = payload.get("next_page_id") if isinstance(payload, dict) else None
+        if not next_page_id:
+            break
+    return medias
+
+
+def probe(source: SourceConfig, previous_state: dict | None = None) -> dict:
+    """Cheap "did anything change?" probe (F21.05).
+
+    Fetches only the first media page (plus a profile call on the first resolve)
+    and compares the newest post `code` to `previous_state`. Returns
+    `{"changed": bool, "state": {"user_pk", "newest_code"}}` — the caller persists
+    `state` opaquely and calls `run()` only when `changed`.
+    """
+    _require_key()
+    pk = (previous_state or {}).get("user_pk") or _resolve_pk(source)
+    items = _media_list(_fetch_page(str(pk)))
+    newest_code = items[0].get("code") if items else None
+    prev_code = (previous_state or {}).get("newest_code")
+    changed = previous_state is None or newest_code != prev_code
+    return {"changed": changed, "state": {"user_pk": str(pk), "newest_code": newest_code}}
+
 
 
 def fetch_raw(source: SourceConfig) -> list[dict]:

@@ -78,6 +78,8 @@ def _migrate() -> None:
             source_columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(source)")}
             if "llm_context" not in source_columns:
                 conn.exec_driver_sql("ALTER TABLE source ADD COLUMN llm_context VARCHAR")
+            if "probe_state" not in source_columns:
+                conn.exec_driver_sql("ALTER TABLE source ADD COLUMN probe_state VARCHAR")
 
         has_pending = conn.exec_driver_sql(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='pendingpost'"

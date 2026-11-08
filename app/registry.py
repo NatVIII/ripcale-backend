@@ -36,6 +36,11 @@ def gatherer_decide_before_insert(name: str) -> bool:
     return _gatherer_flag(name, "DECIDE_BEFORE_INSERT")
 
 
+def gatherer_change_probe(name: str) -> bool:
+    """True when a gatherer supports a cheap "did anything change?" probe (F21.05)."""
+    return _gatherer_flag(name, "CHANGE_PROBE")
+
+
 def _gatherer_flag(name: str, attr: str) -> bool:
     """Read a gatherer capability constant (declared in its module, not config)."""
     try:
@@ -51,4 +56,13 @@ def load_gatherer(name: str) -> Callable[[SourceConfig], GathererResult]:
     """Import `app.gatherers.<name>.gatherer` and return its `run` callable."""
     mod = importlib.import_module(f"app.gatherers.{name}.gatherer")
     return mod.run
+
+
+def load_probe(name: str) -> Callable | None:
+    """Return a gatherer's `probe` callable, or None if it has no change-probe (F21.05)."""
+    try:
+        mod = importlib.import_module(f"app.gatherers.{name}.gatherer")
+    except ImportError:
+        return None
+    return getattr(mod, "probe", None)
 #endregion

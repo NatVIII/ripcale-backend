@@ -352,4 +352,87 @@ def test_verify_flags_missing_fields():
     assert "code" in joined
     assert "image" in joined
     assert "timestamp" in joined
+
+
+#region: change probe + pagination (F21.05)
+def test_probe_first_run_is_changed(monkeypatch):
+    _patch_get(monkeypatch, {"pk": "123"}, [_media(code="AAA")])
+
+    result = gatherer.probe(SOURCE)
+
+    assert result["changed"] is True
+    assert result["state"] == {"user_pk": "123", "newest_code": "AAA"}
+
+
+def test_probe_unchanged(monkeypatch):
+    _patch_get(monkeypatch, {"pk": "123"}, [_media(code="AAA")])
+
+    result = gatherer.probe(SOURCE, {"user_pk": "123", "newest_code": "AAA"})
+
+    assert result["changed"] is False
+    assert result["state"] == {"user_pk": "123", "newest_code": "AAA"}
+
+
+def test_probe_changed(monkeypatch):
+    _patch_get(monkeypatch, {"pk": "123"}, [_media(code="BBB")])
+
+    result = gatherer.probe(SOURCE, {"user_pk": "123", "newest_code": "AAA"})
+
+    assert result["changed"] is True
+    assert result["state"]["newest_code"] == "BBB"
+
+
+def test_probe_caches_pk_skips_profile(monkeypatch):
+    calls = []
+
+    def fake_get(url, params=None):
+        if "user/by/username" in url:
+            calls.append("profile")
+            return {"pk": "123"}
+        calls.append("media")
+        return {"response": {"items": [_media(code="AAA")]}}
+
+    monkeypatch.setattr(gatherer, "_get", fake_get)
+    monkeypatch.setattr(gatherer.settings, "hikerapi_key", "test-key")
+
+    gatherer.probe(SOURCE, {"user_pk": "123", "newest_code": "AAA"})
+
+    assert calls == ["media"]  # cached pk -> no profile call
+
+
+def test_fetch_medias_follows_next_page_id(monkeypatch):
+    pages = {
+        None: {"response": {"items": [_media(code="A1")]}, "next_page_id": "cursor1"},
+        "cursor1": {"response": {"items": [_media(code="A2")]}, "next_page_id": None},
+    }
+
+    def fake_get(url, params=None):
+        if "user/by/username" in url:
+            return {"pk": "123"}
+        return pages[(params or {}).get("next_page_id")]
+
+    monkeypatch.setattr(gatherer, "_get", fake_get)
+    monkeypatch.setattr(gatherer.settings, "hikerapi_key", "test-key")
+
+    medias = gatherer.fetch_medias(SOURCE)
+    assert [m["code"] for m in medias] == ["A1", "A2"]
+
+
+def test_fetch_medias_respects_max_pages(monkeypatch):
+    monkeypatch.setattr(gatherer, "_MAX_PAGES", 2)
+    calls = {"n": 0}
+
+    def fake_get(url, params=None):
+        if "user/by/username" in url:
+            return {"pk": "123"}
+        calls["n"] += 1
+        return {"response": {"items": [_media(code=f"A{calls['n']}")]}, "next_page_id": "more"}
+
+    monkeypatch.setattr(gatherer, "_get", fake_get)
+    monkeypatch.setattr(gatherer.settings, "hikerapi_key", "test-key")
+
+    medias = gatherer.fetch_medias(SOURCE)
+    assert len(medias) == 2       # capped at _MAX_PAGES
+    assert calls["n"] == 2
+#endregion
 #endregion

@@ -135,9 +135,9 @@ default — see [Backups & restore](#backups--restore).
 The admin app requires a session login. One-time setup:
 
 ```sh
-.venv/bin/python -m app.auth gen-pepper           # → put in .env as RIPCALE_PEPPER
-.venv/bin/python -m app.auth hash-password        # → put in .env as RIPCALE_ADMIN_PASSWORD_HASH
-.venv/bin/python -m app.admin                     # bootstrap creates the admin user
+docker compose run --rm admin python -m app.auth gen-pepper    # → put in .env as RIPCALE_PEPPER
+docker compose run --rm admin python -m app.auth hash-password # → put in .env as RIPCALE_ADMIN_PASSWORD_HASH
+docker compose up -d                                            # boot the admin service (creates the admin user)
 ```
 
 Then open `http://127.0.0.1:8082/debug/login` and sign in. For bots/automation,
@@ -145,37 +145,40 @@ mint a per-user API token (shown once — save it) and send it as
 `Authorization: Bearer <token>`:
 
 ```sh
-.venv/bin/python -m app.auth token create admin --label my-bot
+docker compose exec admin python -m app.auth token create admin --label my-bot
 ```
 
 Two gotchas:
 
 - **Set the pepper before hashing** — the hash bakes the pepper in, so generate
   `RIPCALE_PEPPER` first, then `RIPCALE_ADMIN_PASSWORD_HASH`.
-- **To change a password later, use `app.auth change-password admin`** — editing
+- **To change a password later, use `docker compose exec admin python -m app.auth change-password admin`** — editing
   `RIPCALE_ADMIN_PASSWORD_HASH` only seeds the admin *if it doesn't exist yet*;
   it won't update an existing user.
 
 ## Command reference
 
-Every entrypoint, with its intended use. (Run from the repo root inside the venv.)
+Every entrypoint, with its intended use. The commands below run against the Docker `admin` service (or the servers via `docker compose`).
 
 ### Servers
 
 ```sh
-.venv/bin/python -m app.public   # read-only API on :8081
-.venv/bin/python -m app.admin    # debug/admin on 127.0.0.1:8082 (session login required)
-.venv/bin/python -m app.main     # dev launcher — runs both (not used in Docker)
+docker compose up -d           # both services (public :8081 + admin 127.0.0.1:8082)
+docker compose up -d public    # read-only API on :8081 (runs app.public)
+docker compose up -d admin     # debug/admin on 127.0.0.1:8082 (runs app.admin; session login required)
+docker compose logs -f admin   # follow the admin container's logs
 ```
+
+(`app.main` — the dev launcher that runs both in one process — is bare-metal only; Docker runs `public` and `admin` separately.)
 
 ### Ingest
 
 ```sh
-.venv/bin/python -m app.ingest --dry-run   # classify only, no writes (preview)
-.venv/bin/python -m app.ingest             # scrape → sieve → decide → store
-.venv/bin/python -m app.gatherers.elfsight # run one gatherer standalone (dev)
-.venv/bin/python -m app.archive --commit   # archive (GC) — dry-run by default
-.venv/bin/python -m app.images prune --commit  # orphan image GC — dry-run by default
+docker compose exec admin python -m app.ingest --dry-run   # classify only, no writes (preview)
+docker compose exec admin python -m app.ingest             # scrape → sieve → decide → store
+docker compose exec admin python -m app.gatherers.elfsight # run one gatherer standalone (dev)
+docker compose exec admin python -m app.archive --commit   # archive (GC) — dry-run by default
+docker compose exec admin python -m app.images prune --commit  # orphan image GC — dry-run by default
 ```
 
 ### Backups
@@ -190,31 +193,31 @@ docker compose exec admin python -m app.backup restore <name> --yes # restore (s
 ### Inspect data (reads the DB directly; no IP gate applies)
 
 ```sh
-.venv/bin/python -m app.debug                     # overview stats (default)
-.venv/bin/python -m app.debug stats               # same as above
-.venv/bin/python -m app.debug sources             # per-source summary
-.venv/bin/python -m app.debug events --id <id>    # dump a single event
+docker compose exec admin python -m app.debug                     # overview stats (default)
+docker compose exec admin python -m app.debug stats               # same as above
+docker compose exec admin python -m app.debug sources             # per-source summary
+docker compose exec admin python -m app.debug events --id <id>    # dump a single event
 ```
 
 ### Authentication / users
 
 ```sh
-.venv/bin/python -m app.auth hash-password          # prompt → print an argon2id hash (for .env)
-.venv/bin/python -m app.auth gen-pepper             # print a random pepper (for .env)
-.venv/bin/python -m app.auth add-user <username>    # create a user (prompts for a password)
-.venv/bin/python -m app.auth change-password <username>
-.venv/bin/python -m app.auth remove-user <username>
-.venv/bin/python -m app.auth list-users
-.venv/bin/python -m app.auth token create <username> [--label <label>]   # mint an API token (shown once)
-.venv/bin/python -m app.auth token list <username>                        # list a user's tokens (hashes only)
-.venv/bin/python -m app.auth token revoke <token>                         # revoke a token
+docker compose exec admin python -m app.auth hash-password          # prompt → print an argon2id hash (for .env)
+docker compose exec admin python -m app.auth gen-pepper             # print a random pepper (for .env)
+docker compose exec admin python -m app.auth add-user <username>    # create a user (prompts for a password)
+docker compose exec admin python -m app.auth change-password <username>
+docker compose exec admin python -m app.auth remove-user <username>
+docker compose exec admin python -m app.auth list-users
+docker compose exec admin python -m app.auth token create <username> [--label <label>]   # mint an API token (shown once)
+docker compose exec admin python -m app.auth token list <username>                        # list a user's tokens (hashes only)
+docker compose exec admin python -m app.auth token revoke <token>                         # revoke a token
 ```
 
 ### Dev / Docker
 
 ```sh
-.venv/bin/python -m pytest          # run the test suite
-docker compose up --build           # public + admin services
+docker compose exec admin python -m pytest   # run the test suite (inside the admin container)
+docker compose up --build                     # build + start public + admin services
 ```
 
 ## Backups & restore
@@ -247,8 +250,6 @@ docker compose exec admin python -m app.backup --prune              # apply rete
 docker compose exec admin python -m app.backup restore <name> --yes # restore a snapshot
 ```
 
-Native (non-Docker) equivalent: `.venv/bin/python -m app.backup …`.
-
 ### Restore
 
 Restore **overwrites the live DB and `intake.yaml`** with the snapshot; a
@@ -268,16 +269,16 @@ Backups can also be managed from the browser at `/debug/backups` or the JSON API
 ## Ingest
 
 ```sh
-.venv/bin/python -m app.ingest --dry-run   # classify only, no writes
-.venv/bin/python -m app.ingest             # scrape -> sieve -> decide -> store
+docker compose exec admin python -m app.ingest --dry-run   # classify only, no writes
+docker compose exec admin python -m app.ingest             # scrape -> sieve -> decide -> store
 ```
 
 The pipeline is gather (gatherer) -> sieve (read-only new/updated/unchanged
 diff against the DB) -> decisionmaker (persist). A gatherer can be run standalone:
 
 ```sh
-.venv/bin/python -m app.gatherers.elfsight
-.venv/bin/python -m app.gatherers.ics      # any RFC 5545 feed (e.g. a public Google Calendar)
+docker compose exec admin python -m app.gatherers.elfsight
+docker compose exec admin python -m app.gatherers.ics      # any RFC 5545 feed (e.g. a public Google Calendar)
 ```
 
 Public Google Calendars are just `.ics` feeds — no API key needed. Use the
@@ -318,7 +319,7 @@ their URLs are stable across ingests; each `image` exposes `url` (local) and
 A versioned JSON admin API on the **admin** app (`127.0.0.1:8082`), for bots and
 automation. Every response is a `{ok, data|error}` envelope; authenticate with a
 per-user API token (`Authorization: Bearer <token>` — mint one with
-`python -m app.auth token create <username>`), or with a session cookie from the
+`docker compose exec admin python -m app.auth token create <username>`), or with a session cookie from the
 login. Writes default to dry-run where applicable.
 
 **Read**
@@ -374,7 +375,7 @@ drive each pipeline stage from the browser (log in at `/debug/login` first).
 - `GET /debug/retag` — mass category rename/remove.
 - `GET /debug/wipe` — challenge-response database wipe.
 - `GET /debug/tests` — run the pytest suite.
-- CLI equivalent: `python -m app.debug [stats|sources|events --id <id>]`.
+- CLI equivalent: `docker compose exec admin python -m app.debug [stats|sources|events --id <id>]`.
 
 ### Access control
 

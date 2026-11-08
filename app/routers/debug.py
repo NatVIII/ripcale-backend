@@ -123,12 +123,13 @@ def register(app) -> None:
                     s["name"],
                     s["event_count"],
                     s["last_fetched_at"] or "—",
+                    (s.get("probe_state") or {}).get("newest_code") or "—",
                 ]
                 for s in by_gatherer[gatherer]
             ]
             gatherer_blocks.append(
                 f"<details><summary>{emoji} {escape(gatherer)}</summary>"
-                + table(["status", "name", "events", "last fetch"], rows)
+                + table(["status", "name", "events", "last fetch", "probe"], rows)
                 + "</details>"
             )
 
