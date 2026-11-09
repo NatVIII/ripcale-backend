@@ -8,10 +8,11 @@ import app.services.scheduler as sched
 
 
 def _reset(monkeypatch):
-    monkeypatch.setattr(sched, "_thread", None)
-    monkeypatch.setattr(sched, "_lock", threading.Lock())
+    w = sched._worker
+    monkeypatch.setattr(w, "_thread", None)
+    monkeypatch.setattr(w, "_lock", threading.Lock())
     monkeypatch.setattr(
-        sched,
+        w,
         "_state",
         {"enabled": False, "interval_minutes": None, "last_run_at": None, "next_run_at": None, "running": False},
     )

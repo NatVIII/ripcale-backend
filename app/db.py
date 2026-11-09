@@ -11,7 +11,7 @@ from sqlalchemy import event, func
 from sqlmodel import Session, SQLModel, create_engine, delete, select
 
 from app.config import settings
-from app.models import Approval, Event, LoginSession, PendingPost, Source
+from app.models import Approval, DedupCandidate, Event, LoginSession, PendingPost, Source
 #endregion
 
 
@@ -50,44 +50,44 @@ def init_db() -> None:
 
 
 #region: migration
-def _migrate() -> None:
-    """Idempotent light migrations for columns added after the initial schema.
+#: Idempotent column additions for existing SQLite DBs — `(table, column, DDL)`.
+#: `create_all` already creates these on fresh DBs; this backfills older ones.
+#: Add a new column by appending one line here (the `db/migrations.py` home is F74).
+MIGRATIONS: list[tuple[str, str, str]] = [
+    ("event", "archived_at", "DATETIME"),
+    ("event", "archived_reason", "VARCHAR"),
+    ("event", "pinned", "BOOLEAN NOT NULL DEFAULT 0"),
+    ("event", "placeholder", "BOOLEAN NOT NULL DEFAULT 0"),
+    ("source", "llm_context", "VARCHAR"),
+    ("source", "probe_state", "VARCHAR"),
+    ("pendingpost", "published_at", "DATETIME"),
+]
 
-    SQLModel's `create_all` does not ALTER existing tables, so new columns are
-    added here defensively (SQLite `ADD COLUMN` for nullable columns, plus the
-    matching index). A fresh DB already has them — this is a no-op.
-    """
+#: Idempotent indexes, re-applied on every start.
+MIGRATION_INDEXES: list[str] = [
+    "CREATE INDEX IF NOT EXISTS ix_event_archived_at ON event (archived_at)",
+]
+
+
+def _table_exists(conn, table: str) -> bool:
+    return conn.exec_driver_sql(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+    ).first() is not None
+
+
+def _migrate() -> None:
+    """Apply the declarative `MIGRATIONS` (idempotent; a no-op on fresh DBs)."""
     if not _is_sqlite(settings.resolved_database_url):
         return
     with engine.begin() as conn:
-        columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(event)")}
-        if "archived_at" not in columns:
-            conn.exec_driver_sql("ALTER TABLE event ADD COLUMN archived_at DATETIME")
-        if "archived_reason" not in columns:
-            conn.exec_driver_sql("ALTER TABLE event ADD COLUMN archived_reason VARCHAR")
-        if "pinned" not in columns:
-            conn.exec_driver_sql("ALTER TABLE event ADD COLUMN pinned BOOLEAN NOT NULL DEFAULT 0")
-        if "placeholder" not in columns:
-            conn.exec_driver_sql("ALTER TABLE event ADD COLUMN placeholder BOOLEAN NOT NULL DEFAULT 0")
-        conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_event_archived_at ON event (archived_at)")
-
-        has_source = conn.exec_driver_sql(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='source'"
-        ).first() is not None
-        if has_source:
-            source_columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(source)")}
-            if "llm_context" not in source_columns:
-                conn.exec_driver_sql("ALTER TABLE source ADD COLUMN llm_context VARCHAR")
-            if "probe_state" not in source_columns:
-                conn.exec_driver_sql("ALTER TABLE source ADD COLUMN probe_state VARCHAR")
-
-        has_pending = conn.exec_driver_sql(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='pendingpost'"
-        ).first() is not None
-        if has_pending:
-            pending_columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(pendingpost)")}
-            if "published_at" not in pending_columns:
-                conn.exec_driver_sql("ALTER TABLE pendingpost ADD COLUMN published_at DATETIME")
+        for table, column, ddl in MIGRATIONS:
+            if not _table_exists(conn, table):
+                continue
+            columns = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
+            if column not in columns:
+                conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+        for statement in MIGRATION_INDEXES:
+            conn.exec_driver_sql(statement)
 #endregion
 
 
@@ -108,6 +108,7 @@ def wipe_db() -> tuple[int, int]:
         session.exec(delete(Source))
         session.exec(delete(LoginSession))
         session.exec(delete(Approval))  # proposals reference sources by name — clear on wipe
+        session.exec(delete(DedupCandidate))  # dedupe candidates reference event ids — clear on wipe
         session.commit()
     return events, sources
 #endregion

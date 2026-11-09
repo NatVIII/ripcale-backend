@@ -6,10 +6,41 @@ or HTTP error) as `SourceIssue` so ingest records a `warning` rather than a hard
 `error`; unparseable content (invalid JSON/ICS) is left as a hard error.
 """
 #region: imports
+from typing import Protocol, runtime_checkable
+
 import httpx
 
 from app.gatherers.errors import SourceIssue
+from app.schema import GathererResult, SourceConfig
 from app.services.ssrf import get as safe_get
+#endregion
+
+
+#region: interface
+@runtime_checkable
+class Gatherer(Protocol):
+    """The interface every gatherer provides (a module or class under
+    ``app/gatherers/<name>/``). It is consumed by ``registry`` and the pipeline.
+
+    Capabilities are optional module/class constants (read by ``registry``):
+    ``PERMANENT`` and ``DECIDE_BEFORE_INSERT`` are declared by every gatherer
+    today; ``CHANGE_PROBE`` + ``probe()`` are only on ``ChangeProbeGatherer``.
+    """
+
+    CONTRACT_VERSION: int
+    PERMANENT: bool
+    DECIDE_BEFORE_INSERT: bool
+
+    def run(self, source: SourceConfig) -> GathererResult: ...
+
+
+@runtime_checkable
+class ChangeProbeGatherer(Gatherer, Protocol):
+    """A gatherer that can cheaply detect whether its source changed."""
+
+    CHANGE_PROBE: bool
+
+    def probe(self, source: SourceConfig, previous_state: dict | None = None) -> dict: ...
 #endregion
 
 

@@ -1,3 +1,13 @@
+## 2026-11-09 15:30:00 [AI]
+
+F70 (Phase 1): extract the seams — behavior unchanged, 548 tests green.
+
+- F70.01 — `app/db.py` now uses a declarative `MIGRATIONS: list[tuple[table, col, ddl]]` + `MIGRATION_INDEXES`; `_migrate()` loops them (add a column = one line). Relocates to `db/migrations.py` in F74.01.
+- F70.02 — `app/workers/base.py` `PeriodicWorker` ABC (daemon thread lifecycle, lock, `_state`, `start`/`_loop`/`_set`, `reason()`/`first_delay_seconds()` hooks). `scheduler`, `llm_worker`, `overseer_worker`, `backup_worker` now subclass it; each keeps its module-level `start`/`status`/`run_once` API (bound to a singleton) so callers/tests are unchanged.
+- F70.03 — `app/gatherers/base.py` gains `Gatherer` (core: `CONTRACT_VERSION`, `PERMANENT`, `DECIDE_BEFORE_INSERT`, `run`) and `ChangeProbeGatherer` (`CHANGE_PROBE`, `probe`) `typing.Protocol`s. Class conversion lands in F75.
+- F70.04 — `queue_dedup` table (`DedupCandidate`, `__tablename__="queue_dedup"`) added, empty until F73; cleared by `wipe_db` like the other queue tables.
+- Tests: `test_migrations.py`, `test_gatherer_protocol.py`, `test_queue_tables.py`; `test_scheduler.py`/`test_llm_worker.py` updated to the worker singletons. 548 passing.
+
 ## 2026-11-09 14:50:00 [AI]
 
 F69.01: migration baseline (import graph + test count).

@@ -197,3 +197,24 @@ class EventConflict(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utcnow, sa_column=_dt())
     resolved_at: datetime | None = Field(default=None, sa_column=_dt())
 #endregion
+
+
+#region: dedupe candidate queue (F70.04 / F73)
+class DedupCandidate(SQLModel, table=True):
+    """A cross-source duplicate candidate queued for LLM decision (F73).
+
+    Born with the `queue_` prefix. The dedupe-detect loop materializes rows here
+    (`status="pending"`); the dedupe-decide loop consumes them and writes the
+    `decision` JSON + a `queue_approval` (`event_merge`) proposal.
+    """
+
+    __tablename__ = "queue_dedup"
+
+    id: str = Field(primary_key=True)           # stable hash of the event pair
+    event_a_id: str = Field(index=True)
+    event_b_id: str
+    status: str = Field(default="pending", index=True)  # pending | decided | done | skipped
+    decision: str | None = None                 # JSON {same, canonical_id, enrich, reason}
+    created_at: datetime = Field(default_factory=utcnow, sa_column=_dt())
+    updated_at: datetime = Field(default_factory=utcnow, sa_column=_dt())
+#endregion

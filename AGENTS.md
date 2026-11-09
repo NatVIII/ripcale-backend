@@ -73,6 +73,10 @@ Key files:
 - `app/services/recurrence.py` — `last_occurrence()` (bounded-RRULE last instance; F12 expansion will live here).
 - `app/services/archive.py` — `archive()` (soft-delete expired/removed events), `list_archived()`, `restore()` (F22).
 - `app/services/scheduler.py` — background ingest scheduler (F11): `start()` (daemon thread) + `status()`.
+- `app/workers/base.py` — `PeriodicWorker` ABC (F70.02): the shared daemon-thread lifecycle
+  (`start`/`_loop`/`_set`, `reason()`/`first_delay_seconds()` hooks) behind the scheduler,
+  LLM, overseer, and backup workers. Each worker module keeps its module-level
+  `start`/`status`/`run_once` (bound to a singleton) so callers are unaffected.
 - `app/services/lock.py` — cross-process `ingest.lock` (atomic, stale-aware) guarding `ingest._run()` (F11).
 - `app/services/clock.py` — central `now()` (frozen when `debug_now` is set) + `debug_active()` (F56.01).
 - `app/services/images.py` — local content-addressed image hosting (`store()`/`resolve()`/`host_images()`) + GC (`prune()`/`referenced_filenames()`) + `is_local()`/`rehost_missing_images()` (F18/F18.01).
@@ -253,6 +257,14 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   are declared as constants on the gatherer module (beside `CONTRACT_VERSION`),
   read via `registry.gatherer_permanent()` / `gatherer_decide_before_insert()` —
   not per-source config.
+- **Structural rework in progress (F69–F76)** — `docs/ARCHITECTURE.md` is the target;
+  `docs/MIGRATION_BASELINE.md` is the frozen import graph. Seams landed so far:
+  `PeriodicWorker` (`workers/base.py`, F70.02), `Gatherer`/`ChangeProbeGatherer`
+  Protocols (`gatherers/base.py`, F70.03), declarative `MIGRATIONS` (`db.py`, F70.01),
+  and the `queue_dedup` table (F70.04, consumed by F73). Still ahead: pipeline
+  `DecideStrategy` (F71), monolith splits (F72), dedupe loops (F73), `db/`/`core/`/
+  `moderation/`/`servers/` packages + `queue_*` table renames + `admin`→`engine`
+  (F74), gatherer classes (F75), docs + shim sweep (F76).
 - **Event listing is future-first, capped by default** — `query_events()` orders by
   `start_at` descending (furthest future first; NULL start sorts last) and caps at
   `DEFAULT_LIMIT` (500) unless a `?limit=` is passed (`None`/`0` = unbounded, used
