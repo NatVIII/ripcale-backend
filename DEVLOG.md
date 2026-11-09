@@ -1,3 +1,10 @@
+## 2026-11-09 14:50:00 [AI]
+
+F69.01: migration baseline (import graph + test count).
+
+- `scripts/import_graph.py` (new, reusable): scans `app/` + `tests/` for `app.*` imports, resolves submodule imports against the filesystem (e.g. `from app.services import actions` → `app.services.actions`), and emits a Markdown report (summary, hub table, 2-cycle check, full edge list). Regenerate + diff against the frozen baseline in F76.
+- `docs/MIGRATION_BASELINE.md` (new): frozen snapshot — **542 tests**, 132 importer files, 77 distinct targets, **no direct mutual imports**. Top hubs: `app.models` (58), `app.schema` (55), `app.config` (52), `app.security` (25), `app.services.actions` (25), `app.db` (21) — i.e. exactly the modules that will need shims during the F71–F74 moves.
+
 ## 2026-10-20 20:40:00 [AI]
 
 F21.05 observability: surface the change-probe watermark.
