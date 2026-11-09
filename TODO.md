@@ -7,6 +7,37 @@ Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tic
 ## Backlog
  
 
+- [ ] F69 - Phase 0 — Baseline & persist the architecture spec
+  - [ ] F69.01 - Record the current import graph + test count (542) as the migration baseline
+  - [ ] F69.02 - Write the compiled architecture spec (loop/queue model, interfaces, target tree, phases) to `docs/ARCHITECTURE.md`
+- [ ] F70 - Phase 1 — Extract the seams (no file moves; behavior identical)
+  - [ ] F70.01 - `db/migrations.py`: declarative `MIGRATIONS: list[tuple[table, col, type]]`; `_migrate()` loops it
+  - [ ] F70.02 - `workers/base.py`: `PeriodicWorker` ABC (`start`/`run_once`/`status`/`_reason`); refactor scheduler / llm_worker / overseer_worker / backup_worker to subclass
+  - [ ] F70.03 - `gatherers/base.py`: `Gatherer` Protocol (`run`/`CONTRACT_VERSION`/capabilities/`probe`)
+  - [ ] F70.04 - Add `queue_dedup` table (SQLModel + migration), empty
+- [ ] F71 - Phase 2 — Pipeline strategy (the structural fix)
+  - [ ] F71.01 - `pipeline/decide_strategy.py`: `DecideStrategy` Protocol + `InsertStrategy`/`EnqueueStrategy`/`ProbeEnqueueStrategy`; move bodies out of `ingest.py`; `_run_locked` → `strategy_for(gatherer)` dispatch
+  - [ ] F71.02 - Split `app/ingest.py` → `pipeline/ingest.py` (orchestrator) + CLI; shim
+- [ ] F72 - Phase 3 — Split the monoliths
+  - [ ] F72.01 - `services/llm.py` + `services/pending.py` → `llm/{pending,transcribe,context,decide,apply}`; `llm_worker` → `workers/ingest_llm.py`; shims
+  - [ ] F72.02 - `services/actions.py` → `application/*` + `__init__.py` re-export; shim
+- [ ] F73 - Phase 4 — Dedupe split (additive)
+  - [ ] F73.01 - Overseer detection materializes `queue_dedup` (pending); add `workers/dedupe_detect.py` (no LLM)
+  - [ ] F73.02 - Add `workers/dedupe_decide.py` (LLM `decide_pair`) polling `queue_dedup` → `queue_approval` (event_merge)
+- [ ] F74 - Phase 5 — Hierarchy renames + queue-table renames
+  - [ ] F74.01 - `db/` package: `connection.py` (NOT `engine.py`), `models.py`, `migrations.py`, `session.py`; shims
+  - [ ] F74.02 - `core/` package: `config`, `schema`, `identity`, `timeutil`, `serializers`, `intake`; shims
+  - [ ] F74.03 - `moderation/` package: `approvals`, `overseer`, `conflicts`; shims
+  - [ ] F74.04 - `servers/` package (`public`, `engine`, `both`) + `cli.py` + `[project.scripts] ripcale = "app.cli:main"`; retire `python -m app.X`
+  - [ ] F74.05 - Rename tables `PendingPost`→`queue_post`, `Approval`→`queue_approval`, `EventConflict`→`queue_conflict` (`ALTER TABLE RENAME TO`)
+  - [ ] F74.06 - Rename `admin` server concept → `engine` (server, compose service, `engine_host`/`engine_port`); keep auth "admin"
+- [ ] F75 - Phase 6 — Gatherer classes + Protocol
+  - [ ] F75.01 - Convert each gatherer → small class (`class HikerapiGatherer(Gatherer): run(self, source)`; capabilities as class attrs); `registry` returns instances; `strategy_for` uses the object
+- [ ] F76 - Phase 7 — Docs, contract, shim sweep, verification
+  - [ ] F76.01 - Rewrite `AGENTS.md` architecture → loops/queues/interfaces; update contract docs (gatherer class-based), `DEVLOG.md`, `README.md` (`ripcale …`)
+  - [ ] F76.02 - Remove internal shims (update in-repo imports); keep only the `ripcale` CLI surface
+  - [ ] F76.03 - Final: full suite + every `ripcale` subcommand smoke + `docker compose up --build` + one live ingest
+
 - [ ] F40 - Superseded by F65 (LLM event pipeline: DeepSeek transcription + decision).
 - [ ] F55 - Gatherer: Libcal Integration with Richmond Public Library System
 - [ ] F36 - Implement decisionmaking page and logic. I want a telegram bot to be able to help me be notified of possible event conflicts and help choose in the future, so this should be done via some kind of API communication or something so that the same interface. We can't implement the telegram bot yet, so let's make the interface via code and then make a debug page that allows for this to take place. (Telegram bot = one large chop later; the approval loop is already API-first via `/api/v1/approvals/*`.)
