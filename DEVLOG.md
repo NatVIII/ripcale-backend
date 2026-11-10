@@ -1,3 +1,10 @@
+## 2026-11-09 16:15:00 [AI]
+
+F71 (Phase 2): the pipeline `DecideStrategy` fix — behavior unchanged, 548 green.
+
+- F71.01 — `app/pipeline/decide_strategy.py`: `DecideStrategy` Protocol + `InsertStrategy` / `EnqueueStrategy` / `ProbeEnqueueStrategy`, an `Outcome` dataclass, and `strategy_for(gatherer)` that picks one from the gatherer's intrinsic capabilities. The per-source steps (`process_source`, `ensure_source`, `archived_ids`, `enqueue_source`, `probe_enqueue`, the two print helpers) moved here. `_run_locked` now does `strategy_for(cfg.gatherer).run(...)` and applies the `Outcome` — the `if gatherer_decide_before_insert()` / `if gatherer_change_probe()` branching is gone; a future source "mode" is a new strategy.
+- F71.02 — the orchestrator moved `app/ingest.py` → `app/pipeline/ingest.py`; `app/ingest.py` is now a thin re-export shim (`python -m app.ingest` still works). Tests that patched module globals (`engine`/`load_sources`/`load_gatherer`/`init_db`/`archive_service`/`_write_last_ingest`) were retargeted to `app.pipeline.ingest`; `from app.ingest import process_source`/`_ensure_source` still work via the shim.
+
 ## 2026-11-09 15:30:00 [AI]
 
 F70 (Phase 1): extract the seams — behavior unchanged, 548 tests green.

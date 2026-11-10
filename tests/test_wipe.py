@@ -218,7 +218,7 @@ def test_wipe_does_not_stop_server_and_can_resume(tmp_path, monkeypatch, session
     assert r.json() == []
 
     # can resume: re-ingest repopulates the wiped DB
-    import app.ingest as ingest_mod
+    import app.pipeline.ingest as ingest_mod
     from app.schema import GathererResult, ScrapedEvent, SourceConfig
 
     monkeypatch.setattr(ingest_mod, "engine", engine)

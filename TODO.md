@@ -7,9 +7,6 @@ Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tic
 ## Backlog
  
 
-- [ ] F71 - Phase 2 — Pipeline strategy (the structural fix)
-  - [ ] F71.01 - `pipeline/decide_strategy.py`: `DecideStrategy` Protocol + `InsertStrategy`/`EnqueueStrategy`/`ProbeEnqueueStrategy`; move bodies out of `ingest.py`; `_run_locked` → `strategy_for(gatherer)` dispatch
-  - [ ] F71.02 - Split `app/ingest.py` → `pipeline/ingest.py` (orchestrator) + CLI; shim
 - [ ] F72 - Phase 3 — Split the monoliths
   - [ ] F72.01 - `services/llm.py` + `services/pending.py` → `llm/{pending,transcribe,context,decide,apply}`; `llm_worker` → `workers/ingest_llm.py`; shims
   - [ ] F72.02 - `services/actions.py` → `application/*` + `__init__.py` re-export; shim
@@ -170,6 +167,9 @@ Each Item has a ticket number. Features use `F##`; bugs use `B##`. Any child tic
   - [x] F70.02 - `workers/base.py` `PeriodicWorker` ABC; scheduler / llm_worker / overseer_worker / backup_worker subclass it (module-level `start`/`status`/`run_once` API preserved)
   - [x] F70.03 - `gatherers/base.py` `Gatherer` + `ChangeProbeGatherer` Protocols; `tests/test_gatherer_protocol.py`
   - [x] F70.04 - `queue_dedup` table (`DedupCandidate`, born with the `queue_` prefix, empty until F73); cleared by `wipe_db`; `tests/test_queue_tables.py`
+- [X] F71 - Phase 2 — Pipeline strategy (the structural fix)
+  - [x] F71.01 - `pipeline/decide_strategy.py`: `DecideStrategy` Protocol + `InsertStrategy`/`EnqueueStrategy`/`ProbeEnqueueStrategy` + `strategy_for()`; per-source steps moved here; `_run_locked` dispatches (no flag branching)
+  - [x] F71.02 - Orchestrator moved `app/ingest.py` → `pipeline/ingest.py` (keeps `python -m app.ingest` via a shim); patching tests retargeted to `app.pipeline.ingest`
 
 ## Deleted
 - [ ] F30 - Deleted Event

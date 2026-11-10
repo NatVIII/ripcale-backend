@@ -14,7 +14,7 @@ def _engine(tmp_path, monkeypatch):
     SQLModel.metadata.create_all(engine)
     monkeypatch.setattr("app.services.actions.engine", engine)
     monkeypatch.setattr("app.db.engine", engine)
-    monkeypatch.setattr("app.ingest.engine", engine)
+    monkeypatch.setattr("app.pipeline.ingest.engine", engine)
     return engine
 
 

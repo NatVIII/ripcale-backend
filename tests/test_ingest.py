@@ -69,7 +69,7 @@ def test_source_priority(tmp_path, monkeypatch):
 
 
 def test_ingest_auto_runs_archive(tmp_path, monkeypatch):
-    import app.ingest as ingest_mod
+    import app.pipeline.ingest as ingest_mod
     from app.config import settings
     from app.schema import GathererResult, ScrapedEvent
 
@@ -99,7 +99,7 @@ def test_ingest_auto_runs_archive(tmp_path, monkeypatch):
 
 
 def test_archive_lifecycle_end_to_end(tmp_path, monkeypatch):
-    import app.ingest as ingest_mod
+    import app.pipeline.ingest as ingest_mod
     from datetime import timedelta
 
     from app.config import settings

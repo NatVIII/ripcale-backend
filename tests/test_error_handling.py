@@ -9,7 +9,7 @@ from app.schema import GathererResult, ScrapedEvent, SourceConfig
 
 
 def test_ingest_continues_after_source_failure(tmp_path, monkeypatch):
-    import app.ingest as ingest_mod
+    import app.pipeline.ingest as ingest_mod
 
     engine = create_engine(f"sqlite:///{tmp_path / 'ingest_err.db'}")
     SQLModel.metadata.create_all(engine)
@@ -46,7 +46,7 @@ def test_ingest_continues_after_source_failure(tmp_path, monkeypatch):
 
 
 def test_ingest_source_issue_is_warning(tmp_path, monkeypatch):
-    import app.ingest as ingest_mod
+    import app.pipeline.ingest as ingest_mod
     from app.gatherers.errors import SourceIssue
 
     engine = create_engine(f"sqlite:///{tmp_path / 'ingest_soft.db'}")
@@ -75,7 +75,7 @@ def test_ingest_source_issue_is_warning(tmp_path, monkeypatch):
 
 
 def test_ingest_down_and_garbage_severities(tmp_path, monkeypatch):
-    import app.ingest as ingest_mod
+    import app.pipeline.ingest as ingest_mod
     from app.gatherers.errors import SourceIssue
 
     engine = create_engine(f"sqlite:///{tmp_path / 'ingest_sev.db'}")
@@ -115,7 +115,7 @@ def test_ingest_down_and_garbage_severities(tmp_path, monkeypatch):
 
 
 def test_ingest_scrubs_urls_from_error_messages(tmp_path, monkeypatch):
-    import app.ingest as ingest_mod
+    import app.pipeline.ingest as ingest_mod
     from app.services.status import read_status
 
     engine = create_engine(f"sqlite:///{tmp_path / 'ingest_scrub.db'}")
@@ -176,7 +176,7 @@ def _probe_setup(tmp_path):
 
 
 def test_probe_and_enqueue_short_circuits_when_unchanged(tmp_path):
-    import app.ingest as ingest_mod
+    import app.pipeline.ingest as ingest_mod
 
     session, source, cfg = _probe_setup(tmp_path)
     try:
@@ -200,7 +200,7 @@ def test_probe_and_enqueue_short_circuits_when_unchanged(tmp_path):
 
 
 def test_probe_and_enqueue_runs_when_changed(tmp_path):
-    import app.ingest as ingest_mod
+    import app.pipeline.ingest as ingest_mod
 
     session, source, cfg = _probe_setup(tmp_path)
     try:

@@ -10,7 +10,7 @@ from app.security import debug_csrf_token
 
 #region: helpers
 def _setup_ingest(tmp_path, monkeypatch, source: SourceConfig | None = None, run_fn=None):
-    import app.ingest as ingest_mod
+    import app.pipeline.ingest as ingest_mod
 
     engine = create_engine(f"sqlite:///{tmp_path / 'ingest_route.db'}")
     SQLModel.metadata.create_all(engine)
@@ -30,7 +30,7 @@ def _one_event_run():
 
 #region: shared core
 def test_run_and_run_report_share_core(monkeypatch):
-    import app.ingest as ingest_mod
+    import app.pipeline.ingest as ingest_mod
 
     calls = []
     monkeypatch.setattr(ingest_mod, "_run", lambda dry_run: calls.append(dry_run) or ([], []))
@@ -78,7 +78,7 @@ def test_ingest_route_dry_run_vs_commit(tmp_path, monkeypatch):
     _setup_ingest(
         tmp_path, monkeypatch, SourceConfig(name="S", gatherer="elfsight", url="https://x"), _one_event_run()
     )
-    import app.ingest as ingest_mod
+    import app.pipeline.ingest as ingest_mod
 
     from robyn.testing import TestClient
 

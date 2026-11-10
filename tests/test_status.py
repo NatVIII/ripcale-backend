@@ -58,7 +58,7 @@ def test_gatherer_rollup_highest_severity():
 
 
 def test_ingest_records_status(tmp_path, monkeypatch):
-    import app.ingest as ingest_mod
+    import app.pipeline.ingest as ingest_mod
 
     engine = create_engine(f"sqlite:///{tmp_path / 'status.db'}")
     SQLModel.metadata.create_all(engine)

@@ -60,7 +60,7 @@ Key files:
 - `app/sieve/` — `classify()` re-exported from `sieve.py` (change detection; fills `default_location`; `_relevance()` drops events
   outside the expiry window — F13).
 - `app/decisionmaker/` — `apply()` re-exported from `decisionmaker.py` (persist; stub for future cross-source heuristics).
-- `app/ingest.py` — `run()` / `run_report()` / `process_source()` orchestrator (CLI + debug ingest page share `_run()`).
+- `app/pipeline/ingest.py` — `run()` / `run_report()` orchestrator (CLI + debug ingest page share `_run()`); dispatches each source through a `DecideStrategy` (`app/pipeline/decide_strategy.py`). `app/ingest.py` is a back-compat shim for these imports.
 - `app/serializers.py` — `Event` → FullCalendar dict.
 - `app/services/events.py` — `query_events()`, `get_event()`, `set_pinned()`, `update_event()` (F28 edit), `source_names()`.
 - `app/services/ics.py` — `event_to_vevent()`, `events_to_ics()`.
@@ -261,8 +261,9 @@ see `docs/DEPLOYMENT.md` for the full server setup.
   `docs/MIGRATION_BASELINE.md` is the frozen import graph. Seams landed so far:
   `PeriodicWorker` (`workers/base.py`, F70.02), `Gatherer`/`ChangeProbeGatherer`
   Protocols (`gatherers/base.py`, F70.03), declarative `MIGRATIONS` (`db.py`, F70.01),
-  and the `queue_dedup` table (F70.04, consumed by F73). Still ahead: pipeline
-  `DecideStrategy` (F71), monolith splits (F72), dedupe loops (F73), `db/`/`core/`/
+  the `queue_dedup` table (F70.04, consumed by F73), and the pipeline `DecideStrategy`
+  (`pipeline/decide_strategy.py` + orchestrator in `pipeline/ingest.py`, F71 — `app/ingest.py`
+  is now a shim). Still ahead: monolith splits (F72), dedupe loops (F73), `db/`/`core/`/
   `moderation/`/`servers/` packages + `queue_*` table renames + `admin`→`engine`
   (F74), gatherer classes (F75), docs + shim sweep (F76).
 - **Event listing is future-first, capped by default** — `query_events()` orders by

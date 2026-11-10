@@ -12,7 +12,7 @@ from app.models import Event, User
 
 def _make_client(tmp_path, monkeypatch):
     import app.db as db_mod
-    import app.ingest as ingest_mod
+    import app.pipeline.ingest as ingest_mod
     import app.services.actions as actions_mod
     from app.services import auth
 
